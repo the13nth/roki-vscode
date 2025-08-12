@@ -1,0 +1,14 @@
+{
+  "projectId": "roki",
+  "name": "AI Project Manager - Roki",
+  "description": "Intelligent project management with AI context injection",
+  "template": "default",
+  "createdAt": "2025-08-11T00:00:00.000Z",
+  "lastModified": "2025-08-11T09:31:16.356Z",
+  "aiModel": "gpt-4",
+  "contextPreferences": {
+    "maxContextSize": 8000,
+    "prioritizeRecent": true,
+    "includeProgress": true
+  }
+}

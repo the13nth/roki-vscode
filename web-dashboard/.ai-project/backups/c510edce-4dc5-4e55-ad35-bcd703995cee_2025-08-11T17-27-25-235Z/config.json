@@ -1,0 +1,14 @@
+{
+  "projectId": "c510edce-4dc5-4e55-ad35-bcd703995cee",
+  "name": "txxx",
+  "description": "Project description",
+  "template": "web-app",
+  "createdAt": "2025-08-11T15:44:20.831Z",
+  "lastModified": "2025-08-11T16:03:37.294Z",
+  "aiModel": "gpt-4",
+  "contextPreferences": {
+    "maxContextSize": 8000,
+    "prioritizeRecent": true,
+    "includeProgress": true
+  }
+}

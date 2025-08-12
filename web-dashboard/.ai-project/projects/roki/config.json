@@ -1,0 +1,16 @@
+{
+  "projectId": "roki",
+  "name": "roki",
+  "description": "Project from /home/rwbts/Documents/roki/",
+  "template": "kiro",
+  "createdAt": "2025-08-10T21:15:16.157Z",
+  "lastModified": "2025-08-11T09:06:38.419Z",
+  "aiModel": "gpt-4",
+  "originalPath": "/home/rwbts/Documents/roki/",
+  "projectType": "kiro",
+  "contextPreferences": {
+    "maxContextSize": 8000,
+    "prioritizeRecent": true,
+    "includeProgress": true
+  }
+}

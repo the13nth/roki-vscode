@@ -1,0 +1,21 @@
+{
+  "totalTasks": 22,
+  "completedTasks": 2,
+  "percentage": 9,
+  "lastUpdated": "2025-08-11T17:22:23.071Z",
+  "recentActivity": [
+    {
+      "taskId": "task-1",
+      "title": "1. Project Setup",
+      "completedAt": "2025-08-11T17:13:27.171Z",
+      "completedBy": "manual"
+    },
+    {
+      "taskId": "1.1",
+      "title": "Set up the development environment _Requirements: 5.0_",
+      "completedAt": "2025-08-11T17:13:27.171Z",
+      "completedBy": "manual"
+    }
+  ],
+  "milestones": []
+}

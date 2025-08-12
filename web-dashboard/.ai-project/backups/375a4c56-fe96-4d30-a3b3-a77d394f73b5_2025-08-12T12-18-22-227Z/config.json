@@ -1,0 +1,26 @@
+{
+  "projectId": "375a4c56-fe96-4d30-a3b3-a77d394f73b5",
+  "name": "rottie",
+  "description": "The Intent-Based Launcher project aims to revolutionize mobile interaction by shifting from an app-centric to a goal-centric approach.  Instead of requiring users to navigate through numerous apps, this launcher allows them to express their intentions in natural language or via other input methods. The system then intelligently surfaces relevant actions, content, and tools to fulfill those intentions, regardless of the underlying app. Target users are smartphone users of all technical proficiencies who seek a more streamlined and efficient mobile experience.  This includes busy professionals, students, and anyone overwhelmed by the increasing number of apps and notifications on their devices.  By anticipating user needs and proactively offering solutions, the launcher aims to simplify daily tasks, improve productivity, and reduce the cognitive load associated with managing multiple apps.\n\nKey features include a natural language interface with conversational input, context-aware intelligence utilizing time, location, and user behavior, and an action-oriented results display presenting direct actions, contextual content, and smart suggestions.  The launcher will learn and adapt to user preferences over time through a behavioral analysis engine.  Technical requirements include robust natural language processing (NLP) capabilities, a knowledge graph to map app functionalities and user content, and a privacy-preserving architecture prioritizing on-device processing and federated learning.  The system must integrate seamlessly with core system apps and provide APIs for third-party app integration.\n\nThe user experience will be centered around a minimalist search bar with voice and gesture input options.  Results will be displayed as interactive intent cards, providing previews and alternative paths to achieve the desired outcome. Contextual widgets will offer time-sensitive and location-based information.  The launcher will strive for a proactive and intuitive experience, anticipating user needs and minimizing the steps required to complete tasks.  This project addresses the growing complexity of the mobile app ecosystem, offering a unified and intelligent interface for accessing information and completing tasks.  By reducing friction and streamlining workflows, the intent-based launcher can significantly enhance user productivity and satisfaction.\n\nBusiness value stems from increased user engagement with the mobile platform, improved efficiency in task completion, and the potential for discovering underutilized apps.  Success will be measured by metrics such as task completion rate, time to action, suggestion acceptance, intent recognition accuracy, and user satisfaction (e.g., through Net Promoter Score).  Furthermore, the project's success will be evaluated based on its ability to drive platform engagement and contribute to a more seamless and intuitive mobile experience.  The ultimate goal is to empower users to accomplish more with less effort, making technology a true enabler of their intentions.",
+  "template": "mobile",
+  "createdAt": "2025-08-11T21:33:46.344Z",
+  "lastModified": "2025-08-11T21:33:46.344Z",
+  "aiModel": "gpt-4",
+  "technologyStack": {
+    "backend": "node-express",
+    "frontend": "react",
+    "uiFramework": "material-ui",
+    "authentication": "firebase-auth",
+    "hosting": "none"
+  },
+  "tokenTracking": {
+    "totalTokens": 0,
+    "totalCost": 0,
+    "lastUpdated": "2025-08-11T21:33:46.344Z"
+  },
+  "contextPreferences": {
+    "maxContextSize": 8000,
+    "prioritizeRecent": true,
+    "includeProgress": true
+  }
+}

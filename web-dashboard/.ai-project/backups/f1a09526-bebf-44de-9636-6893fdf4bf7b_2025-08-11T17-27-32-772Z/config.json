@@ -1,0 +1,26 @@
+{
+  "projectId": "f1a09526-bebf-44de-9636-6893fdf4bf7b",
+  "name": "thomas2",
+  "description": "Project description",
+  "template": "web-app",
+  "createdAt": "2025-08-11T16:49:47.342Z",
+  "lastModified": "2025-08-11T16:53:50.907Z",
+  "aiModel": "gpt-4",
+  "technologyStack": {
+    "backend": "python-django",
+    "frontend": "react",
+    "uiFramework": "material-ui",
+    "authentication": "jwt",
+    "hosting": "heroku"
+  },
+  "tokenTracking": {
+    "totalTokens": 0,
+    "totalCost": 0,
+    "lastUpdated": "2025-08-11T16:49:47.342Z"
+  },
+  "contextPreferences": {
+    "maxContextSize": 8000,
+    "prioritizeRecent": true,
+    "includeProgress": true
+  }
+}

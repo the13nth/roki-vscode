@@ -1,0 +1,9 @@
+{
+    "kiroAgent.configureMCP": "Enabled",
+    "aiProjectManager.autoInject": false,
+    "aiProjectManager.maxContextSize": 8000,
+    "aiProjectManager.prioritizeRecent": true,
+    "aiProjectManager.includeProgress": true,
+    "aiProjectManager.includeCurrentTask": true,
+    "aiProjectManager.customPromptPrefix": ""
+}

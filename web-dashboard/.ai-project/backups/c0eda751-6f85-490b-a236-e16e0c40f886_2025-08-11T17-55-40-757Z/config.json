@@ -1,0 +1,26 @@
+{
+  "projectId": "c0eda751-6f85-490b-a236-e16e0c40f886",
+  "name": "Thomas",
+  "description": "This project aims to develop a web application that facilitates affordable and reliable access to dog food in Rwanda.  Currently, commercially produced dog food is expensive and sourcing meat directly from butchers presents both cost and logistical challenges. This application will address this gap by connecting dog owners with local dog food producers and suppliers, offering a platform for ordering, delivery, and potentially even subscription services.  The platform will empower local entrepreneurs by providing a marketplace to sell their products, ultimately contributing to the local economy while improving the well-being of dogs in Rwanda.\n\nThe target users for this application are dog owners in Rwanda, ranging from individual pet owners to organizations like animal shelters.  These users need a convenient and cost-effective way to procure dog food, with reliable delivery options.  The application will cater to varying needs, allowing users to browse available products, compare prices, place orders, manage subscriptions, and track deliveries.  Additionally, the platform may incorporate features like nutritional information, feeding guides, and potentially even veterinary advice resources.\n\nKey features of the web application include user registration and authentication, a searchable product catalog with detailed descriptions and pricing, an online ordering system with secure payment integration, order tracking, and user profile management.  Subscription management functionality will allow users to set up recurring deliveries.  The application will also facilitate communication between buyers and sellers, enabling order customization and addressing specific dietary needs.  A robust admin panel will be essential for managing users, products, orders, and deliveries.\n\nThe technical requirements include a scalable and secure backend, likely utilizing a RESTful API architecture.  The frontend will be developed using a modern JavaScript framework like React, Vue, or Angular, ensuring a responsive and user-friendly interface.  User authentication will be implemented using a secure method like OAuth 2.0.  Hosting will likely leverage cloud services like AWS or Google Cloud for scalability and reliability.  The chosen technology stack should prioritize performance, security, and maintainability.\n\nThe user experience will be designed to be intuitive and straightforward. Users will be able to easily browse products, compare options, and place orders with minimal clicks.  The interface will be clean and visually appealing, optimized for both desktop and mobile devices.  Clear communication throughout the ordering and delivery process will be prioritized.  The application will strive to build trust and transparency, fostering a positive experience for both buyers and sellers.  Success will be measured by user adoption rates, order volume, customer satisfaction, and the overall impact on the affordability and accessibility of dog food in Rwanda.",
+  "template": "web-app",
+  "createdAt": "2025-08-11T17:32:39.247Z",
+  "lastModified": "2025-08-11T17:54:30.526Z",
+  "aiModel": "gpt-4",
+  "technologyStack": {
+    "backend": "node-express",
+    "frontend": "nextjs",
+    "uiFramework": "tailwind",
+    "authentication": "firebase-auth",
+    "hosting": "vercel"
+  },
+  "tokenTracking": {
+    "totalTokens": 0,
+    "totalCost": 0,
+    "lastUpdated": "2025-08-11T17:32:39.247Z"
+  },
+  "contextPreferences": {
+    "maxContextSize": 8000,
+    "prioritizeRecent": true,
+    "includeProgress": true
+  }
+}

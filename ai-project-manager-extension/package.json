@@ -1,0 +1,54 @@
+{
+  "name": "ai-project-manager",
+  "displayName": "AI Project Manager",
+  "description": "Intelligent project management with AI context injection",
+  "version": "0.0.1",
+  "publisher": "ai-project-manager",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ai-project-manager/vscode-extension.git"
+  },
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "aiProjectManager.injectContext",
+        "title": "Inject AI Context"
+      },
+      {
+        "command": "aiProjectManager.detectProject",
+        "title": "Detect AI Project"
+      },
+      {
+        "command": "aiProjectManager.connectToDashboard",
+        "title": "Connect to Dashboard"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "16.x",
+    "@types/vscode": "^1.74.0",
+    "@vscode/test-cli": "^0.0.4",
+    "@vscode/test-electron": "^2.3.8",
+    "typescript": "^5.3.0",
+    "vsce": "^1.103.1"
+  },
+  "dependencies": {
+    "chokidar": "^3.5.3"
+  }
+}

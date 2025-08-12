@@ -1,0 +1,274 @@
+{
+  "name": "ai-project-manager",
+  "displayName": "AI Project Manager",
+  "description": "Intelligent project management with AI context injection",
+  "version": "0.0.5",
+  "publisher": "ai-project-manager",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ai-project-manager/vscode-extension.git"
+  },
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "aiProjectManager.injectContext",
+        "title": "AI Project Manager: Inject Context",
+        "icon": "$(robot)"
+      },
+      {
+        "command": "aiProjectManager.detectProject",
+        "title": "AI Project Manager: Detect Project",
+        "icon": "$(search)"
+      },
+      {
+        "command": "aiProjectManager.connectToDashboard",
+        "title": "AI Project Manager: Connect to Dashboard",
+        "icon": "$(link)"
+      },
+      {
+        "command": "aiProjectManager.toggleAutoInject",
+        "title": "AI Project Manager: Toggle Auto-Inject",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "aiProjectManager.openContextPreferences",
+        "title": "AI Project Manager: Context Preferences",
+        "icon": "$(settings)"
+      },
+      {
+        "command": "aiProjectManager.autoInjectContext",
+        "title": "AI Project Manager: Auto-Inject Context",
+        "icon": "$(zap)"
+      },
+      {
+        "command": "aiProjectManager.refreshSidebar",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "aiProjectManager.openDocument",
+        "title": "Open Document",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "aiProjectManager.setSyncStatus",
+        "title": "Set Sync Status"
+      },
+      {
+        "command": "aiProjectManager.showSidebar",
+        "title": "AI Project Manager: Show Sidebar",
+        "icon": "$(sidebar-expand)"
+      },
+      {
+        "command": "aiProjectManager.createProject",
+        "title": "AI Project Manager: Create New Project",
+        "icon": "$(add)"
+      },
+      {
+        "command": "aiProjectManager.validateProject",
+        "title": "AI Project Manager: Validate Project",
+        "icon": "$(check)"
+      },
+      {
+        "command": "aiProjectManager.repairProject",
+        "title": "AI Project Manager: Repair Project",
+        "icon": "$(tools)"
+      },
+      {
+        "command": "aiProjectManager.createProject",
+        "title": "AI Project Manager: Create New Project",
+        "icon": "$(add)"
+      },
+      {
+        "command": "aiProjectManager.validateProject",
+        "title": "AI Project Manager: Validate Project",
+        "icon": "$(check)"
+      },
+      {
+        "command": "aiProjectManager.repairProject",
+        "title": "AI Project Manager: Repair Project",
+        "icon": "$(tools)"
+      }
+    ],
+    "configuration": {
+      "title": "AI Project Manager",
+      "properties": {
+        "aiProjectManager.autoInject": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically inject context when AI chat is detected"
+        },
+        "aiProjectManager.maxContextSize": {
+          "type": "number",
+          "default": 8000,
+          "minimum": 1000,
+          "description": "Maximum context size in characters"
+        },
+        "aiProjectManager.prioritizeRecent": {
+          "type": "boolean",
+          "default": true,
+          "description": "Prioritize recently modified context documents"
+        },
+        "aiProjectManager.includeProgress": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include progress summary in context"
+        },
+        "aiProjectManager.includeCurrentTask": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include current task in context"
+        },
+        "aiProjectManager.customPromptPrefix": {
+          "type": "string",
+          "default": "",
+          "description": "Custom prefix to add to AI context prompts"
+        },
+        "aiProjectManager.dashboardUrl": {
+          "type": "string",
+          "default": "http://localhost:3000",
+          "description": "URL of the AI Project Manager dashboard"
+        }
+      }
+    },
+    "views": {
+      "aiProjectManager": [
+        {
+          "id": "aiProjectManagerSidebar",
+          "name": "AI Project Manager"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "aiProjectManager",
+          "title": "AI Project Manager",
+          "icon": "$(robot)"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "aiProjectManager.refreshSidebar",
+          "when": "view == aiProjectManagerSidebar",
+          "group": "navigation"
+        },
+        {
+          "command": "aiProjectManager.connectToDashboard",
+          "when": "view == aiProjectManagerSidebar",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "aiProjectManager.openDocument",
+          "when": "view == aiProjectManagerSidebar && viewItem == document",
+          "group": "inline"
+        },
+        {
+          "command": "aiProjectManager.injectContext",
+          "when": "view == aiProjectManagerSidebar && viewItem == contextAction",
+          "group": "inline"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "aiProjectManager.injectContext",
+          "when": "true"
+        },
+        {
+          "command": "aiProjectManager.detectProject",
+          "when": "true"
+        },
+        {
+          "command": "aiProjectManager.connectToDashboard",
+          "when": "true"
+        },
+        {
+          "command": "aiProjectManager.toggleAutoInject",
+          "when": "true"
+        },
+        {
+          "command": "aiProjectManager.openContextPreferences",
+          "when": "true"
+        },
+        {
+          "command": "aiProjectManager.autoInjectContext",
+          "when": "true"
+        },
+        {
+          "command": "aiProjectManager.refreshSidebar",
+          "when": "false"
+        },
+        {
+          "command": "aiProjectManager.openDocument",
+          "when": "false"
+        },
+        {
+          "command": "aiProjectManager.setSyncStatus",
+          "when": "false"
+        },
+        {
+          "command": "aiProjectManager.showSidebar",
+          "when": "true"
+        },
+        {
+          "command": "aiProjectManager.createProject",
+          "when": "true"
+        },
+        {
+          "command": "aiProjectManager.validateProject",
+          "when": "true"
+        },
+        {
+          "command": "aiProjectManager.repairProject",
+          "when": "true"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "aiProjectManager.injectContext",
+        "key": "ctrl+alt+i",
+        "mac": "cmd+alt+i",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "aiProjectManager.autoInjectContext",
+        "key": "ctrl+alt+shift+i",
+        "mac": "cmd+alt+shift+i",
+        "when": "editorTextFocus"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "npx vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "16.x",
+    "@types/vscode": "^1.74.0",
+    "@vscode/test-cli": "^0.0.4",
+    "@vscode/test-electron": "^2.3.8",
+    "@vscode/vsce": "^3.6.0",
+    "typescript": "^5.3.0",
+    "vsce": "^1.103.1"
+  },
+  "dependencies": {
+    "chokidar": "^3.5.3"
+  }
+}
