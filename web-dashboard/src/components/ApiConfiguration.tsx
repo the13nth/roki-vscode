@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ApiKeyToggle } from '@/components/ApiKeyToggle';
 import { 
   Settings, 
   Key, 
@@ -17,7 +18,8 @@ import {
   TestTube, 
   CheckCircle, 
   AlertCircle,
-  Loader2
+  Loader2,
+  Info
 } from 'lucide-react';
 
 interface ApiProvider {
@@ -33,6 +35,8 @@ interface ApiConfiguration {
   apiKey: string;
   model: string;
   baseUrl?: string;
+  source?: string;
+  usePersonalApiKey?: boolean;
 }
 
 const AI_PROVIDERS: ApiProvider[] = [
@@ -168,143 +172,79 @@ export function ApiConfiguration({ projectId }: ApiConfigurationProps) {
         </p>
       </div>
 
+      {/* API Key Selection Toggle */}
+      <ApiKeyToggle projectId={projectId} />
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* API Configuration Card */}
+        {/* Current Configuration Display Card */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
-              <Settings className="w-5 h-5 mr-2" />
-              AI Provider Settings
+              <Info className="w-5 h-5 mr-2" />
+              Current Configuration
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Provider Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="provider">AI Provider</Label>
-              <Select
-                value={config.provider}
-                onValueChange={(value) => {
-                  const provider = AI_PROVIDERS.find(p => p.id === value);
-                  setConfig({
-                    ...config,
-                    provider: value,
-                    model: provider?.models[0] || '',
-                    baseUrl: provider?.baseUrl || ''
-                  });
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select an AI provider" />
-                </SelectTrigger>
-                <SelectContent>
-                  {AI_PROVIDERS.map((provider) => (
-                    <SelectItem key={provider.id} value={provider.id}>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{provider.name}</span>
-                        <span className="text-xs text-muted-foreground">{provider.description}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Model Selection */}
-            {selectedProvider && (
-              <div className="space-y-2">
-                <Label htmlFor="model">Model</Label>
-                <Select
-                  value={config.model}
-                  onValueChange={(value) => setConfig({ ...config, model: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {selectedProvider.models.map((model) => (
-                      <SelectItem key={model} value={model}>
-                        {model}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin mr-2" />
+                Loading configuration...
               </div>
-            )}
+            ) : (
+              <>
+                {/* Configuration Source */}
+                <div className="space-y-2">
+                  <Label>Configuration Source</Label>
+                  <div className="flex items-center space-x-2">
+                    {config.usePersonalApiKey ? (
+                      <Badge variant="default" className="flex items-center">
+                        <Key className="w-4 h-4 mr-1" />
+                        Personal API Key
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="flex items-center">
+                        <Settings className="w-4 h-4 mr-1" />
+                        App Default Key
+                      </Badge>
+                    )}
+                  </div>
+                </div>
 
-            {/* Custom Base URL */}
-            {config.provider === 'custom' && (
-              <div className="space-y-2">
-                <Label htmlFor="baseUrl">Base URL</Label>
-                <Input
-                  id="baseUrl"
-                  type="url"
-                  placeholder="https://api.example.com/v1"
-                  value={config.baseUrl || ''}
-                  onChange={(e) => setConfig({ ...config, baseUrl: e.target.value })}
-                />
-              </div>
-            )}
-
-            {/* API Key */}
-            <div className="space-y-2">
-              <Label htmlFor="apiKey">API Key</Label>
-              <div className="relative">
-                <Input
-                  id="apiKey"
-                  type={showApiKey ? 'text' : 'password'}
-                  placeholder="Enter your API key"
-                  value={config.apiKey}
-                  onChange={(e) => setConfig({ ...config, apiKey: e.target.value })}
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3"
-                  onClick={() => setShowApiKey(!showApiKey)}
-                >
-                  {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </Button>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex space-x-2 pt-4">
-              <Button
-                onClick={handleSave}
-                disabled={isSaving || !config.provider || !config.apiKey || !config.model}
-                className="flex-1"
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2" />
-                    Save Configuration
-                  </>
+                {/* Provider Information */}
+                {config.provider && (
+                  <div className="space-y-2">
+                    <Label>Provider Information</Label>
+                    <div className="text-sm space-y-1">
+                      <p><strong>Provider:</strong> {AI_PROVIDERS.find(p => p.id === config.provider)?.name || config.provider}</p>
+                      <p><strong>Model:</strong> {config.model}</p>
+                      {config.baseUrl && <p><strong>Base URL:</strong> {config.baseUrl}</p>}
+                      <p><strong>API Key:</strong> {config.apiKey ? '••••••••' : 'Not configured'}</p>
+                    </div>
+                  </div>
                 )}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleTest}
-                disabled={isTesting || !config.provider || !config.apiKey || !config.model}
-              >
-                {isTesting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Testing...
-                  </>
-                ) : (
-                  <>
-                    <TestTube className="w-4 h-4 mr-2" />
-                    Test Connection
-                  </>
-                )}
-              </Button>
-            </div>
+
+                {/* Test Connection Button */}
+                <div className="pt-4">
+                  <Button
+                    onClick={handleTest}
+                    disabled={isTesting || !config.provider || !config.apiKey || !config.model}
+                    className="w-full"
+                  >
+                    {isTesting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Testing Connection...
+                      </>
+                    ) : (
+                      <>
+                        <TestTube className="w-4 h-4 mr-2" />
+                        Test Current Configuration
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -359,7 +299,8 @@ export function ApiConfiguration({ projectId }: ApiConfigurationProps) {
               <div className="text-sm text-muted-foreground space-y-1">
                 <p>• This API configuration will be used for project analysis</p>
                 <p>• The AI model will analyze your project context and provide insights</p>
-                <p>• API keys are stored locally (no encryption in development)</p>
+                <p>• For Google AI (Gemini), set GOOGLE_AI_API_KEY environment variable for secure configuration</p>
+                <p>• API keys are encrypted in production, stored as plaintext in development</p>
                 <p>• Test the connection before using analysis features</p>
               </div>
             </div>

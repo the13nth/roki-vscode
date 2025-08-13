@@ -12,15 +12,17 @@ export async function GET() {
     
     // For now, we'll scan common project directories
     // In a real implementation, this might come from a database or config file
+    // Only scan safe, relevant directories for projects
     const commonPaths = [
-      process.env.HOME || '/home',
-      '/Users',
-      '/workspace',
-      '/tmp',
+      // User's home directory (but limit depth)
+      process.env.HOME ? path.join(process.env.HOME, 'Documents') : null,
+      process.env.HOME ? path.join(process.env.HOME, 'Projects') : null,
+      process.env.HOME ? path.join(process.env.HOME, 'Development') : null,
+      // Current working directory
       process.cwd(),
-      // Include our internal projects directory
-      path.join(process.cwd(), '.ai-project', 'projects')
-    ];
+      // Common workspace directories (only if they exist and are accessible)
+      '/workspace',
+    ].filter(Boolean) as string[];
 
     for (const basePath of commonPaths) {
       try {
@@ -198,7 +200,7 @@ async function fileExists(filePath: string): Promise<boolean> {
   }
 }
 
-async function scanForProjects(basePath: string, maxDepth: number = 3): Promise<ProjectListItem[]> {
+async function scanForProjects(basePath: string, maxDepth: number = 2): Promise<ProjectListItem[]> {
   const projects: ProjectListItem[] = [];
   
   try {
@@ -276,8 +278,16 @@ async function scanDirectory(
       const fullPath = path.join(dirPath, entry.name);
       
       // Skip hidden directories and common non-project directories
-      if (entry.name.startsWith('.') && entry.name !== '.ai-project') continue;
-      if (['node_modules', 'dist', 'build', '.git'].includes(entry.name)) continue;
+      if (entry.name.startsWith('.') && entry.name !== '.ai-project' && entry.name !== '.kiro') continue;
+      if (['node_modules', 'dist', 'build', '.git', 'tmp', 'temp', 'cache'].includes(entry.name)) continue;
+      
+      // Skip system directories that commonly cause permission issues
+      if (entry.name.startsWith('systemd-private-') || 
+          entry.name.startsWith('snap-private-') ||
+          fullPath.includes('/tmp/') ||
+          fullPath.includes('/var/') ||
+          fullPath.includes('/proc/') ||
+          fullPath.includes('/sys/')) continue;
       
       // Check if this directory contains .ai-project
       const aiProjectPath = path.join(fullPath, '.ai-project');
@@ -291,8 +301,16 @@ async function scanDirectory(
           console.warn(`Failed to load project from ${fullPath}:`, error);
         }
       } else {
-        // Recursively scan subdirectories
-        await scanDirectory(fullPath, currentDepth + 1, maxDepth, projects);
+        // Recursively scan subdirectories, but skip if we can't access them
+        try {
+          await scanDirectory(fullPath, currentDepth + 1, maxDepth, projects);
+        } catch (error: any) {
+          // Skip directories we can't access (permission denied, etc.)
+          if (error.code === 'EACCES' || error.code === 'EPERM') {
+            continue; // Silently skip permission denied directories
+          }
+          console.warn(`Failed to scan directory ${fullPath}:`, error);
+        }
       }
     }
   } catch (error) {

@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CornerBrackets } from '@/components/ui/corner-brackets';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ProjectPitch } from './ProjectPitch';
 import {
   Dialog,
   DialogContent,
@@ -38,8 +39,10 @@ import {
   Shield,
   Grid3X3,
   Expand,
-  Eye
+  Eye,
+  Presentation
 } from 'lucide-react';
+import { JSX } from 'react/jsx-runtime';
 
 interface AnalysisResult {
   summary: string;
@@ -114,7 +117,7 @@ interface ProjectAnalysisProps {
 export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
   const [context, setContext] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [analysisResults, setAnalysisResults] = useState<Record<string, AnalysisResult>>({});
   const [error, setError] = useState<string | null>(null);
   const [isLoadingContext, setIsLoadingContext] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -124,7 +127,20 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
   const [analysisProgress, setAnalysisProgress] = useState<{ stage: string; progress: number }>({ stage: '', progress: 0 });
   const [selectedAnalysisType, setSelectedAnalysisType] = useState<string>('comprehensive');
   const [analysisHistory, setAnalysisHistory] = useState<AnalysisResult[]>([]);
-  const [selectedBmcSection, setSelectedBmcSection] = useState<{title: string, content: string, color: string} | null>(null);
+  const [selectedBmcSection, setSelectedBmcSection] = useState<{ title: string, content: string, color: string } | null>(null);
+  const [activeAnalysisTab, setActiveAnalysisTab] = useState<string>('overview');
+  const [showPitchModal, setShowPitchModal] = useState(false);
+  const [savedAnalyses, setSavedAnalyses] = useState<Record<string, boolean>>({});
+  const [savingAnalyses, setSavingAnalyses] = useState<Record<string, boolean>>({});
+
+  // Define all available analysis types
+  const allAnalysisTypes = ['technical', 'market', 'differentiation', 'financial', 'bmc', 'roast'];
+
+  // Check if all analyses are complete
+  const allAnalysesComplete = allAnalysisTypes.every(type => analysisResults[type]);
+
+  // Get remaining analyses
+  const remainingAnalyses = allAnalysisTypes.filter(type => !analysisResults[type]);
 
   // BMC Card Component
   const BMCCard = ({ title, content, colorClass, borderClass, textClass }: {
@@ -209,6 +225,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
   useEffect(() => {
     loadProjectContext();
     loadProjectConfig();
+    loadSavedAnalyses();
   }, [projectId]);
 
   const loadProjectConfig = async () => {
@@ -273,15 +290,83 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
     }
   };
 
+  const loadSavedAnalyses = async () => {
+    try {
+      console.log('📚 Loading saved analyses from Pinecone...');
+      const response = await fetch(`/api/projects/${projectId}/analyses`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
+      if (response.ok) {
+        const savedData = await response.json();
+        console.log('📊 Saved analyses loaded:', savedData);
+        
+        if (savedData.analyses) {
+          setAnalysisResults(savedData.analyses);
+          // Mark all loaded analyses as saved
+          const savedStatus: Record<string, boolean> = {};
+          Object.keys(savedData.analyses).forEach(type => {
+            savedStatus[type] = true;
+          });
+          setSavedAnalyses(savedStatus);
+          console.log(`✅ Loaded ${Object.keys(savedData.analyses).length} saved analyses`);
+        }
+      } else {
+        console.log('No saved analyses found or failed to load');
+      }
+    } catch (error) {
+      console.error('Failed to load saved analyses:', error);
+      // Don't show error to user as this is optional
+    }
+  };
 
-  const handleAnalyze = async () => {
+  const saveAnalysis = async (analysisType: string) => {
+    if (!analysisResults[analysisType]) {
+      setError('No analysis data to save');
+      return;
+    }
+
+    try {
+      setSavingAnalyses(prev => ({ ...prev, [analysisType]: true }));
+      console.log(`💾 Saving ${analysisType} analysis to Pinecone...`);
+
+      const response = await fetch(`/api/projects/${projectId}/analyses`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          analysisType,
+          analysisData: analysisResults[analysisType],
+        }),
+      });
+
+      if (response.ok) {
+        setSavedAnalyses(prev => ({ ...prev, [analysisType]: true }));
+        setSuccessMessage(`${getAnalysisTypeLabel(analysisType)} saved successfully!`);
+        setTimeout(() => setSuccessMessage(null), 3000);
+        console.log(`✅ ${analysisType} analysis saved to Pinecone`);
+      } else {
+        const errorData = await response.json();
+        setError(`Failed to save analysis: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error(`Failed to save ${analysisType} analysis:`, error);
+      setError('Error saving analysis');
+    } finally {
+      setSavingAnalyses(prev => ({ ...prev, [analysisType]: false }));
+    }
+  };
+
+  const handleAnalyze = async (analysisType: string) => {
     try {
       setIsAnalyzing(true);
       setError(null);
-      setAnalysisResult(null);
 
-      console.log('🔍 Starting Comprehensive Analysis');
+      console.log(`🔍 Starting ${analysisType.charAt(0).toUpperCase() + analysisType.slice(1)} Analysis`);
       console.log('📚 Analysis will fetch documents from Pinecone cloud storage');
       console.log('🚀 Sending analysis request...');
 
@@ -291,69 +376,39 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          analysisType: 'comprehensive'
+          analysisType
         }),
       });
 
       const result = await response.json();
 
       if (response.ok) {
-        console.log('✅ Analysis completed successfully');
+        console.log(`✅ ${analysisType.charAt(0).toUpperCase() + analysisType.slice(1)} analysis completed successfully`);
         console.log(`📈 Analysis summary: ${result.summary?.substring(0, 100)}...`);
         console.log(`💡 Insights generated: ${result.insights?.length || 0}`);
         console.log(`🎯 Recommendations: ${result.recommendations?.length || 0}`);
-        setAnalysisResult(result);
+
+        // Store the result for this specific analysis type
+        setAnalysisResults(prev => ({
+          ...prev,
+          [analysisType]: result
+        }));
+
+        // Switch to the appropriate tab
+        setActiveAnalysisTab(analysisType);
       } else {
-        console.error('❌ Analysis failed:', result.error);
+        console.error(`❌ ${analysisType} analysis failed:`, result.error);
         setError(result.error || 'Analysis failed');
       }
     } catch (error) {
-      console.error('❌ Analysis error:', error);
+      console.error(`❌ ${analysisType} analysis error:`, error);
       setError('Error performing analysis');
     } finally {
       setIsAnalyzing(false);
     }
   };
 
-  const handleQuickAnalysis = async (type: string) => {
-    try {
-      setIsAnalyzing(true);
-      setError(null);
-      setAnalysisResult(null);
-
-      console.log(`🔍 Starting ${type.charAt(0).toUpperCase() + type.slice(1)} Analysis`);
-      console.log('📚 Analysis will fetch documents from Pinecone cloud storage');
-      console.log(`🚀 Sending ${type} analysis request...`);
-
-      const response = await fetch(`/api/projects/${projectId}/analyze`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          analysisType: type
-        }),
-      });
-
-      const result = await response.json();
-
-      if (response.ok) {
-        console.log(`✅ ${type.charAt(0).toUpperCase() + type.slice(1)} analysis completed successfully`);
-        console.log(`📈 Analysis summary: ${result.summary?.substring(0, 100)}...`);
-        console.log(`💡 Insights generated: ${result.insights?.length || 0}`);
-        console.log(`🎯 Recommendations: ${result.recommendations?.length || 0}`);
-        setAnalysisResult(result);
-      } else {
-        console.error(`❌ ${type} analysis failed:`, result.error);
-        setError(result.error || 'Analysis failed');
-      }
-    } catch (error) {
-      console.error(`❌ ${type} analysis error:`, error);
-      setError('Error performing analysis');
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
+  // Remove handleQuickAnalysis as it's now handled by handleAnalyze
 
   const handleGenerateMitigation = async (criticism: string, criticismType: string) => {
     const mitigationKey = `${criticismType}-${criticism.substring(0, 50)}`;
@@ -436,6 +491,38 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
     }
   };
 
+  const handlePitchClick = () => {
+    if (allAnalysesComplete) {
+      setActiveAnalysisTab('pitch');
+    } else {
+      setShowPitchModal(true);
+    }
+  };
+
+  const getAnalysisTypeLabel = (type: string) => {
+    const labels: Record<string, string> = {
+      technical: 'Technical Analysis',
+      market: 'Market Analysis',
+      differentiation: 'Competitive Differentiation',
+      financial: 'Cost & Revenue Analysis',
+      bmc: 'Business Model Canvas',
+      roast: 'Roast My Idea'
+    };
+    return labels[type] || type;
+  };
+
+  const getAnalysisTypeIcon = (type: string) => {
+    const icons: Record<string, JSX.Element> = {
+      technical: <Lightbulb className="w-4 h-4" />,
+      market: <TrendingUp className="w-4 h-4" />,
+      differentiation: <Zap className="w-4 h-4" />,
+      financial: <DollarSign className="w-4 h-4" />,
+      bmc: <Grid3X3 className="w-4 h-4" />,
+      roast: <Flame className="w-4 h-4" />
+    };
+    return icons[type] || <Brain className="w-4 h-4" />;
+  };
+
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
@@ -461,6 +548,82 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
           </div>
 
           <div className="flex-1 p-4 space-y-4 overflow-y-auto">
+          <div className="space-y-3">
+              {/* Analysis Options */}
+              <div>
+                <Label className="text-sm font-medium mb-3 block">
+                  Choose Analysis Type
+                </Label>
+                <div className="grid grid-cols-1 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAnalyze('technical')}
+                    disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
+                    className="justify-start rounded-none border-gray-300 hover:border-blue-300 hover:bg-blue-50"
+                  >
+                    <Lightbulb className="w-4 h-4 mr-2" />
+                    Technical Analysis
+                    {analysisResults.technical && <CheckCircle className="w-3 h-3 ml-auto text-green-600" />}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAnalyze('market')}
+                    disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
+                    className="justify-start rounded-none border-gray-300 hover:border-purple-300 hover:bg-purple-50"
+                  >
+                    <TrendingUp className="w-4 h-4 mr-2" />
+                    Market Analysis
+                    {analysisResults.market && <CheckCircle className="w-3 h-3 ml-auto text-green-600" />}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAnalyze('differentiation')}
+                    disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
+                    className="justify-start rounded-none border-gray-300 hover:border-indigo-300 hover:bg-indigo-50"
+                  >
+                    <Zap className="w-4 h-4 mr-2" />
+                    Competitive Differentiation
+                    {analysisResults.differentiation && <CheckCircle className="w-3 h-3 ml-auto text-green-600" />}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAnalyze('financial')}
+                    disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
+                    className="justify-start rounded-none border-gray-300 hover:border-yellow-300 hover:bg-yellow-50"
+                  >
+                    <DollarSign className="w-4 h-4 mr-2" />
+                    Cost & Revenue Analysis
+                    {analysisResults.financial && <CheckCircle className="w-3 h-3 ml-auto text-green-600" />}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAnalyze('bmc')}
+                    disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
+                    className="justify-start rounded-none border-blue-200 text-blue-700 hover:bg-blue-50"
+                  >
+                    <Grid3X3 className="w-4 h-4 mr-2" />
+                    Business Model Canvas
+                    {analysisResults.bmc && <CheckCircle className="w-3 h-3 ml-auto text-green-600" />}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAnalyze('roast')}
+                    disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
+                    className="justify-start rounded-none border-red-200 text-red-700 hover:bg-red-50"
+                  >
+                    <Flame className="w-4 h-4 mr-2" />
+                    Roast My Idea
+                    {analysisResults.roast && <CheckCircle className="w-3 h-3 ml-auto text-green-600" />}
+                  </Button>
+                </div>
+              </div>
+            </div>
             <div>
               <Label className="text-sm font-medium">Documents for Analysis</Label>
 
@@ -542,76 +705,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
               )}
             </div>
 
-            <div className="space-y-3">
-              {/* Analysis Options */}
-              <div>
-                <Label className="text-sm font-medium mb-3 block">
-                  Choose Analysis Type
-                </Label>
-                <div className="grid grid-cols-1 gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleQuickAnalysis('technical')}
-                    disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
-                    className="justify-start rounded-none border-gray-300 hover:border-blue-300 hover:bg-blue-50"
-                  >
-                    <Lightbulb className="w-4 h-4 mr-2" />
-                    Technical Analysis
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleQuickAnalysis('market')}
-                    disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
-                    className="justify-start rounded-none border-gray-300 hover:border-purple-300 hover:bg-purple-50"
-                  >
-                    <TrendingUp className="w-4 h-4 mr-2" />
-                    Market Analysis
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleQuickAnalysis('differentiation')}
-                    disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
-                    className="justify-start rounded-none border-gray-300 hover:border-indigo-300 hover:bg-indigo-50"
-                  >
-                    <Zap className="w-4 h-4 mr-2" />
-                    Competitive Differentiation
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleQuickAnalysis('financial')}
-                    disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
-                    className="justify-start rounded-none border-gray-300 hover:border-yellow-300 hover:bg-yellow-50"
-                  >
-                    <DollarSign className="w-4 h-4 mr-2" />
-                    Cost & Revenue Analysis
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleQuickAnalysis('bmc')}
-                    disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
-                    className="justify-start rounded-none border-blue-200 text-blue-700 hover:bg-blue-50"
-                  >
-                    <Grid3X3 className="w-4 h-4 mr-2" />
-                    Business Model Canvas
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleQuickAnalysis('roast')}
-                    disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
-                    className="justify-start rounded-none border-red-200 text-red-700 hover:bg-red-50"
-                  >
-                    <Flame className="w-4 h-4 mr-2" />
-                    Roast My Idea
-                  </Button>
-                </div>
-              </div>
-            </div>
+            
           </div>
         </div>
 
@@ -648,349 +742,385 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
               </div>
             )}
 
-            {analysisResult && (
-              <Tabs defaultValue="summary" className="w-full">
+            {(Object.keys(analysisResults).length > 0 || true) && (
+              <Tabs value={activeAnalysisTab} onValueChange={setActiveAnalysisTab} className="w-full">
                 <div className="overflow-x-auto">
                   <TabsList className="flex gap-1 p-1 min-w-max">
-                    <TabsTrigger value="summary" className="text-xs whitespace-nowrap">Summary</TabsTrigger>
-                    <TabsTrigger value="insights" className="text-xs whitespace-nowrap">Insights</TabsTrigger>
-                    <TabsTrigger value="recommendations" className="text-xs whitespace-nowrap">Recommendations</TabsTrigger>
-                    <TabsTrigger value="risks" className="text-xs whitespace-nowrap">Risks</TabsTrigger>
-                    {analysisResult.marketAnalysis && (
-                      <TabsTrigger value="market" className="text-xs whitespace-nowrap">Market</TabsTrigger>
+                    {Object.keys(analysisResults).length > 0 && (
+                      <TabsTrigger value="overview" className="text-xs whitespace-nowrap">Overview</TabsTrigger>
                     )}
-                    {analysisResult.differentiationAnalysis && (
-                      <TabsTrigger value="differentiation" className="text-xs whitespace-nowrap">Differentiation</TabsTrigger>
+                    {analysisResults.technical && (
+                      <TabsTrigger value="technical" className="text-xs whitespace-nowrap">
+                        <Lightbulb className="w-3 h-3 mr-1" />
+                        Technical
+                      </TabsTrigger>
                     )}
-                    {analysisResult.financialProjections && (
-                      <TabsTrigger value="financial" className="text-xs whitespace-nowrap">Financial</TabsTrigger>
+                    {analysisResults.market && (
+                      <TabsTrigger value="market" className="text-xs whitespace-nowrap">
+                        <TrendingUp className="w-3 h-3 mr-1" />
+                        Market
+                      </TabsTrigger>
                     )}
-                    {analysisResult.businessModelCanvas && (
-                      <TabsTrigger value="bmc" className="text-xs whitespace-nowrap text-blue-700">📊 BMC</TabsTrigger>
+                    {analysisResults.differentiation && (
+                      <TabsTrigger value="differentiation" className="text-xs whitespace-nowrap">
+                        <Zap className="w-3 h-3 mr-1" />
+                        Differentiation
+                      </TabsTrigger>
                     )}
-                    {analysisResult.roastIdea && (
-                      <TabsTrigger value="roast" className="text-xs whitespace-nowrap text-red-700">🔥 Roast</TabsTrigger>
+                    {analysisResults.financial && (
+                      <TabsTrigger value="financial" className="text-xs whitespace-nowrap">
+                        <DollarSign className="w-3 h-3 mr-1" />
+                        Financial
+                      </TabsTrigger>
                     )}
-                    <TabsTrigger value="next-steps" className="text-xs whitespace-nowrap">Next Steps</TabsTrigger>
-                    <TabsTrigger value="tokens" className="text-xs whitespace-nowrap">Tokens</TabsTrigger>
+                    {analysisResults.bmc && (
+                      <TabsTrigger value="bmc" className="text-xs whitespace-nowrap text-blue-700">
+                        <Grid3X3 className="w-3 h-3 mr-1" />
+                        BMC
+                      </TabsTrigger>
+                    )}
+                    {analysisResults.roast && (
+                      <TabsTrigger value="roast" className="text-xs whitespace-nowrap text-red-700">
+                        <Flame className="w-3 h-3 mr-1" />
+                        Roast
+                      </TabsTrigger>
+                    )}
+                    <TabsTrigger
+                      value="pitch"
+                      className="text-xs whitespace-nowrap text-purple-700"
+                      onClick={(e) => {
+                        if (!allAnalysesComplete) {
+                          e.preventDefault();
+                          handlePitchClick();
+                        }
+                      }}
+                    >
+                      <Presentation className="w-3 h-3 mr-1" />
+                      Pitch
+                      {!allAnalysesComplete && (
+                        <Badge variant="secondary" className="ml-2 text-xs">
+                          {remainingAnalyses.length}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
                   </TabsList>
                 </div>
 
-                <TabsContent value="summary" className="space-y-4">
-                  <Card className="analysis-card">
-                    <CardHeader>
-                      <CardTitle className="text-lg font-semibold flex items-center">
-                        <FileText className="w-5 h-5 mr-2 text-primary" />
-                        Project Summary
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        {renderMarkdown(analysisResult.summary)}
+                {Object.keys(analysisResults).length > 0 && (
+                  <TabsContent value="overview" className="space-y-4">
+                    <div className="text-center py-8">
+                      <Brain className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+                      <h3 className="text-xl font-semibold mb-2">Project Analysis Dashboard</h3>
+                      <p className="text-muted-foreground mb-6">
+                        Run different types of analysis to get specialized insights about your project.
+                      </p>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
+                        {Object.entries(analysisResults).map(([type, result]) => (
+                          <Card key={type} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveAnalysisTab(type)}>
+                            <CardContent className="p-4 text-center">
+                              <div className="flex items-center justify-center mb-2">
+                                {type === 'technical' && <Lightbulb className="w-6 h-6 text-blue-600" />}
+                                {type === 'market' && <TrendingUp className="w-6 h-6 text-purple-600" />}
+                                {type === 'differentiation' && <Zap className="w-6 h-6 text-indigo-600" />}
+                                {type === 'financial' && <DollarSign className="w-6 h-6 text-green-600" />}
+                                {type === 'bmc' && <Grid3X3 className="w-6 h-6 text-blue-600" />}
+                                {type === 'roast' && <Flame className="w-6 h-6 text-red-600" />}
+                              </div>
+                              <h4 className="font-medium text-sm capitalize">{type} Analysis</h4>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {new Date(result.timestamp).toLocaleDateString()}
+                              </p>
+                            </CardContent>
+                          </Card>
+                        ))}
                       </div>
-                    </CardContent>
-                  </Card>
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Clock className="w-4 h-4 mr-2" />
-                    Analysis completed at {analysisResult.timestamp ? new Date(analysisResult.timestamp).toLocaleString() : new Date().toLocaleString()}
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="insights" className="space-y-4">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center">
-                    <Lightbulb className="w-5 h-5 mr-2 text-primary" />
-                    Key Insights
-                  </h3>
-                  <div className="space-y-4">
-                    {analysisResult.insights.map((insight: any, index) => (
-                      <Card key={index} className="analysis-card border-l-4 border-l-primary/20">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-base flex items-center">
-                            <Lightbulb className="w-4 h-4 mr-2 text-primary" />
-                            {typeof insight === 'object' && insight.title ? insight.title : `Insight ${index + 1}`}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-0">
-                          <div className="bg-blue-50 rounded-lg p-4">
-                            {renderMarkdown(typeof insight === 'object' ? insight.content : insight)}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="recommendations" className="space-y-4">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center">
-                    <Target className="w-5 h-5 mr-2 text-primary" />
-                    Recommendations
-                  </h3>
-                  <div className="space-y-4">
-                    {analysisResult.recommendations.map((recommendation: any, index) => (
-                      <Card key={index} className="analysis-card border-l-4 border-l-green-500/20">
-                        <CardHeader className="pb-3">
-                          <CardTitle className="text-base flex items-center">
-                            <Target className="w-4 h-4 mr-2 text-green-600" />
-                            {typeof recommendation === 'object' && recommendation.title ? recommendation.title : `Recommendation ${index + 1}`}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="pt-0">
-                          <div className="bg-green-50 rounded-lg p-4">
-                            {renderMarkdown(typeof recommendation === 'object' ? recommendation.content : recommendation)}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="risks" className="space-y-4">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center">
-                    <AlertCircle className="w-5 h-5 mr-2 text-destructive" />
-                    Risk Assessment
-                  </h3>
-                  {analysisResult.risks && analysisResult.risks.length > 0 ? (
-                    <div className="space-y-4">
-                      {analysisResult.risks.map((risk: any, index) => (
-                        <Card key={index} className="analysis-card border-l-4 border-l-destructive/20">
-                          <CardHeader className="pb-3">
-                            <CardTitle className="text-base flex items-center">
-                              <AlertCircle className="w-4 h-4 mr-2 text-destructive" />
-                              {typeof risk === 'object' && risk.title ? risk.title : `Risk ${index + 1}`}
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="pt-0">
-                            <div className="bg-red-50 rounded-lg p-4">
-                              {renderMarkdown(typeof risk === 'object' ? risk.content : risk)}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
                     </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>Run a risk analysis to see potential challenges</p>
-                    </div>
-                  )}
-                </TabsContent>
+                  </TabsContent>
+                )}
 
-                <TabsContent value="market" className="space-y-4">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center">
-                    <TrendingUp className="w-5 h-5 mr-2 text-blue-600" />
-                    Market Analysis
-                  </h3>
-                  {analysisResult.marketAnalysis ? (
-                    <Card className="analysis-card border-l-4 border-l-blue-500/20">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base flex items-center">
-                          <TrendingUp className="w-4 h-4 mr-2 text-blue-600" />
-                          {analysisResult.marketAnalysis.title || 'Market Analysis'}
+                {/* Technical Analysis Tab */}
+                {analysisResults.technical && (
+                  <TabsContent value="technical" className="space-y-4">
+                    <Card className="analysis-card">
+                      <CardHeader>
+                        <CardTitle className="text-lg font-semibold flex items-center">
+                          <Lightbulb className="w-5 h-5 mr-2 text-blue-600" />
+                          Technical Analysis
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="pt-0">
+                      <CardContent>
                         <div className="bg-blue-50 rounded-lg p-4">
-                          {renderMarkdown(analysisResult.marketAnalysis.content)}
+                          {renderMarkdown(analysisResults.technical.summary)}
                         </div>
                       </CardContent>
                     </Card>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>Run a market analysis to see competitive insights</p>
-                    </div>
-                  )}
-                </TabsContent>
 
-                <TabsContent value="differentiation" className="space-y-4">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center">
-                    <Star className="w-5 h-5 mr-2 text-yellow-600" />
-                    Differentiation Analysis
-                  </h3>
-                  {analysisResult.differentiationAnalysis ? (
-                    <Card className="analysis-card border-l-4 border-l-yellow-500/20">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base flex items-center">
-                          <Star className="w-4 h-4 mr-2 text-yellow-600" />
-                          {analysisResult.differentiationAnalysis.title || 'Differentiation Analysis'}
+                    {analysisResults.technical.insights && analysisResults.technical.insights.length > 0 && (
+                      <Card className="analysis-card">
+                        <CardHeader>
+                          <CardTitle className="text-base">Technical Insights</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            {analysisResults.technical.insights.map((insight: any, index) => (
+                              <div key={index} className="bg-blue-50 rounded-lg p-3">
+                                {renderMarkdown(typeof insight === 'object' ? insight.content : insight)}
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    {analysisResults.technical.recommendations && analysisResults.technical.recommendations.length > 0 && (
+                      <Card className="analysis-card">
+                        <CardHeader>
+                          <CardTitle className="text-base">Technical Recommendations</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            {analysisResults.technical.recommendations.map((rec: any, index) => (
+                              <div key={index} className="bg-green-50 rounded-lg p-3">
+                                {renderMarkdown(typeof rec === 'object' ? rec.content : rec)}
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Clock className="w-4 h-4 mr-2" />
+                      Analysis completed at {new Date(analysisResults.technical.timestamp).toLocaleString()}
+                    </div>
+                  </TabsContent>
+                )}
+
+                {/* Market Analysis Tab */}
+                {analysisResults.market && (
+                  <TabsContent value="market" className="space-y-4">
+                    <Card className="analysis-card">
+                      <CardHeader>
+                        <CardTitle className="text-lg font-semibold flex items-center">
+                          <TrendingUp className="w-5 h-5 mr-2 text-purple-600" />
+                          Market Analysis
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="pt-0">
-                        <div className="bg-yellow-50 rounded-lg p-4">
-                          {renderMarkdown(analysisResult.differentiationAnalysis.content)}
+                      <CardContent>
+                        <div className="bg-purple-50 rounded-lg p-4">
+                          {analysisResults.market.marketAnalysis ?
+                            renderMarkdown(analysisResults.market.marketAnalysis.content) :
+                            renderMarkdown(analysisResults.market.summary)
+                          }
                         </div>
                       </CardContent>
                     </Card>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Star className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>Run a differentiation analysis to see competitive advantages</p>
-                    </div>
-                  )}
-                </TabsContent>
 
-                <TabsContent value="financial" className="space-y-4">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center">
-                    <DollarSign className="w-5 h-5 mr-2 text-green-600" />
-                    Financial Projections
-                  </h3>
-                  {analysisResult.financialProjections ? (
-                    <Card className="analysis-card border-l-4 border-l-green-500/20">
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base flex items-center">
-                          <DollarSign className="w-4 h-4 mr-2 text-green-600" />
-                          {analysisResult.financialProjections.title || 'Financial Projections'}
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Clock className="w-4 h-4 mr-2" />
+                      Analysis completed at {new Date(analysisResults.market.timestamp).toLocaleString()}
+                    </div>
+                  </TabsContent>
+                )}
+
+                {/* Differentiation Analysis Tab */}
+                {analysisResults.differentiation && (
+                  <TabsContent value="differentiation" className="space-y-4">
+                    <Card className="analysis-card">
+                      <CardHeader>
+                        <CardTitle className="text-lg font-semibold flex items-center">
+                          <Zap className="w-5 h-5 mr-2 text-indigo-600" />
+                          Competitive Differentiation
                         </CardTitle>
                       </CardHeader>
-                      <CardContent className="pt-0">
+                      <CardContent>
+                        <div className="bg-indigo-50 rounded-lg p-4">
+                          {analysisResults.differentiation.differentiationAnalysis ?
+                            renderMarkdown(analysisResults.differentiation.differentiationAnalysis.content) :
+                            renderMarkdown(analysisResults.differentiation.summary)
+                          }
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Clock className="w-4 h-4 mr-2" />
+                      Analysis completed at {new Date(analysisResults.differentiation.timestamp).toLocaleString()}
+                    </div>
+                  </TabsContent>
+                )}
+
+                {/* Financial Analysis Tab */}
+                {analysisResults.financial && (
+                  <TabsContent value="financial" className="space-y-4">
+                    <Card className="analysis-card">
+                      <CardHeader>
+                        <CardTitle className="text-lg font-semibold flex items-center">
+                          <DollarSign className="w-5 h-5 mr-2 text-green-600" />
+                          Financial Analysis
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
                         <div className="bg-green-50 rounded-lg p-4">
-                          {renderMarkdown(analysisResult.financialProjections.content)}
+                          {analysisResults.financial.financialProjections ?
+                            renderMarkdown(analysisResults.financial.financialProjections.content) :
+                            renderMarkdown(analysisResults.financial.summary)
+                          }
                         </div>
                       </CardContent>
                     </Card>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <DollarSign className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>Run a financial analysis to see cost estimates, revenue projections, and funding requirements</p>
+
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Clock className="w-4 h-4 mr-2" />
+                      Analysis completed at {new Date(analysisResults.financial.timestamp).toLocaleString()}
                     </div>
-                  )}
-                </TabsContent>
+                  </TabsContent>
+                )}
 
-                <TabsContent value="bmc" className="space-y-6">
-                  {analysisResult.businessModelCanvas ? (
-                    <div className="w-full max-w-none">
-                      {/* Header */}
-                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 p-6 rounded-lg mb-6">
-                        <div className="flex items-center mb-3">
-                          <Grid3X3 className="w-6 h-6 text-blue-600 mr-3" />
-                          <h3 className="text-2xl font-bold text-blue-800">Business Model Canvas</h3>
-                        </div>
-                        <p className="text-blue-700 mb-2">
-                          AI-generated Business Model Canvas based on your project details and requirements
-                        </p>
-                        <div className="flex items-center text-sm text-blue-600 bg-blue-100 rounded-lg p-3">
-                          <Eye className="w-4 h-4 mr-2" />
-                          <span>Click on any section below to view detailed content in a modal</span>
-                        </div>
-                      </div>
-
-                      {/* BMC Grid - Compact Layout with Modal Expansion */}
-                      <div className="w-full bg-white border-2 border-gray-200 rounded-lg p-6">
-                        {/* Top Row */}
-                        <div className="grid grid-cols-5 gap-4 mb-4">
-                          <BMCCard
-                            title="Key Partnerships"
-                            content={analysisResult.businessModelCanvas.keyPartnerships || ''}
-                            colorClass="bg-gradient-to-br from-orange-50 to-orange-100"
-                            borderClass="border-2 border-orange-300"
-                            textClass="text-orange-800"
-                          />
-                          <BMCCard
-                            title="Key Activities"
-                            content={analysisResult.businessModelCanvas.keyActivities || ''}
-                            colorClass="bg-gradient-to-br from-orange-50 to-orange-100"
-                            borderClass="border-2 border-orange-300"
-                            textClass="text-orange-800"
-                          />
-                          <BMCCard
-                            title="Value Proposition"
-                            content={analysisResult.businessModelCanvas.valueProposition || ''}
-                            colorClass="bg-gradient-to-br from-blue-50 to-blue-100"
-                            borderClass="border-2 border-blue-400"
-                            textClass="text-blue-800"
-                          />
-                          <BMCCard
-                            title="Customer Relationships"
-                            content={analysisResult.businessModelCanvas.customerRelationships || ''}
-                            colorClass="bg-gradient-to-br from-red-50 to-red-100"
-                            borderClass="border-2 border-red-300"
-                            textClass="text-red-800"
-                          />
-                          <BMCCard
-                            title="Customer Segments"
-                            content={analysisResult.businessModelCanvas.customerSegments || ''}
-                            colorClass="bg-gradient-to-br from-red-50 to-red-100"
-                            borderClass="border-2 border-red-300"
-                            textClass="text-red-800"
-                          />
+                {/* Business Model Canvas Tab */}
+                {analysisResults.bmc && (
+                  <TabsContent value="bmc" className="space-y-6">
+                    {analysisResults.bmc.businessModelCanvas ? (
+                      <div className="w-full max-w-none">
+                        {/* Header */}
+                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 p-6 rounded-lg mb-6">
+                          <div className="flex items-center mb-3">
+                            <Grid3X3 className="w-6 h-6 text-blue-600 mr-3" />
+                            <h3 className="text-2xl font-bold text-blue-800">Business Model Canvas</h3>
+                          </div>
+                          <p className="text-blue-700 mb-2">
+                            AI-generated Business Model Canvas based on your project details and requirements
+                          </p>
+                          <div className="flex items-center text-sm text-blue-600 bg-blue-100 rounded-lg p-3">
+                            <Eye className="w-4 h-4 mr-2" />
+                            <span>Click on any section below to view detailed content in a modal</span>
+                          </div>
                         </div>
 
-                        {/* Middle Row */}
-                        <div className="grid grid-cols-5 gap-4 mb-4">
-                          <BMCCard
-                            title="Key Resources"
-                            content={analysisResult.businessModelCanvas.keyResources || ''}
-                            colorClass="bg-gradient-to-br from-orange-50 to-orange-100"
-                            borderClass="border-2 border-orange-300"
-                            textClass="text-orange-800"
-                          />
-                          {/* Empty space for visual balance */}
-                          <div className="col-span-2"></div>
-                          <div className="col-span-2">
+                        {/* BMC Grid - Compact Layout with Modal Expansion */}
+                        <div className="w-full bg-white border-2 border-gray-200 rounded-lg p-6">
+                          {/* Top Row */}
+                          <div className="grid grid-cols-5 gap-4 mb-4">
                             <BMCCard
-                              title="Channels"
-                              content={analysisResult.businessModelCanvas.channels || ''}
+                              title="Key Partnerships"
+                              content={analysisResults.bmc.businessModelCanvas.keyPartnerships || ''}
+                              colorClass="bg-gradient-to-br from-orange-50 to-orange-100"
+                              borderClass="border-2 border-orange-300"
+                              textClass="text-orange-800"
+                            />
+                            <BMCCard
+                              title="Key Activities"
+                              content={analysisResults.bmc.businessModelCanvas.keyActivities || ''}
+                              colorClass="bg-gradient-to-br from-orange-50 to-orange-100"
+                              borderClass="border-2 border-orange-300"
+                              textClass="text-orange-800"
+                            />
+                            <BMCCard
+                              title="Value Proposition"
+                              content={analysisResults.bmc.businessModelCanvas.valueProposition || ''}
+                              colorClass="bg-gradient-to-br from-blue-50 to-blue-100"
+                              borderClass="border-2 border-blue-400"
+                              textClass="text-blue-800"
+                            />
+                            <BMCCard
+                              title="Customer Relationships"
+                              content={analysisResults.bmc.businessModelCanvas.customerRelationships || ''}
+                              colorClass="bg-gradient-to-br from-red-50 to-red-100"
+                              borderClass="border-2 border-red-300"
+                              textClass="text-red-800"
+                            />
+                            <BMCCard
+                              title="Customer Segments"
+                              content={analysisResults.bmc.businessModelCanvas.customerSegments || ''}
                               colorClass="bg-gradient-to-br from-red-50 to-red-100"
                               borderClass="border-2 border-red-300"
                               textClass="text-red-800"
                             />
                           </div>
+
+                          {/* Middle Row */}
+                          <div className="grid grid-cols-5 gap-4 mb-4">
+                            <BMCCard
+                              title="Key Resources"
+                              content={analysisResults.bmc.businessModelCanvas.keyResources || ''}
+                              colorClass="bg-gradient-to-br from-orange-50 to-orange-100"
+                              borderClass="border-2 border-orange-300"
+                              textClass="text-orange-800"
+                            />
+                            {/* Empty space for visual balance */}
+                            <div className="col-span-2"></div>
+                            <div className="col-span-2">
+                              <BMCCard
+                                title="Channels"
+                                content={analysisResults.bmc.businessModelCanvas.channels || ''}
+                                colorClass="bg-gradient-to-br from-red-50 to-red-100"
+                                borderClass="border-2 border-red-300"
+                                textClass="text-red-800"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Bottom Row */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <BMCCard
+                              title="Cost Structure"
+                              content={analysisResults.bmc.businessModelCanvas.costStructure || ''}
+                              colorClass="bg-gradient-to-br from-green-50 to-green-100"
+                              borderClass="border-2 border-green-300"
+                              textClass="text-green-800"
+                            />
+                            <BMCCard
+                              title="Revenue Streams"
+                              content={analysisResults.bmc.businessModelCanvas.revenueStreams || ''}
+                              colorClass="bg-gradient-to-br from-green-50 to-green-100"
+                              borderClass="border-2 border-green-300"
+                              textClass="text-green-800"
+                            />
+                          </div>
                         </div>
 
-                        {/* Bottom Row */}
-                        <div className="grid grid-cols-2 gap-4">
-                          <BMCCard
-                            title="Cost Structure"
-                            content={analysisResult.businessModelCanvas.costStructure || ''}
-                            colorClass="bg-gradient-to-br from-green-50 to-green-100"
-                            borderClass="border-2 border-green-300"
-                            textClass="text-green-800"
-                          />
-                          <BMCCard
-                            title="Revenue Streams"
-                            content={analysisResult.businessModelCanvas.revenueStreams || ''}
-                            colorClass="bg-gradient-to-br from-green-50 to-green-100"
-                            borderClass="border-2 border-green-300"
-                            textClass="text-green-800"
-                          />
+                        {/* Legend */}
+                        <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
+                          <h4 className="text-sm font-semibold text-gray-800 mb-3">Business Model Canvas Legend</h4>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                            <div className="flex items-center">
+                              <div className="w-4 h-4 bg-orange-200 border border-orange-300 rounded mr-2"></div>
+                              <span className="text-gray-700">Infrastructure</span>
+                            </div>
+                            <div className="flex items-center">
+                              <div className="w-4 h-4 bg-blue-200 border border-blue-400 rounded mr-2"></div>
+                              <span className="text-gray-700">Value Proposition</span>
+                            </div>
+                            <div className="flex items-center">
+                              <div className="w-4 h-4 bg-red-200 border border-red-300 rounded mr-2"></div>
+                              <span className="text-gray-700">Customer Interface</span>
+                            </div>
+                            <div className="flex items-center">
+                              <div className="w-4 h-4 bg-green-200 border border-green-300 rounded mr-2"></div>
+                              <span className="text-gray-700">Financial Viability</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center text-sm text-muted-foreground mt-4">
+                          <Clock className="w-4 h-4 mr-2" />
+                          Analysis completed at {new Date(analysisResults.bmc.timestamp).toLocaleString()}
                         </div>
                       </div>
-
-                      {/* Legend */}
-                      <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
-                        <h4 className="text-sm font-semibold text-gray-800 mb-3">Business Model Canvas Legend</h4>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                          <div className="flex items-center">
-                            <div className="w-4 h-4 bg-orange-200 border border-orange-300 rounded mr-2"></div>
-                            <span className="text-gray-700">Infrastructure</span>
-                          </div>
-                          <div className="flex items-center">
-                            <div className="w-4 h-4 bg-blue-200 border border-blue-400 rounded mr-2"></div>
-                            <span className="text-gray-700">Value Proposition</span>
-                          </div>
-                          <div className="flex items-center">
-                            <div className="w-4 h-4 bg-red-200 border border-red-300 rounded mr-2"></div>
-                            <span className="text-gray-700">Customer Interface</span>
-                          </div>
-                          <div className="flex items-center">
-                            <div className="w-4 h-4 bg-green-200 border border-green-300 rounded mr-2"></div>
-                            <span className="text-gray-700">Financial Viability</span>
-                          </div>
-                        </div>
+                    ) : (
+                      <div className="text-center py-16 text-muted-foreground">
+                        <Grid3X3 className="w-16 h-16 mx-auto mb-6 opacity-50" />
+                        <h3 className="text-xl font-semibold mb-2">Business Model Canvas</h3>
+                        <p className="text-lg mb-4">Run a Business Model Canvas analysis to see the 9 building blocks of your business model</p>
+                        <p className="text-sm">This will analyze your project and generate a comprehensive business model framework</p>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-16 text-muted-foreground">
-                      <Grid3X3 className="w-16 h-16 mx-auto mb-6 opacity-50" />
-                      <h3 className="text-xl font-semibold mb-2">Business Model Canvas</h3>
-                      <p className="text-lg mb-4">Run a Business Model Canvas analysis to see the 9 building blocks of your business model</p>
-                      <p className="text-sm">This will analyze your project and generate a comprehensive business model framework</p>
-                    </div>
-                  )}
-                </TabsContent>
+                    )}
+                  </TabsContent>
+                )}
 
-                <TabsContent value="roast" className="space-y-4">
-                  {analysisResult.roastIdea ? (
+                {/* Roast Analysis Tab */}
+                {analysisResults.roast && analysisResults.roast.roastIdea && (
+                  <TabsContent value="roast" className="space-y-4">
                     <div className="space-y-6">
                       <div className="bg-red-50 border border-red-200 p-4 rounded-none">
                         <div className="flex items-center mb-2">
@@ -1005,14 +1135,14 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                       {/* Summary */}
                       <div className="bg-gray-50 p-4 rounded-none border">
                         <h4 className="font-medium text-base mb-3">The Harsh Truth</h4>
-                        <p className="text-gray-700 whitespace-pre-wrap">{analysisResult.roastIdea.summary}</p>
+                        <p className="text-gray-700 whitespace-pre-wrap">{analysisResults.roast.roastIdea.summary}</p>
                       </div>
 
                       {/* Brutally Critical */}
                       <div className="space-y-3">
                         <h4 className="font-medium text-base text-foreground">🔥 What's Wrong With This Idea</h4>
                         <div className="space-y-2">
-                          {analysisResult.roastIdea.brutallyCritical.map((criticism, index) => {
+                          {analysisResults.roast.roastIdea.brutallyCritical.map((criticism, index) => {
                             const mitigationKey = `brutallyCritical-${criticism.substring(0, 50)}`;
                             const mitigation = mitigations[mitigationKey];
                             return (
@@ -1052,365 +1182,161 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                         </div>
                       </div>
 
-                      {/* Reality Check */}
-                      <div className="space-y-3">
-                        <h4 className="font-medium text-base text-foreground">📊 Market Reality Check</h4>
-                        <div className="space-y-2">
-                          {analysisResult.roastIdea.realityCheck.map((reality, index) => {
-                            const mitigationKey = `realityCheck-${reality.substring(0, 50)}`;
-                            const mitigation = mitigations[mitigationKey];
-                            return (
-                              <div key={index} className="bg-muted/50 border border-muted rounded-none">
-                                <div className="flex items-start justify-between p-3">
-                                  <div className="flex items-start space-x-3 flex-1">
-                                    <AlertCircle className="w-4 h-4 text-muted-foreground mt-1 flex-shrink-0" />
-                                    <p className="text-sm text-foreground">{reality}</p>
-                                  </div>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleGenerateMitigation(reality, 'realityCheck')}
-                                    disabled={mitigation?.isGenerating}
-                                    className="ml-3 text-xs px-2 py-1 h-auto border-gray-300 text-gray-700 hover:bg-gray-50"
-                                  >
-                                    {mitigation?.isGenerating ? (
-                                      <Loader2 className="w-3 h-3 animate-spin" />
-                                    ) : (
-                                      <Shield className="w-3 h-3 mr-1" />
-                                    )}
-                                    {mitigation?.isGenerating ? 'Generating...' : 'Fix This'}
-                                  </Button>
-                                </div>
-                                {mitigation?.content && (
-                                  <div className="mx-3 mb-3 p-3 bg-muted/50 border border-muted rounded-none">
-                                    <div className="flex items-center mb-2">
-                                      <Shield className="w-4 h-4 text-muted-foreground mr-2" />
-                                      <span className="text-sm font-medium text-foreground">Mitigation Strategy</span>
-                                    </div>
-                                    <p className="text-sm text-muted-foreground">{mitigation.content}</p>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
+                      {/* Other roast sections would go here... */}
 
-                      {/* Market Reality */}
-                      <div className="space-y-3">
-                        <h4 className="font-medium text-base text-foreground">💰 Financial Reality</h4>
-                        <div className="space-y-2">
-                          {analysisResult.roastIdea.marketReality.map((market, index) => {
-                            const mitigationKey = `marketReality-${market.substring(0, 50)}`;
-                            const mitigation = mitigations[mitigationKey];
-                            return (
-                              <div key={index} className="bg-muted/50 border border-muted rounded-none">
-                                <div className="flex items-start justify-between p-3">
-                                  <div className="flex items-start space-x-3 flex-1">
-                                    <DollarSign className="w-4 h-4 text-muted-foreground mt-1 flex-shrink-0" />
-                                    <p className="text-sm text-foreground">{market}</p>
-                                  </div>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleGenerateMitigation(market, 'marketReality')}
-                                    disabled={mitigation?.isGenerating}
-                                    className="ml-3 text-xs px-2 py-1 h-auto border-gray-300 text-gray-700 hover:bg-gray-50"
-                                  >
-                                    {mitigation?.isGenerating ? (
-                                      <Loader2 className="w-3 h-3 animate-spin" />
-                                    ) : (
-                                      <Shield className="w-3 h-3 mr-1" />
-                                    )}
-                                    {mitigation?.isGenerating ? 'Generating...' : 'Fix This'}
-                                  </Button>
-                                </div>
-                                {mitigation?.content && (
-                                  <div className="mx-3 mb-3 p-3 bg-muted/50 border border-muted rounded-none">
-                                    <div className="flex items-center mb-2">
-                                      <Shield className="w-4 h-4 text-muted-foreground mr-2" />
-                                      <span className="text-sm font-medium text-foreground">Mitigation Strategy</span>
-                                    </div>
-                                    <p className="text-sm text-muted-foreground">{mitigation.content}</p>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Improvements */}
-                      <div className="space-y-3">
-                        <h4 className="font-medium text-base text-foreground">🛠️ How to Actually Make This Work</h4>
-                        <div className="space-y-2">
-                          {analysisResult.roastIdea.improvements.map((improvement, index) => (
-                            <div key={index} className="flex items-start space-x-3 p-3 bg-muted/50 border border-muted rounded-none">
-                              <Target className="w-4 h-4 text-muted-foreground mt-1 flex-shrink-0" />
-                              <p className="text-sm text-foreground">{improvement}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Honest Advice */}
-                      <div className="space-y-3">
-                        <h4 className="font-medium text-base text-foreground">💡 Honest Advice</h4>
-                        <div className="space-y-2">
-                          {analysisResult.roastIdea.honestAdvice.map((advice, index) => (
-                            <div key={index} className="flex items-start space-x-3 p-3 bg-muted/50 border border-muted rounded-none">
-                              <Lightbulb className="w-4 h-4 text-muted-foreground mt-1 flex-shrink-0" />
-                              <p className="text-sm text-foreground">{advice}</p>
-                            </div>
-                          ))}
-                        </div>
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Clock className="w-4 h-4 mr-2" />
+                        Analysis completed at {new Date(analysisResults.roast.timestamp).toLocaleString()}
                       </div>
                     </div>
+                  </TabsContent>
+                )}
+
+                <TabsContent value="pitch" className="space-y-6">
+                  {allAnalysesComplete ? (
+                    <ProjectPitch projectId={projectId} />
                   ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Flame className="w-12 h-12 mx-auto mb-4 opacity-50 text-red-400" />
-                      <p className="text-red-600">Ready for some tough love? Run a roast analysis to get brutally honest feedback about your idea.</p>
-                      <p className="text-sm text-gray-500 mt-2">Warning: This will provide unfiltered criticism and reality checks!</p>
-                    </div>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="next-steps" className="space-y-4">
-                  <h3 className="text-lg font-semibold mb-4 flex items-center">
-                    <TrendingUp className="w-5 h-5 mr-2 text-purple-600" />
-                    Recommended Next Steps
-                  </h3>
-                  {analysisResult.nextSteps && analysisResult.nextSteps.length > 0 ? (
-                    <div className="space-y-4">
-                      {analysisResult.nextSteps.map((step: any, index) => (
-                        <Card key={index} className="analysis-card border-l-4 border-l-purple-500/20">
-                          <CardHeader className="pb-3">
-                            <CardTitle className="text-base flex items-center">
-                              <TrendingUp className="w-4 h-4 mr-2 text-purple-600" />
-                              {typeof step === 'object' && step.title ? step.title : `Step ${index + 1}`}
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="pt-0">
-                            <div className="bg-purple-50 rounded-lg p-4">
-                              {renderMarkdown(typeof step === 'object' ? step.content : step)}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <TrendingUp className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>Next steps will be generated based on analysis results</p>
-                    </div>
-                  )}
-                </TabsContent>
-
-                <TabsContent value="tokens" className="space-y-6">
-                  <h3 className="text-lg font-semibold mb-4">Token Usage & Pricing</h3>
-                  {analysisResult.tokenUsage ? (
-                    <div className="space-y-6">
-                      {/* Current Request */}
-                      <div>
-                        <h4 className="font-medium mb-3">Current Request</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="bg-blue-50 p-4 rounded-none text-center">
-                            <div className="text-2xl font-bold text-blue-600">
-                              {analysisResult.tokenUsage.inputTokens.toLocaleString()}
-                            </div>
-                            <p className="text-sm text-blue-700">Input Tokens</p>
+                    <div className="text-center py-12">
+                      <Presentation className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+                      <h3 className="text-xl font-semibold mb-2">Pitch Generation</h3>
+                      <p className="text-muted-foreground mb-6">
+                        Complete all analyses to generate your project pitch
+                      </p>
+                      <div className="max-w-md mx-auto">
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                          <div className="flex items-center mb-2">
+                            <AlertCircle className="w-5 h-5 text-yellow-600 mr-2" />
+                            <span className="font-medium text-yellow-800">
+                              {remainingAnalyses.length} analyses remaining
+                            </span>
                           </div>
-                          <div className="bg-green-50 p-4 rounded-none text-center">
-                            <div className="text-2xl font-bold text-green-600">
-                              {analysisResult.tokenUsage.outputTokens.toLocaleString()}
-                            </div>
-                            <p className="text-sm text-green-700">Output Tokens</p>
-                          </div>
-                          <div className="bg-purple-50 p-4 rounded-none text-center">
-                            <div className="text-2xl font-bold text-purple-600">
-                              {analysisResult.tokenUsage.totalTokens.toLocaleString()}
-                            </div>
-                            <p className="text-sm text-purple-700">Total Tokens</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Session Summary */}
-                      {analysisResult.tokenUsage.session && (
-                        <div>
-                          <h4 className="font-medium mb-3">This Session</h4>
-                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <div className="bg-indigo-50 p-4 rounded-none text-center">
-                              <div className="text-xl font-bold text-indigo-600">
-                                {analysisResult.tokenUsage.session.totalTokens.toLocaleString()}
-                              </div>
-                              <p className="text-sm text-indigo-700">Total Tokens</p>
-                            </div>
-                            <div className="bg-orange-50 p-4 rounded-none text-center">
-                              <div className="text-xl font-bold text-orange-600">
-                                ${analysisResult.tokenUsage.session.totalCost.toFixed(6)}
-                              </div>
-                              <p className="text-sm text-orange-700">Total Cost</p>
-                            </div>
-                            <div className="bg-teal-50 p-4 rounded-none text-center">
-                              <div className="text-xl font-bold text-teal-600">
-                                {analysisResult.tokenUsage.session.requestCount}
-                              </div>
-                              <p className="text-sm text-teal-700">Requests</p>
-                            </div>
-                            <div className="bg-pink-50 p-4 rounded-none text-center">
-                              <div className="text-xl font-bold text-pink-600">
-                                ${(analysisResult.tokenUsage.session.totalCost / analysisResult.tokenUsage.session.requestCount).toFixed(6)}
-                              </div>
-                              <p className="text-sm text-pink-700">Avg/Request</p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Cumulative Summary */}
-                      {analysisResult.tokenUsage.cumulative && (
-                        <div>
-                          <h4 className="font-medium mb-3">All Time</h4>
-                          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <div className="bg-slate-50 p-4 rounded-none text-center">
-                              <div className="text-xl font-bold text-slate-600">
-                                {analysisResult.tokenUsage.cumulative.totalTokens.toLocaleString()}
-                              </div>
-                              <p className="text-sm text-slate-700">Total Tokens</p>
-                            </div>
-                            <div className="bg-emerald-50 p-4 rounded-none text-center border-2 border-emerald-200">
-                              <div className="text-2xl font-bold text-emerald-600">
-                                ${analysisResult.tokenUsage.cumulative.totalCost.toFixed(6)}
-                              </div>
-                              <p className="text-sm text-emerald-700 font-medium">Total Cost</p>
-                            </div>
-                            <div className="bg-amber-50 p-4 rounded-none text-center">
-                              <div className="text-xl font-bold text-amber-600">
-                                {analysisResult.tokenUsage.cumulative.sessionCount}
-                              </div>
-                              <p className="text-sm text-amber-700">Sessions</p>
-                            </div>
-                            <div className="bg-rose-50 p-4 rounded-none text-center">
-                              <div className="text-xl font-bold text-rose-600">
-                                ${(analysisResult.tokenUsage.cumulative.totalCost / analysisResult.tokenUsage.cumulative.sessionCount).toFixed(6)}
-                              </div>
-                              <p className="text-sm text-rose-700">Avg/Session</p>
-                            </div>
-                          </div>
-
-                          {/* All Time Cost Breakdown */}
-                          <div className="mt-4 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-none border border-emerald-200">
-                            <h5 className="font-semibold text-emerald-800 mb-3">All Time Cost Breakdown</h5>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                              <div className="text-center">
-                                <div className="text-lg font-bold text-emerald-700">
-                                  {analysisResult.tokenUsage.cumulative.inputTokens.toLocaleString()}
-                                </div>
-                                <p className="text-sm text-emerald-600">Total Input Tokens</p>
-                                <div className="text-xs text-emerald-500 mt-1">
-                                  ${((analysisResult.tokenUsage.cumulative.inputTokens / 1000) * 0.000125).toFixed(6)}
-                                </div>
-                              </div>
-                              <div className="text-center">
-                                <div className="text-lg font-bold text-teal-700">
-                                  {analysisResult.tokenUsage.cumulative.outputTokens.toLocaleString()}
-                                </div>
-                                <p className="text-sm text-teal-600">Total Output Tokens</p>
-                                <div className="text-xs text-teal-500 mt-1">
-                                  ${((analysisResult.tokenUsage.cumulative.outputTokens / 1000) * 0.000375).toFixed(6)}
-                                </div>
-                              </div>
-                              <div className="text-center">
-                                <div className="text-lg font-bold text-emerald-800">
-                                  ${analysisResult.tokenUsage.cumulative.totalCost.toFixed(6)}
-                                </div>
-                                <p className="text-sm text-emerald-700">Total All Time Cost</p>
-                                <div className="text-xs text-emerald-600 mt-1">
-                                  {analysisResult.tokenUsage.cumulative.sessionCount} sessions
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-
-                      {/* Current Request Pricing */}
-                      <div className="space-y-4">
-                        <h4 className="font-medium">Current Request Cost (Gemini Pricing)</h4>
-
-                        {/* Input Cost */}
-                        <div className="flex justify-between items-center p-4 bg-blue-50 rounded-none">
-                          <div>
-                            <p className="font-medium text-blue-900">Input Tokens Cost</p>
-                            <p className="text-sm text-blue-700">
-                              {analysisResult.tokenUsage.inputTokens.toLocaleString()} tokens × $0.000125 per 1K tokens
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-lg font-bold text-blue-900">
-                              ${((analysisResult.tokenUsage.inputTokens / 1000) * 0.000125).toFixed(6)}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Output Cost */}
-                        <div className="flex justify-between items-center p-4 bg-green-50 rounded-none">
-                          <div>
-                            <p className="font-medium text-green-900">Output Tokens Cost</p>
-                            <p className="text-sm text-green-700">
-                              {analysisResult.tokenUsage.outputTokens.toLocaleString()} tokens × $0.000375 per 1K tokens
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-lg font-bold text-green-900">
-                              ${((analysisResult.tokenUsage.outputTokens / 1000) * 0.000375).toFixed(6)}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Total Cost */}
-                        <div className="flex justify-between items-center p-4 bg-purple-50 rounded-none border-2 border-purple-200">
-                          <div>
-                            <p className="font-bold text-purple-900 text-lg">Request Cost</p>
-                            <p className="text-sm text-purple-700">Gemini 1.5 Flash pricing</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-2xl font-bold text-purple-900">
-                              ${(
-                                (analysisResult.tokenUsage.inputTokens / 1000) * 0.000125 +
-                                (analysisResult.tokenUsage.outputTokens / 1000) * 0.000375
-                              ).toFixed(6)}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Pricing Note */}
-                        <div className="p-3 bg-gray-50 rounded-none">
-                          <p className="text-sm text-gray-600">
-                            <strong>Note:</strong> Pricing based on Gemini 1.5 Flash model rates:
-                            Input tokens at $0.000125 per 1K tokens, Output tokens at $0.000375 per 1K tokens.
+                          <p className="text-sm text-yellow-700">
+                            Run all analysis types to unlock pitch generation
                           </p>
                         </div>
+                        <Button
+                          onClick={() => setShowPitchModal(true)}
+                          variant="outline"
+                          className="w-full"
+                        >
+                          View Required Analyses
+                        </Button>
                       </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>Token usage and pricing information will appear here after analysis</p>
                     </div>
                   )}
                 </TabsContent>
+
               </Tabs>
             )}
 
-            {!analysisResult && !isAnalyzing && !error && (
+            {Object.keys(analysisResults).length === 0 && !isAnalyzing && !error && (
               <div className="text-center py-12 text-muted-foreground">
                 <Brain className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>Run an analysis to see AI-powered insights about your project</p>
+                <div className="mt-6">
+                  <Button
+                    onClick={() => setShowPitchModal(true)}
+                    variant="outline"
+                    className="text-purple-700 border-purple-200 hover:bg-purple-50"
+                  >
+                    <Presentation className="w-4 h-4 mr-2" />
+                    Generate Pitch
+                  </Button>
+                </div>
               </div>
             )}
+
+            {/* Modal for showing remaining analyses */}
+            <Dialog open={showPitchModal} onOpenChange={setShowPitchModal}>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center">
+                    <Presentation className="w-5 h-5 mr-2 text-purple-600" />
+                    Pitch Generation Requirements
+                  </DialogTitle>
+                  <DialogDescription>
+                    Complete all analyses to generate your comprehensive project pitch
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="font-medium text-purple-800">Progress</span>
+                      <span className="text-sm text-purple-600">
+                        {Object.keys(analysisResults).length} / {allAnalysisTypes.length}
+                      </span>
+                    </div>
+                    <div className="w-full bg-purple-200 rounded-full h-2">
+                      <div
+                        className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${(Object.keys(analysisResults).length / allAnalysisTypes.length) * 100}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-medium mb-3 text-foreground">Completed Analyses</h4>
+                    <div className="space-y-2">
+                      {Object.keys(analysisResults).map(type => (
+                        <div key={type} className="flex items-center text-sm">
+                          <CheckCircle className="w-4 h-4 text-green-600 mr-2" />
+                          <span className="text-green-700">{getAnalysisTypeLabel(type)}</span>
+                        </div>
+                      ))}
+                      {Object.keys(analysisResults).length === 0 && (
+                        <p className="text-sm text-muted-foreground">No analyses completed yet</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {remainingAnalyses.length > 0 && (
+                    <div>
+                      <h4 className="font-medium mb-3 text-foreground">Remaining Analyses</h4>
+                      <div className="space-y-2">
+                        {remainingAnalyses.map(type => (
+                          <div key={type} className="flex items-center justify-between text-sm">
+                            <div className="flex items-center">
+                              <div className="w-4 h-4 border-2 border-gray-300 rounded-full mr-2" />
+                              <span className="text-muted-foreground">{getAnalysisTypeLabel(type)}</span>
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setShowPitchModal(false);
+                                handleAnalyze(type);
+                              }}
+                              disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
+                              className="text-xs h-6 px-2"
+                            >
+                              {getAnalysisTypeIcon(type)}
+                              <span className="ml-1">Run</span>
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {allAnalysesComplete && (
+                    <div className="text-center">
+                      <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-3" />
+                      <p className="text-green-700 font-medium">All analyses complete!</p>
+                      <Button
+                        onClick={() => {
+                          setShowPitchModal(false);
+                          setActiveAnalysisTab('pitch');
+                        }}
+                        className="mt-3 w-full bg-purple-600 hover:bg-purple-700"
+                      >
+                        <Presentation className="w-4 h-4 mr-2" />
+                        Generate Pitch
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </div>

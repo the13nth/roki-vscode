@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getGoogleAIConfig, validateSecureConfig } from '@/lib/secureConfig';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -10,13 +11,13 @@ interface ApiConfiguration {
   customHeaders?: Record<string, string>;
 }
 
-function getApiConfigPath(projectId: string): string {
+async function getApiConfigPath(projectId: string): Promise<string> {
   const globalConfigPath = path.join(process.cwd(), '.ai-project', 'global-api-config.json');
   const projectConfigPath = path.join(process.cwd(), '.ai-project', 'projects', projectId, 'api-config.json');
   
   // Check if project-specific config exists
   try {
-    require('fs').accessSync(projectConfigPath);
+    await fs.access(projectConfigPath);
     return projectConfigPath;
   } catch {
     return globalConfigPath;
@@ -399,7 +400,7 @@ export async function POST(
     };
 
     // Load API configuration
-    const configPath = getApiConfigPath(projectId);
+    const configPath = await getApiConfigPath(projectId);
     let apiConfig: ApiConfiguration;
     
     try {

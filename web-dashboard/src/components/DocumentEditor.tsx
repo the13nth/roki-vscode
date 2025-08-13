@@ -5,6 +5,7 @@ import { MarkdownEditor } from './MarkdownEditor';
 import { useRealtimeSync, useDocumentSync } from '../hooks/useRealtimeSync';
 import { RealtimeSyncStatus, DocumentSyncIndicator, UnsavedChangesIndicator } from './RealtimeSyncStatus';
 import { BackupManager } from './BackupManager';
+import AddTaskDialog from './AddTaskDialog';
 
 interface DocumentEditorProps {
   projectId: string;
@@ -112,6 +113,14 @@ export function DocumentEditor({
     updateLocalContent(newContent);
   }, [updateLocalContent]);
 
+
+
+  // Handle task added callback
+  const handleTaskAdded = useCallback(() => {
+    // Reload the document to show the new task
+    loadDocument();
+  }, [loadDocument]);
+
   if (isLoading || documentState.isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -172,6 +181,14 @@ export function DocumentEditor({
           
           {/* Document Actions */}
           <div className="flex items-center space-x-2">
+            {/* Add Task Dialog - only show for tasks document */}
+            {documentType === 'tasks' && (
+              <AddTaskDialog
+                projectId={projectId}
+                onTaskAdded={handleTaskAdded}
+              />
+            )}
+            
             <button
               onClick={loadDocument}
               className="text-gray-400 hover:text-gray-600 transition-colors"

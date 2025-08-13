@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getGoogleAIConfig, validateSecureConfig } from '@/lib/secureConfig';
 import { promises as fs } from 'fs';
 import path from 'path';
 
@@ -110,6 +111,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     let testResult = false;
+
+    // For Google AI, also test the secure configuration if available
+    if (config.provider === 'google') {
+      try {
+        const secureConfig = getGoogleAIConfig();
+        console.log('✅ Secure Google AI configuration is available');
+        testResult = await testGoogleAI(secureConfig);
+        if (testResult) {
+          return NextResponse.json({ 
+            success: true, 
+            message: 'Connection successful using secure environment configuration',
+            usingSecureConfig: true
+          });
+        }
+      } catch (error) {
+        console.warn('⚠️ Secure Google AI config not available, testing provided config');
+      }
+    }
 
     // Test the configured provider
     switch (config.provider) {

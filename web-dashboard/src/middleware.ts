@@ -1,17 +1,39 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
+import { NextResponse } from 'next/server'
 
 const isProtectedRoute = createRouteMatcher([
   '/projects(.*)',
   '/api/projects(.*)',
 ])
 
+const isPublicApiRoute = createRouteMatcher([
+  '/api/file-watcher(.*)',
+])
+
 export default clerkMiddleware(async (auth, req) => {
+  // Skip authentication for public API routes (file watcher)
+  if (isPublicApiRoute(req)) {
+    return NextResponse.next()
+  }
+  
+  // Skip authentication for VSCode API endpoints
+  if (req.nextUrl.pathname.includes('/vscode')) {
+    return NextResponse.next()
+  }
+  
   if (isProtectedRoute(req)) {
-    const { userId } = await auth()
-    if (!userId) {
-      return Response.redirect(new URL('/sign-in', req.url))
+    try {
+      const { userId } = await auth()
+      if (!userId) {
+        return NextResponse.redirect(new URL('/sign-in', req.url))
+      }
+    } catch (error) {
+      console.error('Auth error:', error)
+      return NextResponse.redirect(new URL('/sign-in', req.url))
     }
   }
+  
+  return NextResponse.next()
 })
 
 export const config = {

@@ -1,6 +1,6 @@
 {
   "provider": "google",
-  "apiKey": "AIzaSyDQclw1VMhFXf7G6Zb6PQLy1_wOqDKG1Uw",
+  "apiKey": "AIzaSyDQclw1VMhFXf7G6Zb6PQLy1_wOqDKG1U",
   "model": "gemini-1.5-pro",
   "baseUrl": "https://generativelanguage.googleapis.com"
 }

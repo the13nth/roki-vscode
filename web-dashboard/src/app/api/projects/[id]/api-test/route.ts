@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import * as fs from 'fs';
-import * as path from 'path';
+import { auth } from '@clerk/nextjs/server';
 
 interface ApiConfiguration {
   provider: string;
@@ -129,44 +128,70 @@ export async function POST(
 ): Promise<NextResponse> {
   try {
     const { id: projectId } = await params;
-    const config: ApiConfiguration = await request.json();
+    
+    // Get the current API configuration for this project (respects user/app key selection)
+    const configResponse = await fetch(`${request.nextUrl.origin}/api/projects/${projectId}/api-config`, {
+      headers: {
+        'Cookie': request.headers.get('Cookie') || ''
+      }
+    });
+
+    if (!configResponse.ok) {
+      return NextResponse.json(
+        { error: 'Failed to load project API configuration' },
+        { status: 500 }
+      );
+    }
+
+    const config: ApiConfiguration & { source?: string; usePersonalApiKey?: boolean } = await configResponse.json();
 
     // Validate required fields
     if (!config.provider || !config.apiKey || !config.model) {
       return NextResponse.json(
-        { error: 'Provider, API key, and model are required' },
+        { error: 'API configuration is incomplete. Please configure your API settings.' },
         { status: 400 }
       );
     }
 
     let testResult = false;
+    let errorMessage = '';
 
     // Test the configured provider
-    switch (config.provider) {
-      case 'openai':
-        testResult = await testOpenAI(config);
-        break;
-      case 'anthropic':
-        testResult = await testAnthropic(config);
-        break;
-      case 'google':
-        testResult = await testGoogleAI(config);
-        break;
-      case 'custom':
-        testResult = await testCustomProvider(config);
-        break;
-      default:
-        return NextResponse.json(
-          { error: 'Unsupported provider' },
-          { status: 400 }
-        );
+    try {
+      switch (config.provider) {
+        case 'openai':
+          testResult = await testOpenAI(config);
+          break;
+        case 'anthropic':
+          testResult = await testAnthropic(config);
+          break;
+        case 'google':
+          testResult = await testGoogleAI(config);
+          break;
+        case 'custom':
+          testResult = await testCustomProvider(config);
+          break;
+        default:
+          return NextResponse.json(
+            { error: 'Unsupported provider' },
+            { status: 400 }
+          );
+      }
+    } catch (error) {
+      errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      testResult = false;
     }
 
     if (testResult) {
-      return NextResponse.json({ success: true, message: 'API connection successful' });
+      const keySource = config.usePersonalApiKey ? 'personal' : 'app default';
+      return NextResponse.json({ 
+        success: true, 
+        message: `API connection successful using ${keySource} key (${config.provider} - ${config.model})` 
+      });
     } else {
+      const keySource = config.usePersonalApiKey ? 'personal' : 'app default';
       return NextResponse.json(
-        { error: 'API connection failed. Please check your API key and configuration.' },
+        { error: `API connection failed using ${keySource} key. ${errorMessage || 'Please check your API key and configuration.'}` },
         { status: 400 }
       );
     }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getGoogleAIConfig, validateSecureConfig } from '@/lib/secureConfig';
 import fs from 'fs';
 import path from 'path';
 
@@ -10,10 +11,10 @@ interface MitigationRequest {
 }
 
 interface ApiConfiguration {
-  provider: 'openai' | 'anthropic' | 'google' | 'custom';
-  apiKey?: string;
+  provider: string;
+  apiKey: string;
+  model: string;
   baseUrl?: string;
-  model?: string;
 }
 
 function getApiConfigPath(projectId: string): string {
@@ -125,38 +126,45 @@ async function callAnthropic(config: ApiConfiguration, prompt: string): Promise<
 }
 
 async function callGoogleAI(config: ApiConfiguration, prompt: string): Promise<{ content: string; tokenUsage: any }> {
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${config.model || 'gemini-1.5-pro'}:generateContent?key=${config.apiKey}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      contents: [
-        {
-          parts: [
-            {
-              text: prompt
-            }
-          ]
-        }
-      ],
-    }),
-  });
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${config.model || 'gemini-1.5-pro'}:generateContent?key=${config.apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt
+              }
+            ]
+          }
+        ],
+      }),
+    });
 
-  if (!response.ok) {
-    throw new Error(`Google AI API error: ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  return {
-    content: data.candidates[0].content.parts[0].text,
-    tokenUsage: {
-      inputTokens: data.usageMetadata?.promptTokenCount || 0,
-      outputTokens: data.usageMetadata?.candidatesTokenCount || 0,
-      totalTokens: data.usageMetadata?.totalTokenCount || 0,
-      cost: 0 // Google AI pricing varies by model
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ Google AI API error ${response.status}:`, errorText);
+      throw new Error(`Google AI API error: ${response.status} - ${errorText}`);
     }
-  };
+
+    const data = await response.json();
+    return {
+      content: data.candidates[0].content.parts[0].text,
+      tokenUsage: {
+        inputTokens: data.usageMetadata?.promptTokenCount || 0,
+        outputTokens: data.usageMetadata?.candidatesTokenCount || 0,
+        totalTokens: data.usageMetadata?.totalTokenCount || 0,
+        cost: ((data.usageMetadata?.promptTokenCount || 0) / 1000) * 0.000125 + ((data.usageMetadata?.candidatesTokenCount || 0) / 1000) * 0.000375
+      }
+    };
+  } catch (error) {
+    console.error('❌ Google AI API call failed:', error);
+    throw error;
+  }
 }
 
 async function callCustomProvider(config: ApiConfiguration, prompt: string): Promise<{ content: string; tokenUsage: any }> {
@@ -209,17 +217,36 @@ export async function POST(
       );
     }
 
-    // Load API configuration
-    const configPath = getApiConfigPath(projectId);
-    if (!fs.existsSync(configPath)) {
+    // Validate secure configuration
+    const configValidation = validateSecureConfig();
+    if (!configValidation.isValid) {
+      console.error('❌ Secure configuration validation failed:', configValidation.errors);
       return NextResponse.json(
-        { error: 'API configuration not found. Please configure an AI provider first.' },
-        { status: 400 }
+        { error: `Configuration error: ${configValidation.errors.join(', ')}` },
+        { status: 500 }
       );
     }
 
-    const configData = fs.readFileSync(configPath, 'utf8');
-    const config: ApiConfiguration = JSON.parse(configData);
+    // Try to get Google AI configuration from environment
+    let config: ApiConfiguration;
+    try {
+      config = getGoogleAIConfig();
+      console.log('✅ Using secure Google AI configuration from environment');
+    } catch (error) {
+      console.warn('⚠️ Failed to get Google AI config from environment, falling back to project config file');
+      
+      // Fallback to project configuration file
+      const configPath = getApiConfigPath(projectId);
+      if (!fs.existsSync(configPath)) {
+        return NextResponse.json(
+          { error: 'No AI configuration found. Please set GOOGLE_AI_API_KEY environment variable or configure an AI provider for this project.' },
+          { status: 400 }
+        );
+      }
+
+      const configData = fs.readFileSync(configPath, 'utf8');
+      config = JSON.parse(configData);
+    }
 
     // Generate mitigation prompt
     const prompt = generateMitigationPrompt(context, criticism, criticismType, projectTemplate);

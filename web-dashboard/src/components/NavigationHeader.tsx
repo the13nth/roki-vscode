@@ -41,6 +41,12 @@ export function NavigationHeader() {
                   Projects
                 </Button>
               </Link>
+              <Link href="/profile">
+                <Button variant="ghost" size="sm" className="flex items-center">
+                  <User className="mr-2 h-4 w-4" />
+                  Profile
+                </Button>
+              </Link>
               <GlobalApiSettings />
             </SignedIn>
             

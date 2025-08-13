@@ -13,7 +13,7 @@ interface EmbeddingPoint {
   id: string;
   vector: number[];
   metadata: {
-    type: 'requirements' | 'design' | 'tasks' | 'progress' | 'sync_log' | 'document' | 'context' | 'project' | 'unknown';
+    type: 'requirements' | 'design' | 'tasks' | 'progress' | 'sync_log' | 'token_usage' | 'document' | 'context' | 'project' | 'unknown';
     title: string;
     content?: string;
     projectId: string;
@@ -264,7 +264,6 @@ export function EmbeddingsVisualization({ projectId }: EmbeddingsVisualizationPr
             ) : (
               <Canvas
                 camera={{ position: [0, 0, 15], fov: 75 }}
-                style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}
               >
                 <VisualizationScene 
                   points={points}

@@ -2,8 +2,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { ClientOnly } from './ClientOnly';
 
-export function FileWatcherInitializer() {
+function FileWatcherInitializerInner() {
   const [, setWatcherStatus] = useState<'initializing' | 'active' | 'error' | 'inactive'>('initializing');
 
   useEffect(() => {
@@ -30,6 +31,13 @@ export function FileWatcherInitializer() {
   }, []);
 
   // This component doesn't render anything visible
-  // In a real implementation, you might want to show a status indicator
   return null;
+}
+
+export function FileWatcherInitializer() {
+  return (
+    <ClientOnly>
+      <FileWatcherInitializerInner />
+    </ClientOnly>
+  );
 }

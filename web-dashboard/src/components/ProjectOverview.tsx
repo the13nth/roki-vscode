@@ -79,6 +79,8 @@ export function ProjectOverview() {
 
   const handleBrowseFolder = () => {
     // Create a hidden file input with webkitdirectory attribute for folder selection
+    if (typeof document === 'undefined') return;
+    
     const input = document.createElement('input');
     input.type = 'file';
     input.webkitdirectory = true;
@@ -112,8 +114,9 @@ export function ProjectOverview() {
         }
         
         // Update the input field with the folder path
-        const inputElement = document.getElementById('folderPath') as HTMLInputElement;
-        if (inputElement) {
+        if (typeof document !== 'undefined') {
+          const inputElement = document.getElementById('folderPath') as HTMLInputElement;
+          if (inputElement) {
           // Try to construct a reasonable full path
           // Note: We can't get the full system path from the file input, 
           // but we can use the folder name as a starting point
@@ -179,12 +182,17 @@ export function ProjectOverview() {
         }
         
         // Clean up the input element
-        document.body.removeChild(input);
+        if (typeof document !== 'undefined') {
+          document.body.removeChild(input);
+        }
+      }
     });
     
     // Add the input to the DOM and trigger the file picker
-    document.body.appendChild(input);
-    input.click();
+    if (typeof document !== 'undefined') {
+      document.body.appendChild(input);
+      input.click();
+    }
   };
 
 

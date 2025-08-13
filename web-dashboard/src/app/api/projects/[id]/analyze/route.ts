@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { pineconeSyncService } from '@/lib/pineconeSyncService';
 import { TokenTrackingService } from '@/lib/tokenTrackingService';
+import { getGoogleAIConfig, validateSecureConfig } from '@/lib/secureConfig';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { auth } from '@clerk/nextjs/server';
@@ -66,8 +67,6 @@ export async function POST(
 
       // Fallback to file system
       try {
-        const fs = require('fs').promises;
-        const path = require('path');
 
         // Get project config
         const projectResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/projects/${id}`);
@@ -186,17 +185,36 @@ export async function POST(
 
     console.log(`📝 Total analysis context length: ${analysisContext.length} characters`);
 
-    // Load global API configuration
-    const globalConfigPath = getGlobalConfigPath();
-    if (!await fileExists(globalConfigPath)) {
+    // Validate secure configuration
+    const configValidation = validateSecureConfig();
+    if (!configValidation.isValid) {
+      console.error('❌ Secure configuration validation failed:', configValidation.errors);
       return NextResponse.json(
-        { error: 'No global API configuration found. Please configure an AI provider in the global settings.' },
-        { status: 400 }
+        { error: `Configuration error: ${configValidation.errors.join(', ')}` },
+        { status: 500 }
       );
     }
 
-    const globalConfigData = await fs.readFile(globalConfigPath, 'utf8');
-    const apiConfig: ApiConfiguration = JSON.parse(globalConfigData);
+    // Try to get Google AI configuration from environment
+    let apiConfig: ApiConfiguration;
+    try {
+      apiConfig = getGoogleAIConfig();
+      console.log('✅ Using secure Google AI configuration from environment');
+    } catch (error) {
+      console.warn('⚠️ Failed to get Google AI config from environment, falling back to global config file');
+      
+      // Fallback to global configuration file
+      const globalConfigPath = getGlobalConfigPath();
+      if (!await fileExists(globalConfigPath)) {
+        return NextResponse.json(
+          { error: 'No AI configuration found. Please set GOOGLE_AI_API_KEY environment variable or configure an AI provider in the global settings.' },
+          { status: 400 }
+        );
+      }
+
+      const globalConfigData = await fs.readFile(globalConfigPath, 'utf8');
+      apiConfig = JSON.parse(globalConfigData);
+    }
 
     // Determine max tokens based on analysis type
     let maxTokens = 4000;

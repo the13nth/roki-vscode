@@ -98,7 +98,7 @@
     - _Requirements: 3.2, 3.3_
 
 - [ ] 8. Build template system and project initialization
-  - [ ] 8.1 Create project template engine
+  - [x] 8.1 Create project template engine
     - Design template structure for different project types (web app, API, mobile)
     - Implement template rendering with variable substitution
     - Create template validation and testing framework
@@ -147,3 +147,56 @@
   - Write installation and setup documentation
   - Add version management and update mechanisms
   - _Requirements: All requirements - deployment and distribution_
+
+- [x] 13. Implement production security and encryption
+  - [x] 13.1 Add API key encryption for production environments
+    - Replace unencrypted API key storage with proper AES-256-CBC encryption
+    - Implement secure key derivation using crypto.scryptSync with proper salt
+    - Add environment-based encryption toggle (development vs production)
+    - Create secure key rotation and backup mechanisms
+    - _Requirements: Security and data protection for production deployment_
+  
+  - [ ] 13.2 Implement secure configuration management
+    - add the gemini api to .env.local and reconfigure everywhere it was used
+    - Add environment variable support for encryption keys and secrets
+    - Create secure configuration validation and error handling
+    - Implement proper error messages for encryption/decryption failures
+    - Add audit logging for security-related operations
+    - _Requirements: Secure configuration handling in production environments_
+
+- [x] 14. Implement online synchronization with Pinecone
+  - [x] 14.1 Set up Pinecone integration
+    - Install and configure Pinecone client library
+    - Create vector index with proper dimensions and metadata
+    - Implement vector-based storage for projects, documents, and sync logs
+    - Add TypeScript types for vector metadata
+    - _Requirements: Vector-based project synchronization and similarity search_
+  
+  - [x] 14.2 Build sync service and UI components
+    - Create vector-based sync service for handling upload/download operations
+    - Implement similarity-based conflict detection and resolution
+    - Build sync status component with real-time indicators
+    - Add sync controls to project dashboard
+    - _Requirements: User-friendly sync interface and status monitoring_
+  
+  - [ ] 14.3 Add advanced vector search and AI features
+    - Implement semantic search across project documents
+    - Add similarity-based context retrieval for AI injection
+    - Create intelligent document recommendations
+    - Add vector-based project organization and clustering
+    - _Requirements: AI-powered document search and organization_
+
+- [x] 15. Implement AI Token Usage Tracker & Profile Page
+  - Create a centralized token usage tracker for all AI calls and display usage on a user profile page.
+  - Create a `TokenUsageTracker` class to record token usage for each AI call, storing data like timestamp, project ID, and token count.
+  - Develop a user profile page accessible from the web dashboard that displays historical token usage data, potentially with breakdowns by project and time period.
+  - Implement a persistent storage mechanism for token usage data on pinecone.
+  - Design clear visualizations for token usage data on the profile page, such as charts, graphs, or tables.
+  
+- [ ] 16. Move API Key to User Profile with Toggle
+  - Move API key setting from project page to user profile, allowing users to set their own key and toggle between personal and app API keys.
+  - Create API key input field on the user profile page in the web dashboard.
+  - Implement secure storage of user-provided API keys using existing encryption mechanisms (refer to task 13.1).
+  - Add a toggle on the project page to select between user-provided and app-default API keys.
+  - Update the VS Code extension's context injection to respect the API key selection toggle.
+  - Update the Pinecone integration (task 14) to handle user-specific API keys securely.

@@ -5,6 +5,7 @@ import { FileWatcherInitializer } from "@/components/FileWatcherInitializer";
 import { NavigationHeader } from "@/components/NavigationHeader";
 import { DotMatrixBackground } from "@/components/ui/dot-matrix-background";
 import { ClerkProvider } from '@clerk/nextjs';
+import { ClientOnly } from "@/components/ClientOnly";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,8 +35,10 @@ export default function RootLayout({
         >
           <DotMatrixBackground opacity="light" dotSize="sm" spacing="normal" />
           <div className="relative z-10">
-            <FileWatcherInitializer />
-            <NavigationHeader />
+            <ClientOnly>
+              <FileWatcherInitializer />
+              <NavigationHeader />
+            </ClientOnly>
             {children}
           </div>
         </body>

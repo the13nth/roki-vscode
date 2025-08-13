@@ -12,7 +12,7 @@ import { ProgressDashboard } from './ProgressDashboard';
 import { ContextDocumentManager } from './ContextDocumentManager';
 import { ApiConfiguration } from './ApiConfiguration';
 import { ProjectAnalysis } from './ProjectAnalysis';
-import { EnhancedProjectAnalysis } from './EnhancedProjectAnalysis';
+
 import SyncStatus from './SyncStatus';
 import { EmbeddingsVisualization } from './EmbeddingsVisualization';
 import { Card, CardContent } from '@/components/ui/card';
@@ -147,16 +147,13 @@ export function ProjectDashboardLayout({
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 p-6">
+      <div className="flex-1 p-2">
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
             {/* Sidebar */}
-            <div className="xl:col-span-1 space-y-6">
+            <div className="xl:col-span-1 space-y-2">
               {/* Project Metadata */}
-              <ProjectMetadata 
-                project={project} 
-                onUpdate={handleProjectUpdate}
-              />
+              
               
               {/* Navigation */}
               <ProjectNavigation 
@@ -169,6 +166,10 @@ export function ProjectDashboardLayout({
               <SyncStatus 
                 projectId={projectId}
                 onSync={loadProject}
+              />
+              <ProjectMetadata 
+                project={project} 
+                onUpdate={handleProjectUpdate}
               />
             </div>
 
@@ -241,10 +242,7 @@ export function ProjectDashboardLayout({
                         </p>
                       </div>
                       
-                      <div style={{ border: '2px solid blue', padding: '10px', backgroundColor: 'lightblue' }}>
-                        <h3>Test Container</h3>
-                        <p>This container should be visible</p>
-                        <p>Testing component rendering...</p>
+                      <div style={{ border: '2px solid', padding: '10px' }}>
                         <EmbeddingsVisualization projectId={projectId} />
                       </div>
                     </div>
@@ -253,6 +251,7 @@ export function ProjectDashboardLayout({
                 </CardContent>
               </Card>
             </div>
+            
           </div>
         </div>
       </div>

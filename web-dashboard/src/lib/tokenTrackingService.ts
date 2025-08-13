@@ -149,10 +149,15 @@ export class TokenTrackingService {
 
       queryResponse.matches.forEach(match => {
         if (match.metadata) {
-          totalInputTokens += match.metadata.inputTokens || 0;
-          totalOutputTokens += match.metadata.outputTokens || 0;
-          totalCost += match.metadata.cost || 0;
-          if (match.metadata.sessionId) {
+          const inputTokens = typeof match.metadata.inputTokens === 'number' ? match.metadata.inputTokens : 0;
+          const outputTokens = typeof match.metadata.outputTokens === 'number' ? match.metadata.outputTokens : 0;
+          const cost = typeof match.metadata.cost === 'number' ? match.metadata.cost : 0;
+          
+          totalInputTokens += inputTokens;
+          totalOutputTokens += outputTokens;
+          totalCost += cost;
+          
+          if (match.metadata.sessionId && typeof match.metadata.sessionId === 'string') {
             sessionIds.add(match.metadata.sessionId);
           }
         }
@@ -198,9 +203,13 @@ export class TokenTrackingService {
 
       queryResponse.matches.forEach(match => {
         if (match.metadata) {
-          totalInputTokens += match.metadata.inputTokens || 0;
-          totalOutputTokens += match.metadata.outputTokens || 0;
-          totalCost += match.metadata.cost || 0;
+          const inputTokens = typeof match.metadata.inputTokens === 'number' ? match.metadata.inputTokens : 0;
+          const outputTokens = typeof match.metadata.outputTokens === 'number' ? match.metadata.outputTokens : 0;
+          const cost = typeof match.metadata.cost === 'number' ? match.metadata.cost : 0;
+          
+          totalInputTokens += inputTokens;
+          totalOutputTokens += outputTokens;
+          totalCost += cost;
           requestCount++;
         }
       });

@@ -23,12 +23,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch the URL content
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    
     const response = await fetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; AI Project Manager URL Preview Bot)'
       },
-      timeout: 10000 // 10 second timeout
+      signal: controller.signal
     });
+    
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       return NextResponse.json(

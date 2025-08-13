@@ -119,6 +119,8 @@ export function MarkdownEditor({
 
   // Warn user about unsaved changes before leaving
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (hasUnsavedChanges) {
         e.preventDefault();

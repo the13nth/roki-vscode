@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getGoogleAIConfig, validateSecureConfig } from '@/lib/secureConfig';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { ProjectConfiguration } from '@/types';

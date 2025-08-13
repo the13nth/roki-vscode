@@ -343,7 +343,8 @@ export function GlobalApiSettings() {
           <div className="text-sm text-muted-foreground space-y-1 pt-4 border-t">
             <p>• This global configuration will be used as default for new projects</p>
             <p>• Individual projects can override these settings</p>
-            <p>• API keys are stored locally (no encryption in development)</p>
+            <p>• For Google AI (Gemini), set GOOGLE_AI_API_KEY environment variable for secure configuration</p>
+            <p>• API keys are encrypted in production, stored as plaintext in development</p>
             <p>• Test the connection before using AI features</p>
           </div>
         </div>
