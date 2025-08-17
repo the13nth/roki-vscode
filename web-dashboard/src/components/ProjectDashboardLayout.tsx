@@ -208,6 +208,7 @@ export function ProjectDashboardLayout({
                       documentType="tasks"
                       title="Tasks"
                       description="Implementation tasks and checklist"
+                      onDocumentSaved={loadProject}
                     />
                   )}
                   

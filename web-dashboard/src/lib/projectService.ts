@@ -205,10 +205,59 @@ export class ProjectService {
       lastModified: new Date().toISOString()
     };
 
-    // Generate new embedding if description changed
-    const embedding = updates.description ?
-      await generateEmbedding(updatedProject.description) :
-      new Array(1024).fill(0); // Keep existing embedding (match Pinecone index dimension)
+    // Generate new embedding for the updated project
+    let embedding: number[];
+    try {
+      // Always generate a new embedding for the updated project data
+      const embeddingText = updatedProject.description || updatedProject.name || projectId;
+      embedding = await generateEmbedding(embeddingText);
+      
+      // Ensure the embedding has the correct dimension and is not all zeros
+      if (embedding.length !== 1024) {
+        console.warn(`⚠️ Generated embedding has wrong dimension: ${embedding.length}, padding to 1024`);
+        while (embedding.length < 1024) {
+          embedding.push(0);
+        }
+        if (embedding.length > 1024) {
+          embedding = embedding.slice(0, 1024);
+        }
+      }
+      
+      // Check if embedding is all zeros and generate a fallback if needed
+      const hasNonZero = embedding.some(val => val !== 0);
+      if (!hasNonZero) {
+        console.warn('⚠️ Generated embedding is all zeros, using fallback');
+        // Create a simple hash-based embedding as fallback
+        const hash = embeddingText.split('').reduce((a, b) => {
+          a = ((a << 5) - a) + b.charCodeAt(0);
+          return a & a;
+        }, 0);
+        
+        embedding = new Array(1024).fill(0);
+        for (let i = 0; i < 1024; i++) {
+          embedding[i] = Math.sin(hash + i) * 0.1;
+        }
+      }
+      
+      console.log('✅ Generated embedding for project update:', {
+        dimension: embedding.length,
+        hasNonZero: embedding.some(val => val !== 0),
+        sampleValues: embedding.slice(0, 3)
+      });
+    } catch (error) {
+      console.error('❌ Failed to generate embedding for project update:', error);
+      // Use a simple fallback embedding
+      const hash = (updatedProject.description || updatedProject.name || projectId).split('').reduce((a, b) => {
+        a = ((a << 5) - a) + b.charCodeAt(0);
+        return a & a;
+      }, 0);
+      
+      embedding = new Array(1024).fill(0);
+      for (let i = 0; i < 1024; i++) {
+        embedding[i] = Math.sin(hash + i) * 0.1;
+      }
+      console.log('✅ Using fallback embedding for project update');
+    }
 
     const pinecone = getPineconeClient();
     const index = pinecone.index(PINECONE_INDEX_NAME);

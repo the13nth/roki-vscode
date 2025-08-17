@@ -3,6 +3,32 @@ import { auth } from '@clerk/nextjs/server';
 import { ProjectService } from '@/lib/projectService';
 import { ProjectDashboard } from '@/types';
 
+// Helper function to parse tasks from markdown content
+function parseTasksFromMarkdown(content: string): { totalTasks: number; completedTasks: number; percentage: number } {
+  if (!content || !content.trim()) {
+    return { totalTasks: 0, completedTasks: 0, percentage: 0 };
+  }
+
+  const lines = content.split('\n');
+  let totalTasks = 0;
+  let completedTasks = 0;
+
+  for (const line of lines) {
+    // Match task checkboxes: - [ ] or - [x]
+    const taskMatch = line.match(/^[\s]*-[\s]*\[([x\s])\]/);
+    if (taskMatch) {
+      totalTasks++;
+      if (taskMatch[1].toLowerCase() === 'x') {
+        completedTasks++;
+      }
+    }
+  }
+
+  const percentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  
+  return { totalTasks, completedTasks, percentage };
+}
+
 // GET /api/projects/[id] - Get project details
 export async function GET(
   request: NextRequest,
@@ -31,23 +57,55 @@ export async function GET(
       );
     }
 
-    // Convert to ProjectDashboard format
+    // Parse tasks from the tasks.md content to get accurate counts
+    const tasksContent = project.tasks || '';
+    
+    // Use existing progress data if available, otherwise parse from tasks content
+    let progressData;
+    if (project.progress && typeof project.progress === 'object') {
+      // Use existing progress data from Pinecone
+      progressData = {
+        totalTasks: project.progress.totalTasks || 0,
+        completedTasks: project.progress.completedTasks || 0,
+        percentage: project.progress.percentage || 0,
+        lastUpdated: new Date(project.progress.lastUpdated || project.lastModified || new Date()),
+        recentActivity: project.progress.recentActivity || [],
+        milestones: project.progress.milestones || []
+      };
+      console.log('📊 Using existing progress data:', {
+        totalTasks: progressData.totalTasks,
+        completedTasks: progressData.completedTasks,
+        percentage: progressData.percentage
+      });
+    } else {
+      // Parse tasks to calculate progress (fallback)
+      const taskStats = parseTasksFromMarkdown(tasksContent);
+      progressData = {
+        totalTasks: taskStats.totalTasks,
+        completedTasks: taskStats.completedTasks,
+        percentage: taskStats.percentage,
+        lastUpdated: new Date(project.lastModified || new Date()),
+        recentActivity: [],
+        milestones: []
+      };
+      console.log('📊 Parsed task stats (fallback):', {
+        totalTasks: taskStats.totalTasks,
+        completedTasks: taskStats.completedTasks,
+        percentage: taskStats.percentage,
+        tasksContentLength: tasksContent.length
+      });
+    }
+
+    // Convert to ProjectDashboard format with accurate task counts
     const projectDashboard: ProjectDashboard = {
       projectId: project.projectId,
       projectPath: '', // Cloud-only projects don't have local paths
       documents: {
         requirements: project.requirements || '',
         design: project.design || '',
-        tasks: project.tasks || ''
+        tasks: tasksContent
       },
-      progress: {
-        totalTasks: 0,
-        completedTasks: 0,
-        percentage: 0,
-        lastUpdated: new Date(),
-        recentActivity: [],
-        milestones: []
-      },
+      progress: progressData,
       contextDocs: []
     };
 

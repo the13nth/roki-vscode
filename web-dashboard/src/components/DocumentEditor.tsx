@@ -15,6 +15,7 @@ interface DocumentEditorProps {
   documentType: 'requirements' | 'design' | 'tasks';
   title: string;
   description: string;
+  onDocumentSaved?: () => void; // Callback when document is saved
 }
 
 export function DocumentEditor({ 
@@ -22,7 +23,8 @@ export function DocumentEditor({
   projectPath,
   documentType, 
   title, 
-  description 
+  description,
+  onDocumentSaved
 }: DocumentEditorProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -107,8 +109,14 @@ export function DocumentEditor({
 
     // Mark as saved in sync state
     markAsSaved();
+    
+    // Call the callback if provided (useful for refreshing project data)
+    if (onDocumentSaved) {
+      onDocumentSaved();
+    }
+    
     return response.json();
-  }, [projectId, documentType, markAsSaved, documentState.lastSynced, loadDocument]);
+  }, [projectId, documentType, markAsSaved, documentState.lastSynced, loadDocument, onDocumentSaved]);
 
   // Handle content changes
   const handleContentChange = useCallback((newContent: string) => {
