@@ -5,6 +5,7 @@ const vscode = require("vscode");
 const fs = require("fs");
 const path = require("path");
 const authService_1 = require("./authService");
+const syncService_1 = require("./syncService");
 class ProjectLoader {
     static getInstance() {
         if (!ProjectLoader.instance) {
@@ -89,7 +90,28 @@ class ProjectLoader {
         const projectFiles = projectData.files;
         // Create project structure in workspace
         await this.createProjectStructure(workspaceFolder.uri.fsPath, projectData.project, projectFiles);
-        vscode.window.showInformationMessage(`✅ Project "${projectData.project.name}" loaded successfully!`);
+        // Initialize sync service for this project
+        const syncService = syncService_1.SyncService.getInstance();
+        try {
+            // Download cloud documents to local folder
+            await syncService.downloadCloudDocuments(projectId, workspaceFolder.uri.fsPath);
+            // Start file watching for automatic sync
+            syncService.startFileWatching(projectId, workspaceFolder.uri.fsPath);
+            // Set up periodic cloud change checking (every 30 seconds)
+            setInterval(async () => {
+                try {
+                    await syncService.checkCloudChanges(projectId, workspaceFolder.uri.fsPath);
+                }
+                catch (error) {
+                    console.error('Error checking cloud changes:', error);
+                }
+            }, 30000);
+        }
+        catch (error) {
+            console.error('Error initializing sync for project:', error);
+            vscode.window.showWarningMessage(`⚠️ Project loaded but sync initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+        vscode.window.showInformationMessage(`✅ Project "${projectData.project.name}" loaded successfully with sync enabled!`);
     }
     async createProjectStructure(workspacePath, project, files) {
         // Create .kiro/specs/ai-project-manager directory

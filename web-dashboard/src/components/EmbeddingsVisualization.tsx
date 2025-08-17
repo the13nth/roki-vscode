@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RefreshCw, Eye, EyeOff } from 'lucide-react';
+import { Loader2, RefreshCw, Eye, EyeOff, Upload } from 'lucide-react';
 
 interface EmbeddingPoint {
   id: string;
@@ -127,6 +127,7 @@ export function EmbeddingsVisualization({ projectId }: EmbeddingsVisualizationPr
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showLabels, setShowLabels] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     requirements: 0,
@@ -189,6 +190,70 @@ export function EmbeddingsVisualization({ projectId }: EmbeddingsVisualizationPr
     }
   };
 
+  const handleSync = async () => {
+    try {
+      setIsSyncing(true);
+      setError(null);
+      
+      console.log('Triggering sync for project:', projectId);
+      
+      // Fetch the current project data to sync
+      const projectResponse = await fetch(`/api/projects/${projectId}`);
+      if (!projectResponse.ok) {
+        throw new Error('Failed to fetch project data');
+      }
+      const projectData = await projectResponse.json();
+      
+      // Fetch context documents
+      const contextResponse = await fetch(`/api/projects/${projectId}/context`);
+      const contextData = contextResponse.ok ? await contextResponse.json() : [];
+      
+      // Prepare data for sync
+      const syncData = {
+        ...projectData,
+        requirements: projectData.documents?.requirements || '',
+        design: projectData.documents?.design || '',
+        tasks: projectData.documents?.tasks || '',
+        progress: projectData.progress || {},
+        contextDocuments: contextData
+      };
+      
+      console.log('Syncing data:', {
+        projectId,
+        hasRequirements: !!syncData.requirements,
+        hasDesign: !!syncData.design,
+        hasTasks: !!syncData.tasks,
+        contextCount: syncData.contextDocuments?.length || 0
+      });
+      
+      const result = await fetch(`/api/projects/${projectId}/sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ forceResync: true }),
+      });
+
+      if (!result.ok) {
+        throw new Error('Failed to sync project');
+      }
+
+      const syncResult = await result.json();
+      
+      if (syncResult.success) {
+        console.log('Sync successful, refreshing embeddings...');
+        await fetchEmbeddings();
+      } else {
+        throw new Error(syncResult.message || 'Sync failed');
+      }
+    } catch (err) {
+      console.error('Sync failed:', err);
+      setError(err instanceof Error ? err.message : 'Failed to sync project');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   useEffect(() => {
     fetchEmbeddings();
   }, [projectId]);
@@ -198,14 +263,32 @@ export function EmbeddingsVisualization({ projectId }: EmbeddingsVisualizationPr
       {/* Controls */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <Button 
-            onClick={fetchEmbeddings} 
+          <Button
+            onClick={fetchEmbeddings}
             disabled={isLoading}
             variant="outline"
             size="sm"
           >
-            <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
             Refresh
+          </Button>
+          
+          <Button
+            onClick={handleSync}
+            disabled={isSyncing}
+            variant="outline"
+            size="sm"
+          >
+            {isSyncing ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Upload className="h-4 w-4 mr-2" />
+            )}
+            Sync Project
           </Button>
           
           <Button
@@ -213,31 +296,33 @@ export function EmbeddingsVisualization({ projectId }: EmbeddingsVisualizationPr
             variant="outline"
             size="sm"
           >
-            {showLabels ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
-            {showLabels ? 'Hide Labels' : 'Show Labels'}
+            {showLabels ? (
+              <EyeOff className="h-4 w-4 mr-2" />
+            ) : (
+              <Eye className="h-4 w-4 mr-2" />
+            )}
+            {showLabels ? 'Hide' : 'Show'} Labels
           </Button>
         </div>
         
-        <div className="flex items-center space-x-2">
-          <Badge variant="secondary">Total: {stats.total}</Badge>
-          <Badge variant="outline" className="text-blue-600">Requirements: {stats.requirements}</Badge>
-          <Badge variant="outline" className="text-purple-600">Design: {stats.design}</Badge>
-          <Badge variant="outline" className="text-cyan-600">Tasks: {stats.tasks}</Badge>
-          <Badge variant="outline" className="text-amber-600">Progress: {stats.progress}</Badge>
+        <div className="flex items-center space-x-4">
+          <Badge variant="outline">Total: {stats.total}</Badge>
+          <Badge variant="outline">Requirements: {stats.requirements}</Badge>
+          <Badge variant="outline">Design: {stats.design}</Badge>
+          <Badge variant="outline">Tasks: {stats.tasks}</Badge>
+          <Badge variant="outline">Progress: {stats.progress}</Badge>
         </div>
       </div>
 
       {/* Error Display */}
       {error && (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="pt-6">
-            <div className="flex items-center space-x-2 text-red-700">
-              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-              <p className="font-medium">Error loading embeddings</p>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <div className="text-red-800 text-sm">
+              <strong>Error:</strong> {error}
             </div>
-            <p className="text-red-600 text-sm mt-1">{error}</p>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* 3D Visualization */}
@@ -246,58 +331,32 @@ export function EmbeddingsVisualization({ projectId }: EmbeddingsVisualizationPr
           <CardTitle>3D Vector Space Visualization</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[600px] w-full relative">
+          <div className="h-96 w-full bg-gray-50 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">
             {isLoading ? (
-              <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
-                <div className="text-center">
-                  <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
-                  <p>Loading embeddings...</p>
-                </div>
+              <div className="flex items-center space-x-2">
+                <Loader2 className="h-6 w-6 animate-spin" />
+                <span>Loading embeddings...</span>
               </div>
             ) : points.length === 0 ? (
-              <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
-                <div className="text-center">
-                  <p className="text-gray-500">No embeddings found for this project</p>
-                  <p className="text-sm text-gray-400">Try syncing your project first</p>
+              <div className="text-center">
+                <div className="text-gray-500 mb-4">
+                  <div className="text-lg font-medium">No embeddings found</div>
+                  <div className="text-sm">This project hasn't been synced to create embeddings yet.</div>
                 </div>
+                <Button onClick={handleSync} disabled={isSyncing}>
+                  {isSyncing ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <Upload className="h-4 w-4 mr-2" />
+                  )}
+                  Sync Project to Create Embeddings
+                </Button>
               </div>
             ) : (
-              <Canvas
-                camera={{ position: [0, 0, 15], fov: 75 }}
-              >
-                <VisualizationScene 
-                  points={points}
-                  isLoading={isLoading}
-                />
+              <Canvas camera={{ position: [0, 0, 10], fov: 75 }}>
+                <VisualizationScene points={points} isLoading={isLoading} />
               </Canvas>
             )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Legend */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Legend</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
-              <span>Requirements</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-purple-500 rounded-full"></div>
-              <span>Design</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-cyan-500 rounded-full"></div>
-              <span>Tasks</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-4 h-4 bg-amber-500 rounded-full"></div>
-              <span>Progress</span>
-            </div>
           </div>
         </CardContent>
       </Card>

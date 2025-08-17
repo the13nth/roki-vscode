@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { ProjectDashboard } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,9 @@ import {
   FolderOpen, 
   ArrowRight, 
   Clock,
-  File 
+  File,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 
 interface ProjectOverviewTabProps {
@@ -21,7 +24,11 @@ interface ProjectOverviewTabProps {
   onUpdate: (updatedProject: Partial<ProjectDashboard>) => void;
 }
 
-export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
+export function ProjectOverviewTab({ project, onUpdate }: ProjectOverviewTabProps) {
+  const [isGeneratingSpecs, setIsGeneratingSpecs] = useState(false);
+  const [specsError, setSpecsError] = useState<string | null>(null);
+  const [specsSuccess, setSpecsSuccess] = useState<string | null>(null);
+
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat('en-US', {
       year: 'numeric',
@@ -38,6 +45,43 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
     if (percentage >= 50) return 'text-yellow-600 bg-yellow-100';
     if (percentage >= 25) return 'text-orange-600 bg-orange-100';
     return 'text-red-600 bg-red-100';
+  };
+
+  const handleGenerateSpecs = async () => {
+    try {
+      setIsGeneratingSpecs(true);
+      setSpecsError(null);
+      setSpecsSuccess(null);
+
+      console.log('🔄 Generating specs for project:', project.projectId);
+
+      const response = await fetch(`/api/projects/${project.projectId}/generate-specs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Specs generated successfully:', result);
+        setSpecsSuccess('Project specifications generated successfully! They are now available in your project documents and will appear in the visualization.');
+        
+        // Refresh the project data to show updated documents
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        const errorData = await response.json();
+        console.error('❌ Failed to generate specs:', errorData);
+        setSpecsError(errorData.error || 'Failed to generate specifications');
+      }
+    } catch (error) {
+      console.error('❌ Error generating specs:', error);
+      setSpecsError('Failed to generate specifications. Please try again.');
+    } finally {
+      setIsGeneratingSpecs(false);
+    }
   };
 
   const quickActions = [
@@ -76,6 +120,48 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
         </p>
       </div>
 
+      {/* Specs Generation Section */}
+      <Card className="mb-8 rounded-none border-blue-200 bg-blue-50">
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Sparkles className="w-5 h-5 mr-2 text-blue-600" />
+            AI-Powered Specifications
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-700 mb-2">
+                Generate comprehensive project specifications using AI. This will create requirements, design, and tasks documents.
+              </p>
+              {specsError && (
+                <p className="text-sm text-red-600 mb-2">{specsError}</p>
+              )}
+              {specsSuccess && (
+                <p className="text-sm text-green-600 mb-2">{specsSuccess}</p>
+              )}
+            </div>
+            <Button
+              onClick={handleGenerateSpecs}
+              disabled={isGeneratingSpecs}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {isGeneratingSpecs ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Generate Specs
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Project Info */}
       <Card className="mb-8 rounded-none">
         <CardHeader>
@@ -109,89 +195,39 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
             </div>
             
             <div>
-              <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Last Updated</dt>
-              <dd className="text-sm">
-                {formatDate(project.progress.lastUpdated)}
-              </dd>
+              <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Progress</dt>
+              <dd className="text-sm font-medium">{project.progress.percentage}%</dd>
+              <Progress value={project.progress.percentage} className="mt-2" />
             </div>
             
             <div>
-              <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Context Docs</dt>
-              <dd className="text-sm font-medium">
-                {project.contextDocs.length}
-              </dd>
+              <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Last Updated</dt>
+              <dd className="text-sm font-medium">{formatDate(project.progress.lastUpdated)}</dd>
             </div>
           </div>
-          
-          <div className="mt-4">
-            <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Path</dt>
-            <dd className="text-xs font-mono break-all bg-muted p-2 rounded-none">{project.projectPath}</dd>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Progress Summary */}
-      <Card className="mb-8 rounded-none">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Progress Summary</CardTitle>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href={`/project/${project.projectId}/progress`}>
-                View Details <ArrowRight className="w-4 h-4 ml-1" />
-              </Link>
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div className="text-center">
-              <Badge variant="outline" className="text-sm">
-                {project.progress.percentage}% Complete
-              </Badge>
-              <p className="text-xs text-muted-foreground mt-1">Overall Progress</p>
-            </div>
-            
-            <div className="text-center">
-              <div className="text-2xl font-bold">
-                {project.progress.completedTasks}
-              </div>
-              <p className="text-xs text-muted-foreground">Tasks Completed</p>
-            </div>
-            
-            <div className="text-center">
-              <div className="text-2xl font-bold">
-                {project.progress.totalTasks - project.progress.completedTasks}
-              </div>
-              <p className="text-xs text-muted-foreground">Tasks Remaining</p>
-            </div>
-          </div>
-          
-          <Progress value={project.progress.percentage} />
         </CardContent>
       </Card>
 
       {/* Quick Actions */}
       <div className="mb-8">
         <h2 className="text-xl font-semibold mb-6">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {quickActions.map((action) => (
-            <Card key={action.name} className="hover:shadow-lg transition-all duration-200 hover:scale-105 rounded-none">
-              <Link href={action.href}>
-                <CardContent className="p-6">
-                  <div className="flex flex-col items-center text-center space-y-3">
-                    <div className="flex-shrink-0 text-primary p-3 bg-primary/10 rounded-none">
-                      {action.icon}
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-medium mb-2">{action.name}</h3>
-                      <p className="text-sm text-muted-foreground">{action.description}</p>
-                    </div>
-                    <div className="mt-2">
-                      <ArrowRight className="w-5 h-5 text-muted-foreground" />
-                    </div>
+            <Card key={action.name} className="hover:shadow-md transition-shadow rounded-none">
+              <CardContent className="p-6">
+                <div className="flex items-center space-x-3 mb-3">
+                  <div className="text-blue-600">
+                    {action.icon}
                   </div>
-                </CardContent>
-              </Link>
+                  <h3 className="font-medium">{action.name}</h3>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">{action.description}</p>
+                <Button variant="outline" size="sm" asChild className="w-full">
+                  <Link href={action.href}>
+                    Open <ArrowRight className="w-4 h-4 ml-1" />
+                  </Link>
+                </Button>
+              </CardContent>
             </Card>
           ))}
         </div>

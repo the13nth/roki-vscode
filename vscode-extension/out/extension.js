@@ -12,6 +12,7 @@ const fileWatcher_1 = require("./lib/fileWatcher");
 const sidebarProvider_1 = require("./lib/sidebarProvider");
 const authService_1 = require("./lib/authService");
 const projectLoader_1 = require("./lib/projectLoader");
+const syncService_1 = require("./lib/syncService");
 let extension;
 let sidebarProvider;
 /**
@@ -461,6 +462,147 @@ async function activate(context) {
             handleError(error, 'Load project requirements');
         }
     });
+    // New command to select a cloud project
+    const selectProjectCommand = vscode.commands.registerCommand('aiProjectManager.selectProject', async (projectId) => {
+        try {
+            // Set the selected project in the sidebar provider
+            sidebarProvider.setSelectedProject(projectId);
+            // Show confirmation
+            const selectedProject = sidebarProvider.getUserProjects().find(p => p.id === projectId);
+            if (selectedProject) {
+                vscode.window.showInformationMessage(`✅ Selected project: ${selectedProject.name}`);
+            }
+        }
+        catch (error) {
+            handleError(error, 'Select project');
+        }
+    });
+    // New command to open cloud documents
+    const openCloudDocumentCommand = vscode.commands.registerCommand('aiProjectManager.openCloudDocument', async (projectId, documentType) => {
+        try {
+            const authService = authService_1.AuthService.getInstance();
+            if (!authService.isAuthenticated()) {
+                vscode.window.showWarningMessage('Please login first to view cloud documents.');
+                return;
+            }
+            const config = vscode.workspace.getConfiguration('aiProjectManager');
+            const dashboardUrl = config.get('dashboardUrl', 'http://localhost:3000');
+            // Fetch the specific document from cloud using VS Code-specific endpoint
+            const response = await authService.makeAuthenticatedRequest(`${dashboardUrl}/api/vscode/projects/${projectId}/documents/${documentType}`);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch document: ${response.status} ${response.statusText}`);
+            }
+            const documentData = await response.json();
+            // Create a new document with the cloud content
+            const document = await vscode.workspace.openTextDocument({
+                content: documentData.content || 'No content available',
+                language: 'markdown'
+            });
+            await vscode.window.showTextDocument(document);
+            vscode.window.showInformationMessage(`📄 Opened ${documentType} from cloud`);
+        }
+        catch (error) {
+            handleError(error, 'Open cloud document');
+        }
+    });
+    // New command to open local documents
+    const openLocalDocumentCommand = vscode.commands.registerCommand('aiProjectManager.openLocalDocument', async (filePath) => {
+        try {
+            if (!filePath || !fs.existsSync(filePath)) {
+                vscode.window.showErrorMessage('Document not found: ' + filePath);
+                return;
+            }
+            const document = await vscode.workspace.openTextDocument(filePath);
+            await vscode.window.showTextDocument(document);
+            vscode.window.showInformationMessage(`📄 Opened local document: ${path.basename(filePath)}`);
+        }
+        catch (error) {
+            handleError(error, 'Open local document');
+        }
+    });
+    // Sync commands
+    const forceSyncCommand = vscode.commands.registerCommand('aiProjectManager.forceSync', async () => {
+        try {
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            if (!workspaceFolder) {
+                vscode.window.showErrorMessage('No workspace folder open');
+                return;
+            }
+            const syncService = syncService_1.SyncService.getInstance();
+            // Get project ID from workspace or selected project
+            const projectId = sidebarProvider?.getSelectedProject();
+            if (!projectId) {
+                vscode.window.showErrorMessage('No project selected for sync');
+                return;
+            }
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: "🔄 Force syncing project...",
+                cancellable: false
+            }, async (progress) => {
+                progress.report({ increment: 0 });
+                await syncService.forceSync(projectId, workspaceFolder.uri.fsPath);
+                progress.report({ increment: 100 });
+            });
+        }
+        catch (error) {
+            handleError(error, 'Force sync');
+        }
+    });
+    const checkCloudChangesCommand = vscode.commands.registerCommand('aiProjectManager.checkCloudChanges', async () => {
+        try {
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            if (!workspaceFolder) {
+                vscode.window.showErrorMessage('No workspace folder open');
+                return;
+            }
+            const syncService = syncService_1.SyncService.getInstance();
+            // Get project ID from workspace or selected project
+            const projectId = sidebarProvider?.getSelectedProject();
+            if (!projectId) {
+                vscode.window.showErrorMessage('No project selected for sync');
+                return;
+            }
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: "🔍 Checking for cloud changes...",
+                cancellable: false
+            }, async (progress) => {
+                progress.report({ increment: 0 });
+                const hasChanges = await syncService.checkCloudChanges(projectId, workspaceFolder.uri.fsPath);
+                progress.report({ increment: 100 });
+                if (!hasChanges) {
+                    vscode.window.showInformationMessage('✅ No cloud changes detected');
+                }
+            });
+        }
+        catch (error) {
+            handleError(error, 'Check cloud changes');
+        }
+    });
+    const showSyncStatusCommand = vscode.commands.registerCommand('aiProjectManager.showSyncStatus', async () => {
+        try {
+            const projectId = sidebarProvider?.getSelectedProject();
+            if (!projectId) {
+                vscode.window.showErrorMessage('No project selected');
+                return;
+            }
+            const syncService = syncService_1.SyncService.getInstance();
+            const syncStatus = syncService.getSyncStatus(projectId);
+            if (syncStatus) {
+                const statusText = syncStatus.status === 'synced' ? '✅ Synced' :
+                    syncStatus.status === 'syncing' ? '🔄 Syncing' :
+                        syncStatus.status === 'error' ? '❌ Error' : '⚠️ Conflict';
+                vscode.window.showInformationMessage(`${statusText}\nLast sync: ${syncStatus.lastSync.toLocaleString()}\n${syncStatus.message || ''}`);
+            }
+            else {
+                vscode.window.showInformationMessage('No sync status available for this project');
+            }
+        }
+        catch (error) {
+            handleError(error, 'Show sync status');
+        }
+    });
     const listProjectsCommand = vscode.commands.registerCommand('aiProjectManager.listProjects', async () => {
         try {
             const authService = authService_1.AuthService.getInstance();
@@ -618,7 +760,7 @@ async function activate(context) {
             });
         }
     });
-    context.subscriptions.push(injectContextCommand, detectProjectCommand, connectToDashboardCommand, toggleAutoInjectCommand, openContextPreferencesCommand, autoInjectContextCommand, refreshSidebarCommand, forceRefreshCommand, openDocumentCommand, setSyncStatusCommand, showSidebarCommand, createProjectCommand, validateProjectCommand, repairProjectCommand, updateProjectUserInfoCommand, loginCommand, logoutCommand, loadProjectCommand, listProjectsCommand, loadProjectRequirementsCommand, openAuthSettingsCommand, enterTokenCommand, checkTokenCommand, treeDataProvider);
+    context.subscriptions.push(injectContextCommand, detectProjectCommand, connectToDashboardCommand, toggleAutoInjectCommand, openContextPreferencesCommand, autoInjectContextCommand, refreshSidebarCommand, forceRefreshCommand, openDocumentCommand, setSyncStatusCommand, showSidebarCommand, createProjectCommand, validateProjectCommand, repairProjectCommand, updateProjectUserInfoCommand, loginCommand, logoutCommand, loadProjectCommand, listProjectsCommand, loadProjectRequirementsCommand, selectProjectCommand, openCloudDocumentCommand, openLocalDocumentCommand, forceSyncCommand, checkCloudChangesCommand, showSyncStatusCommand, openAuthSettingsCommand, enterTokenCommand, checkTokenCommand, treeDataProvider);
     // Start file watching and auto progress tracking if project is detected
     if (extension.projectDetector.detectAiProject()) {
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
@@ -1142,5 +1284,7 @@ function deactivate() {
     if (extension?.contextInjector && 'dispose' in extension.contextInjector) {
         extension.contextInjector.dispose();
     }
+    // Cleanup sync service
+    syncService_1.SyncService.getInstance().dispose();
 }
 //# sourceMappingURL=extension.js.map

@@ -1,7 +1,7 @@
 import { getPineconeClient, PINECONE_INDEX_NAME } from './pinecone';
 
 // Helper function for embeddings (same as in projectService)
-async function generateEmbedding(text: string, dimensions: number = 768): Promise<number[]> {
+async function generateEmbedding(text: string, dimensions: number = 1024): Promise<number[]> {
   try {
     // Use Gemini for embeddings
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${process.env.GOOGLE_AI_API_KEY}`, {
@@ -22,7 +22,21 @@ async function generateEmbedding(text: string, dimensions: number = 768): Promis
     }
 
     const data = await response.json();
-    return data.embedding.values;
+    const geminiEmbedding = data.embedding.values;
+    
+    // Pad Gemini's 768-dimensional embedding to 1024 dimensions to match Pinecone index
+    if (geminiEmbedding.length < 1024) {
+      const paddedEmbedding = [...geminiEmbedding];
+      while (paddedEmbedding.length < 1024) {
+        paddedEmbedding.push(0);
+      }
+      return paddedEmbedding;
+    } else if (geminiEmbedding.length > 1024) {
+      // Truncate if somehow longer than expected
+      return geminiEmbedding.slice(0, 1024);
+    }
+    
+    return geminiEmbedding;
   } catch (error) {
     console.error('Failed to generate embedding with Gemini:', error);
     // Fallback to a simple hash-based embedding
@@ -31,9 +45,9 @@ async function generateEmbedding(text: string, dimensions: number = 768): Promis
       return a & a;
     }, 0);
 
-    // Create a vector with specified dimensions
-    const vector = new Array(dimensions).fill(0);
-    for (let i = 0; i < dimensions; i++) {
+    // Create a 1024-dimensional vector to match Pinecone index
+    const vector = new Array(1024).fill(0);
+    for (let i = 0; i < 1024; i++) {
       vector[i] = Math.sin(hash + i) * 0.1;
     }
     return vector;

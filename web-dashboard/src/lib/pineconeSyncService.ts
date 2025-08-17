@@ -113,32 +113,241 @@ class PineconeSyncService {
   }
 
   async syncProject(projectId: string, localData: any): Promise<SyncResult> {
-    // Temporarily return success to avoid build errors
-    return {
-      success: true,
-      message: 'Sync service temporarily disabled',
-      syncedItems: 0
-    };
+    try {
+      console.log(`🔄 Starting sync for project ${projectId}`);
+      
+      let totalSyncedItems = 0;
+      
+      // Sync project metadata
+      await this.syncProjectMetadata(projectId, localData);
+      
+      // Sync project documents (requirements, design, tasks)
+      const docResult = await this.syncProjectDocuments(projectId, localData);
+      totalSyncedItems += docResult.syncedItems;
+      
+      // Sync progress data
+      const progressResult = await this.syncProgressData(projectId, localData);
+      totalSyncedItems += progressResult.syncedItems;
+      
+      // Sync context documents
+      const contextResult = await this.syncContextDocuments(projectId, localData);
+      totalSyncedItems += contextResult.syncedItems;
+      
+      console.log(`✅ Sync completed for project ${projectId}, ${totalSyncedItems} items synced`);
+      
+      return {
+        success: true,
+        message: `Successfully synced ${totalSyncedItems} items`,
+        syncedItems: totalSyncedItems
+      };
+    } catch (error) {
+      console.error(`❌ Sync failed for project ${projectId}:`, error);
+      return {
+        success: false,
+        message: `Sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        syncedItems: 0
+      };
+    }
   }
 
   private async syncProjectMetadata(projectId: string, localData: any) {
-    // Temporarily do nothing to avoid build errors
-    return;
+    try {
+      console.log(`📊 Syncing project metadata for ${projectId}`);
+      
+      const index = getPineconeIndex();
+      const embedding = await generateEmbedding(localData.description || 'Project description');
+      
+      const vectorId = `project:${projectId}`;
+      
+      await index.namespace(PINECONE_NAMESPACE_PROJECTS).upsert([
+        {
+          id: vectorId,
+          values: embedding,
+          metadata: {
+            projectId,
+            type: 'project',
+            title: localData.name || 'Project',
+            content: localData.description || '',
+            userId: localData.userId,
+            template: localData.template,
+            createdAt: localData.createdAt,
+            lastModified: localData.lastModified,
+            ...localData
+          }
+        }
+      ]);
+      
+      console.log(`✅ Project metadata synced: ${vectorId}`);
+    } catch (error) {
+      console.error(`❌ Failed to sync project metadata:`, error);
+    }
   }
 
   private async syncProjectDocuments(projectId: string, localData: any): Promise<{ syncedItems: number }> {
-    // Temporarily do nothing to avoid build errors
-    return { syncedItems: 0 };
+    try {
+      console.log(`📄 Syncing project documents for ${projectId}`);
+      
+      const index = getPineconeIndex();
+      let syncedItems = 0;
+      
+      // Sync requirements document
+      if (localData.requirements && localData.requirements.trim()) {
+        const reqEmbedding = await generateEmbedding(localData.requirements);
+        const reqVectorId = `requirements:${projectId}`;
+        
+        await index.upsert([
+          {
+            id: reqVectorId,
+            values: reqEmbedding,
+            metadata: {
+              projectId,
+              type: 'requirements',
+              title: 'Requirements Document',
+              content: localData.requirements,
+              documentType: 'requirements',
+              lastModified: localData.lastModified || new Date().toISOString()
+            }
+          }
+        ]);
+        
+        console.log(`✅ Requirements synced: ${reqVectorId}`);
+        syncedItems++;
+      }
+      
+      // Sync design document
+      if (localData.design && localData.design.trim()) {
+        const designEmbedding = await generateEmbedding(localData.design);
+        const designVectorId = `design:${projectId}`;
+        
+        await index.upsert([
+          {
+            id: designVectorId,
+            values: designEmbedding,
+            metadata: {
+              projectId,
+              type: 'design',
+              title: 'Design Document',
+              content: localData.design,
+              documentType: 'design',
+              lastModified: localData.lastModified || new Date().toISOString()
+            }
+          }
+        ]);
+        
+        console.log(`✅ Design synced: ${designVectorId}`);
+        syncedItems++;
+      }
+      
+      // Sync tasks document
+      if (localData.tasks && localData.tasks.trim()) {
+        const tasksEmbedding = await generateEmbedding(localData.tasks);
+        const tasksVectorId = `tasks:${projectId}`;
+        
+        await index.upsert([
+          {
+            id: tasksVectorId,
+            values: tasksEmbedding,
+            metadata: {
+              projectId,
+              type: 'tasks',
+              title: 'Tasks Document',
+              content: localData.tasks,
+              documentType: 'tasks',
+              lastModified: localData.lastModified || new Date().toISOString()
+            }
+          }
+        ]);
+        
+        console.log(`✅ Tasks synced: ${tasksVectorId}`);
+        syncedItems++;
+      }
+      
+      console.log(`📄 Project documents sync completed: ${syncedItems} documents synced`);
+      return { syncedItems };
+    } catch (error) {
+      console.error(`❌ Failed to sync project documents:`, error);
+      return { syncedItems: 0 };
+    }
   }
 
   private async syncProgressData(projectId: string, localData: any): Promise<{ syncedItems: number }> {
-    // Temporarily do nothing to avoid build errors
-    return { syncedItems: 0 };
+    try {
+      console.log(`📈 Syncing progress data for ${projectId}`);
+      
+      if (localData.progress) {
+        const index = getPineconeIndex();
+        const progressEmbedding = await generateEmbedding(JSON.stringify(localData.progress));
+        const progressVectorId = `progress:${projectId}`;
+        
+        await index.upsert([
+          {
+            id: progressVectorId,
+            values: progressEmbedding,
+            metadata: {
+              projectId,
+              type: 'progress',
+              title: 'Progress Data',
+              content: JSON.stringify(localData.progress),
+              documentType: 'progress',
+              lastModified: new Date().toISOString()
+            }
+          }
+        ]);
+        
+        console.log(`✅ Progress data synced: ${progressVectorId}`);
+        return { syncedItems: 1 };
+      }
+      
+      return { syncedItems: 0 };
+    } catch (error) {
+      console.error(`❌ Failed to sync progress data:`, error);
+      return { syncedItems: 0 };
+    }
   }
 
   private async syncContextDocuments(projectId: string, localData: any): Promise<{ syncedItems: number }> {
-    // Temporarily do nothing to avoid build errors
-    return { syncedItems: 0 };
+    try {
+      console.log(`📚 Syncing context documents for ${projectId}`);
+      
+      if (localData.contextDocuments && Array.isArray(localData.contextDocuments)) {
+        const index = getPineconeIndex();
+        let syncedItems = 0;
+        
+        for (const doc of localData.contextDocuments) {
+          if (doc.content && doc.content.trim()) {
+            const docEmbedding = await generateEmbedding(doc.content);
+            const docVectorId = `context:${projectId}:${doc.id || Date.now()}`;
+            
+            await index.upsert([
+              {
+                id: docVectorId,
+                values: docEmbedding,
+                metadata: {
+                  projectId,
+                  type: 'context',
+                  title: doc.title || 'Context Document',
+                  content: doc.content,
+                  documentType: 'context',
+                  documentId: doc.id,
+                  lastModified: doc.lastModified || new Date().toISOString()
+                }
+              }
+            ]);
+            
+            console.log(`✅ Context document synced: ${docVectorId}`);
+            syncedItems++;
+          }
+        }
+        
+        console.log(`📚 Context documents sync completed: ${syncedItems} documents synced`);
+        return { syncedItems };
+      }
+      
+      return { syncedItems: 0 };
+    } catch (error) {
+      console.error(`❌ Failed to sync context documents:`, error);
+      return { syncedItems: 0 };
+    }
   }
 
   async downloadProject(projectId: string): Promise<SyncResult> {

@@ -366,36 +366,36 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
     try {
       setIsCreating(true);
       setErrors({});
-      
-      const projectConfig: Omit<ProjectConfiguration, 'projectId' | 'createdAt' | 'lastModified'> = {
+
+      // Validate all steps
+      if (!validateStep1() || !validateStep2() || !validateStep3()) {
+        return;
+      }
+
+      // Prepare project data
+      const projectData = {
         name: formData.name,
         description: formData.description,
         template: formData.template,
-        aiModel: formData.aiModel,
-        contextPreferences: {
-          maxContextSize: 8000,
-          prioritizeRecent: true,
-          includeProgress: true
-        }
+        technologyStack: formData.template !== 'business' ? {
+          backend: formData.backend,
+          frontend: formData.frontend,
+          uiFramework: formData.uiFramework,
+          authentication: formData.authentication,
+          hosting: formData.hosting
+        } : undefined,
+        regulatoryCompliance: formData.template === 'business' ? formData.regulatoryCompliance : undefined
       };
 
+      console.log('Creating project with data:', projectData);
+
+      // Create the project
       const response = await fetch('/api/projects', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...projectConfig,
-          [formData.template === 'business' ? 'regulatoryStack' : 'technologyStack']: formData.template === 'business' ? {
-            regulatoryCompliance: formData.regulatoryCompliance
-          } : {
-            backend: formData.backend,
-            frontend: formData.frontend,
-            uiFramework: formData.uiFramework,
-            authentication: formData.authentication,
-            hosting: formData.hosting
-          }
-        }),
+        body: JSON.stringify(projectData),
       });
 
       if (!response.ok) {
@@ -404,10 +404,18 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
       }
 
       const newProject = await response.json();
+      console.log('✅ Project created successfully:', newProject.id);
+      
+      // Wait a moment to ensure the project is fully saved to Pinecone
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Generate project specifications using Gemini
       try {
-        console.log('Starting specs generation for project:', newProject.id);
+        console.log('🔄 Starting specs generation for project:', newProject.id);
+        
+        // Show loading state for specs generation
+        setErrors({ general: 'Project created successfully! Generating specifications...' });
+        
         const specsResponse = await fetch(`/api/projects/${newProject.id}/generate-specs`, {
           method: 'POST',
           headers: {
@@ -419,25 +427,40 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
         
         if (specsResponse.ok) {
           const specsResult = await specsResponse.json();
-          console.log('Project specifications generated successfully');
+          console.log('✅ Project specifications generated successfully');
           console.log('Specs result:', specsResult);
           
           // Token usage is tracked on the server side
           if (specsResult.tokenUsage) {
             console.log('Token usage for project specs generation:', specsResult.tokenUsage);
           }
+          
+          // Clear any previous errors and show success
+          setErrors({});
+          console.log('🎉 Project and specifications created successfully!');
         } else {
           const errorText = await specsResponse.text();
-          console.error('Failed to generate project specifications:', errorText);
+          console.error('❌ Failed to generate project specifications:', errorText);
           console.error('Response status:', specsResponse.status);
+          
+          // Don't fail the entire creation, just warn about specs
+          setErrors({ 
+            general: 'Project created successfully, but failed to generate specifications. You can generate them later from the project dashboard.' 
+          });
         }
       } catch (specsError) {
-        console.error('Error generating project specifications:', specsError);
+        console.error('❌ Error generating project specifications:', specsError);
+        
+        // Don't fail the entire creation, just warn about specs
+        setErrors({ 
+          general: 'Project created successfully, but failed to generate specifications. You can generate them later from the project dashboard.' 
+        });
       }
 
+      // Always call onProjectCreated even if specs generation fails
       onProjectCreated(newProject);
     } catch (error) {
-      console.error('Failed to create project:', error);
+      console.error('❌ Failed to create project:', error);
       setErrors({ general: error instanceof Error ? error.message : 'Failed to create project. Please try again.' });
     } finally {
       setIsCreating(false);

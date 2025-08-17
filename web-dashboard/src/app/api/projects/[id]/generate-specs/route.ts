@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { ProjectService } from '@/lib/projectService';
+import { PineconeSyncServiceInstance } from '@/lib/pineconeSyncService';
 
 interface ApiConfiguration {
   provider: string;
@@ -10,7 +11,7 @@ interface ApiConfiguration {
 }
 
 async function callGoogleAI(config: ApiConfiguration, prompt: string): Promise<{ content: string; tokenUsage: any }> {
-  console.log('Making Google AI API call with model:', config.model);
+  console.log('Calling Google AI API with model:', config.model);
   
   const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${config.apiKey}`, {
     method: 'POST',
@@ -110,6 +111,13 @@ Please generate three separate markdown documents following these EXACT formats:
 
 CRITICAL: Match the exact formatting, section headers, and structure from the examples. Use proper markdown formatting with TypeScript code blocks, mermaid diagrams, and consistent numbering.
 
+IMPORTANT JSON FORMATTING RULES:
+- Escape all quotes within the markdown content using backslashes: \\"
+- Escape all backslashes using double backslashes: \\\\
+- Ensure all newlines within the JSON values are escaped as \\n
+- Do NOT include any markdown code blocks (\`\`\`) around the JSON
+- The response must be ONLY valid JSON, nothing else
+
 Format your response as a JSON object with three fields:
 {
   "requirements": "markdown content for requirements.md",
@@ -118,6 +126,32 @@ Format your response as a JSON object with three fields:
 }
 
 Make the specifications comprehensive, practical, and aligned with the chosen technology stack. Include specific technical details, user stories, acceptance criteria, and implementation guidelines.`;
+}
+
+// Helper function to wait for a specified time
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Helper function to retry getting project with delay
+async function getProjectWithRetry(projectService: ProjectService, userId: string, projectId: string, maxRetries: number = 3): Promise<any> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    console.log(`Attempt ${attempt} to get project ${projectId} from Pinecone...`);
+    
+    const project = await projectService.getProject(userId, projectId);
+    if (project) {
+      console.log(`✅ Project found on attempt ${attempt}`);
+      return project;
+    }
+    
+    if (attempt < maxRetries) {
+      console.log(`⏳ Project not found, waiting 2 seconds before retry...`);
+      await delay(2000);
+    }
+  }
+  
+  console.log(`❌ Project not found after ${maxRetries} attempts`);
+  return null;
 }
 
 export async function POST(
@@ -134,21 +168,26 @@ export async function POST(
     }
 
     const { id: projectId } = await params;
+    console.log('Starting specs generation for project:', projectId, 'user:', userId);
 
-    // Get project from Pinecone using ProjectService
+    // Get project from Pinecone using ProjectService with retry mechanism
     const projectService = ProjectService.getInstance();
-    const project = await projectService.getProject(userId, projectId);
-    
-    console.log('Project service getProject result:', project);
+    const project = await getProjectWithRetry(projectService, userId, projectId);
     
     if (!project) {
+      console.error('Project not found in Pinecone after retries');
       return NextResponse.json(
-        { error: 'Project not found' },
+        { error: 'Project not found. Please try again in a few moments.' },
         { status: 404 }
       );
     }
 
-    console.log('Loaded project config:', project);
+    console.log('✅ Successfully loaded project config:', {
+      projectId: project.projectId,
+      name: project.name,
+      template: project.template,
+      hasDescription: !!project.description
+    });
 
     // Load API configuration from environment variable
     const apiKey = process.env.GOOGLE_AI_API_KEY;
@@ -168,16 +207,14 @@ export async function POST(
 
     // Generate specs prompt
     const prompt = generateSpecsPrompt(project);
-    console.log('Generated prompt for specs:', prompt);
+    console.log('Generated prompt for specs, length:', prompt.length);
 
     // Call Google AI to generate specs
-    console.log('Calling Google AI with config:', { provider: apiConfig.provider, model: apiConfig.model });
-    console.log('Prompt length:', prompt.length);
+    console.log('🤖 Calling Google AI with config:', { provider: apiConfig.provider, model: apiConfig.model });
     const aiResponse = await callGoogleAI(apiConfig, prompt);
-    console.log('AI Response received, content length:', aiResponse.content?.length || 0);
-    console.log('AI Response preview:', aiResponse.content?.substring(0, 200) + '...');
+    console.log('✅ AI Response received, content length:', aiResponse.content?.length || 0);
 
-    // Track token usage
+    // Track token usage (don't let this break the specs generation)
     try {
       const { TokenTrackingService } = await import('@/lib/tokenTrackingService');
       const tokenTrackingService = TokenTrackingService.getInstance();
@@ -186,39 +223,85 @@ export async function POST(
       const outputTokens = aiResponse.tokenUsage?.candidatesTokenCount || aiResponse.tokenUsage?.completion_tokens || 0;
       
       await tokenTrackingService.trackTokenUsage(projectId, inputTokens, outputTokens, 'project-specs-generation');
+      console.log('✅ Token usage tracked:', { inputTokens, outputTokens });
     } catch (error) {
-      console.warn('Failed to track token usage for spec generation:', error);
+      console.warn('⚠️ Failed to track token usage for spec generation (continuing anyway):', error);
+      // Don't let token tracking failure break the specs generation
     }
 
     // Parse the AI response
     let specsData: any;
     try {
-      console.log('Parsing AI response, content preview:', aiResponse.content.substring(0, 200) + '...');
+      console.log('🔍 Parsing AI response...');
       
-      const jsonMatch = aiResponse.content.match(/\{[\s\S]*\}/);
+      // First, try to extract JSON from the response
+      let jsonContent = aiResponse.content;
+      
+      // Remove any markdown code blocks
+      jsonContent = jsonContent.replace(/```json\s*/g, '').replace(/```\s*$/g, '');
+      
+      // Try to find JSON object
+      const jsonMatch = jsonContent.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         console.log('Found JSON match, length:', jsonMatch[0].length);
-        specsData = JSON.parse(jsonMatch[0]);
-      } else {
-        console.log('No JSON match found, trying to parse entire content');
-        specsData = JSON.parse(aiResponse.content);
+        jsonContent = jsonMatch[0];
       }
       
-      console.log('Successfully parsed specs data, keys:', Object.keys(specsData));
-      console.log('Requirements length:', specsData.requirements?.length || 0);
-      console.log('Design length:', specsData.design?.length || 0);
-      console.log('Tasks length:', specsData.tasks?.length || 0);
+      // Try to fix common JSON issues
+      try {
+        specsData = JSON.parse(jsonContent);
+      } catch (parseError) {
+        console.log('⚠️ Initial JSON parse failed, attempting to fix common issues...');
+        
+        // Try to fix unescaped quotes and newlines
+        let fixedContent = jsonContent
+          // Fix unescaped quotes in markdown content
+          .replace(/(?<!\\)"/g, '\\"')
+          // Fix unescaped newlines
+          .replace(/\n/g, '\\n')
+          // Fix unescaped backslashes
+          .replace(/\\(?!["\\/bfnrt])/g, '\\\\');
+        
+        try {
+          specsData = JSON.parse(fixedContent);
+          console.log('✅ Successfully parsed after fixing JSON issues');
+        } catch (secondError) {
+          console.log('⚠️ Second parse attempt failed, trying manual extraction...');
+          
+          // Manual extraction as last resort
+          const requirementsMatch = jsonContent.match(/"requirements"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
+          const designMatch = jsonContent.match(/"design"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
+          const tasksMatch = jsonContent.match(/"tasks"\s*:\s*"([^"]*(?:\\.[^"]*)*)"/);
+          
+          if (requirementsMatch && designMatch && tasksMatch) {
+            specsData = {
+              requirements: requirementsMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n'),
+              design: designMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n'),
+              tasks: tasksMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n')
+            };
+            console.log('✅ Successfully extracted specs using regex');
+          } else {
+            throw new Error('Could not extract specifications from AI response');
+          }
+        }
+      }
+      
+      console.log('✅ Successfully parsed specs data, keys:', Object.keys(specsData));
+      console.log('📄 Requirements length:', specsData.requirements?.length || 0);
+      console.log('🎨 Design length:', specsData.design?.length || 0);
+      console.log('📋 Tasks length:', specsData.tasks?.length || 0);
     } catch (error) {
-      console.error('Failed to parse AI response:', error);
-      console.error('AI response content:', aiResponse.content);
+      console.error('❌ Failed to parse AI response:', error);
+      console.error('AI response content preview:', aiResponse.content.substring(0, 1000) + '...');
       return NextResponse.json(
-        { error: 'Failed to parse AI-generated specifications' },
+        { error: 'Failed to parse AI-generated specifications. Please try again.' },
         { status: 500 }
       );
     }
 
     // Validate the response structure
     if (!specsData.requirements || !specsData.design || !specsData.tasks) {
+      console.error('❌ Invalid specifications format from AI:', Object.keys(specsData));
       return NextResponse.json(
         { error: 'Invalid specifications format from AI' },
         { status: 500 }
@@ -234,22 +317,47 @@ export async function POST(
       lastModified: new Date().toISOString()
     };
 
-    console.log('Updating project with specs, requirements length:', specsData.requirements?.length || 0);
+    console.log('💾 Updating project with specs in Pinecone...');
     const success = await projectService.updateProject(userId, projectId, updatedProject);
     
     if (!success) {
-      console.error('Failed to update project with specs');
+      console.error('❌ Failed to update project with specs in Pinecone');
       return NextResponse.json(
         { error: 'Failed to save generated specifications' },
         { status: 500 }
       );
     }
 
-    console.log('Successfully updated project with specs');
+    console.log('✅ Successfully updated project with specs in Pinecone');
+
+    // Sync the updated project to create embeddings for visualization
+    try {
+      console.log('🔄 Syncing project to create embeddings for visualization...');
+      const syncData = {
+        ...updatedProject,
+        requirements: specsData.requirements,
+        design: specsData.design,
+        tasks: specsData.tasks,
+        progress: project.progress || {},
+        contextDocuments: []
+      };
+
+      const syncResult = await PineconeSyncServiceInstance.syncProject(projectId, syncData);
+      
+      if (syncResult.success) {
+        console.log('✅ Project synced successfully, embeddings created for visualization');
+        console.log(`📊 Synced items: ${syncResult.syncedItems || 0}`);
+      } else {
+        console.warn('⚠️ Project sync failed, but specs were saved:', syncResult.message);
+      }
+    } catch (syncError) {
+      console.warn('⚠️ Failed to sync project for embeddings:', syncError);
+      // Don't fail the entire request if sync fails, specs are already saved
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Project specifications generated successfully',
+      message: 'Project specifications generated and synced successfully',
       specs: {
         requirements: specsData.requirements,
         design: specsData.design,
@@ -258,7 +366,7 @@ export async function POST(
     });
 
   } catch (error) {
-    console.error('Failed to generate project specifications:', error);
+    console.error('❌ Failed to generate project specifications:', error);
     return NextResponse.json(
       { error: 'Failed to generate project specifications' },
       { status: 500 }
