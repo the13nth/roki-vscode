@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { pineconeSyncService } from '@/lib/pineconeSyncService';
+import { PineconeSyncServiceInstance } from '@/lib/pineconeSyncService';
 
 export async function POST(
   request: NextRequest,
@@ -46,7 +46,7 @@ export async function POST(
     });
     
     // Perform sync
-    const result = await pineconeSyncService.syncProject(projectId, syncData);
+    const result = await PineconeSyncServiceInstance.syncProject(projectId, syncData);
     
     if (result.success) {
       return NextResponse.json({

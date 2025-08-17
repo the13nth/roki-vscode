@@ -76,6 +76,60 @@ export function ProjectOverviewTab({ project }: ProjectOverviewTabProps) {
         </p>
       </div>
 
+      {/* Project Info */}
+      <Card className="mb-8 rounded-none">
+        <CardHeader>
+          <CardTitle>Project Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div>
+              <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Name</dt>
+              <dd className="text-sm font-medium">{project.projectId}</dd>
+            </div>
+            
+            <div>
+              <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Status</dt>
+              <dd className="mt-1">
+                <Badge variant={
+                  project.progress.percentage === 100 
+                    ? 'default'
+                    : project.progress.percentage > 0 
+                    ? 'secondary'
+                    : 'outline'
+                }>
+                  {project.progress.percentage === 100 
+                    ? 'Completed' 
+                    : project.progress.percentage > 0 
+                    ? 'In Progress' 
+                    : 'Not Started'
+                  }
+                </Badge>
+              </dd>
+            </div>
+            
+            <div>
+              <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Last Updated</dt>
+              <dd className="text-sm">
+                {formatDate(project.progress.lastUpdated)}
+              </dd>
+            </div>
+            
+            <div>
+              <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Context Docs</dt>
+              <dd className="text-sm font-medium">
+                {project.contextDocs.length}
+              </dd>
+            </div>
+          </div>
+          
+          <div className="mt-4">
+            <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Path</dt>
+            <dd className="text-xs font-mono break-all bg-muted p-2 rounded-none">{project.projectPath}</dd>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Progress Summary */}
       <Card className="mb-8 rounded-none">
         <CardHeader>

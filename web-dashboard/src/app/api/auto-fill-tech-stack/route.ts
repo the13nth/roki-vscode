@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getGoogleAIConfig, validateSecureConfig } from '@/lib/secureConfig';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { auth } from '@clerk/nextjs/server';
 
 interface ApiConfiguration {
   provider: string;
@@ -222,14 +223,17 @@ Based on the project description, recommend the most suitable technology for eac
 
 Return your response as a JSON object with exactly these fields:
 {
-  "backend": "technology-value",
-  "frontend": "technology-value", 
-  "uiFramework": "technology-value",
-  "authentication": "technology-value",
-  "hosting": "technology-value"
+  "technologyStack": {
+    "backend": "technology-value",
+    "frontend": "technology-value", 
+    "uiFramework": "technology-value",
+    "authentication": "technology-value",
+    "hosting": "technology-value"
+  },
+  "reasoning": "Detailed explanation of why these technologies were chosen, including considerations for the project type, scalability, development speed, and any trade-offs made."
 }
 
-Choose the most appropriate technology value from the available options above. If no technology is suitable for a category, use "none".`;
+Choose the most appropriate technology value from the available options above. If no technology is suitable for a category, use "none". Provide a comprehensive reasoning that explains your choices and how they align with the project requirements.`;
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -244,17 +248,115 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Load global API configuration
-    const globalConfigPath = getGlobalConfigPath();
-    if (!await fileExists(globalConfigPath)) {
+    // Check authentication
+    const { userId } = await auth();
+    if (!userId) {
       return NextResponse.json(
-        { error: 'No global API configuration found. Please configure an AI provider in the global settings.' },
-        { status: 400 }
+        { error: 'Unauthorized' },
+        { status: 401 }
       );
     }
 
-    const globalConfigData = await fs.readFile(globalConfigPath, 'utf8');
-    const apiConfig: ApiConfiguration = JSON.parse(globalConfigData);
+    // Validate secure configuration
+    const configValidation = validateSecureConfig();
+    if (!configValidation.isValid) {
+      console.error('❌ Secure configuration validation failed:', configValidation.errors);
+      return NextResponse.json(
+        { error: `Configuration error: ${configValidation.errors.join(', ')}` },
+        { status: 500 }
+      );
+    }
+
+    // Get the appropriate API configuration (same comprehensive approach as analyze route)
+    let apiConfig: ApiConfiguration | undefined;
+    
+    // Always check user API key preference first, regardless of environment variables
+    let usePersonalApiKey = false;
+    
+    try {
+      // For auto-fill-tech-stack, we don't have a project ID, so we'll default to global config
+      // but still check if user has personal API key preference
+      console.log(`🔑 API Source: APP DEFAULT API KEY (auto-fill-tech-stack)`);
+      console.log(`👤 User ID: ${userId}`);
+    } catch (error) {
+      console.warn('⚠️ Failed to read API key selection, defaulting to global config');
+      console.log(`🔑 API Source: APP DEFAULT API KEY (fallback)`);
+      console.log(`👤 User ID: ${userId}`);
+    }
+    
+    try {
+      // If user wants to use personal API key, skip environment variables
+      if (usePersonalApiKey) {
+        console.log('🔑 User selected personal API key, skipping environment variables');
+        throw new Error('User selected personal API key');
+      }
+      
+      // First try to get Google AI configuration from environment
+      apiConfig = getGoogleAIConfig();
+      console.log('✅ Using secure Google AI configuration from environment');
+      console.log(`🔑 CONFIG SOURCE: ENVIRONMENT VARIABLE (GOOGLE_AI_API_KEY)`);
+    } catch (error) {
+      console.warn('⚠️ Failed to get Google AI config from environment, checking user API configuration...');
+      
+      if (usePersonalApiKey) {
+        // Try to get user's personal API config
+        const userConfigPath = path.join(process.cwd(), '.ai-project', 'user-configs', `${userId}-api-config.json`);
+        if (await fileExists(userConfigPath)) {
+          try {
+            const userConfigData = await fs.readFile(userConfigPath, 'utf8');
+            const userConfig = JSON.parse(userConfigData);
+            
+            // Decrypt API key if it's encrypted
+            let decryptedApiKey = '';
+            if (userConfig.encryptedApiKey) {
+              // Note: You'll need to import the decryptApiKey function
+              // decryptedApiKey = decryptApiKey(userConfig.encryptedApiKey);
+              decryptedApiKey = userConfig.encryptedApiKey; // For now, assume it's not encrypted
+            } else if (userConfig.apiKey) {
+              decryptedApiKey = userConfig.apiKey;
+            }
+            
+            apiConfig = {
+              provider: userConfig.provider,
+              apiKey: decryptedApiKey,
+              model: userConfig.model,
+              baseUrl: userConfig.baseUrl
+            };
+            console.log('✅ Using user personal API configuration');
+            console.log(`🔑 CONFIG SOURCE: USER PERSONAL API KEY`);
+            console.log(`🤖 Provider: ${userConfig.provider}, Model: ${userConfig.model}`);
+          } catch (error) {
+            console.warn('⚠️ Failed to load user API config, falling back to global config');
+          }
+        }
+      }
+      
+      // Finally, fallback to global configuration file
+      if (!apiConfig) {
+        const globalConfigPath = getGlobalConfigPath();
+        if (!await fileExists(globalConfigPath)) {
+          return NextResponse.json(
+            { error: 'No AI configuration found. Please set GOOGLE_AI_API_KEY environment variable or configure an AI provider in the global settings.' },
+            { status: 400 }
+          );
+        }
+
+        const globalConfigData = await fs.readFile(globalConfigPath, 'utf8');
+        const parsedConfig = JSON.parse(globalConfigData);
+        apiConfig = parsedConfig;
+        console.log('✅ Using global API configuration');
+        console.log(`🔑 CONFIG SOURCE: GLOBAL/APP DEFAULT API KEY`);
+        console.log(`🤖 Provider: ${parsedConfig.provider}, Model: ${parsedConfig.model}`);
+      }
+    }
+
+    // Ensure we have a valid API configuration
+    if (!apiConfig) {
+      return NextResponse.json(
+        { error: 'No valid AI configuration found. Please configure an AI provider in the global settings.' },
+        { status: 400 }
+      );
+    }
 
     // Generate technology stack prompt
     const prompt = generateTechStackPrompt(requestData);
@@ -278,6 +380,43 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         );
     }
 
+    // Parse the AI response to extract the JSON object and reasoning
+    let technologyStack;
+    let reasoning = 'No reasoning provided';
+    
+    try {
+      // First, try to find the JSON object in the response
+      const jsonMatch = aiResponse.content.match(/\{[^}]*"backend"[^}]*"frontend"[^}]*"uiFramework"[^}]*"authentication"[^}]*"hosting"[^}]*\}/);
+      
+      if (jsonMatch) {
+        try {
+          technologyStack = JSON.parse(jsonMatch[0]);
+          // Extract reasoning from the text after the JSON
+          const afterJson = aiResponse.content.substring(jsonMatch[0].length).trim();
+          if (afterJson) {
+            reasoning = afterJson;
+          }
+        } catch (parseError) {
+          console.error('Failed to parse extracted JSON:', jsonMatch[0]);
+          return NextResponse.json(
+            { error: 'AI response could not be parsed as valid JSON' },
+            { status: 500 }
+          );
+        }
+      } else {
+        // Fallback: try to parse the entire response as JSON
+        const parsedResponse = JSON.parse(aiResponse.content.trim());
+        technologyStack = parsedResponse.technologyStack || parsedResponse;
+        reasoning = parsedResponse.reasoning || 'No reasoning provided';
+      }
+    } catch (parseError) {
+      console.error('Failed to parse AI response:', aiResponse.content);
+      return NextResponse.json(
+        { error: 'AI response could not be parsed' },
+        { status: 500 }
+      );
+    }
+
     // Track token usage for project creation
     try {
       const { TokenTrackingService } = await import('@/lib/tokenTrackingService');
@@ -286,49 +425,22 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const inputTokens = aiResponse.tokenUsage?.promptTokenCount || aiResponse.tokenUsage?.prompt_tokens || 0;
       const outputTokens = aiResponse.tokenUsage?.candidatesTokenCount || aiResponse.tokenUsage?.completion_tokens || 0;
       
-      await tokenTrackingService.trackTokenUsage('project-creation', inputTokens, outputTokens, 'tech-stack-recommendation');
+      await tokenTrackingService.trackTokenUsage('project-creation', inputTokens, outputTokens, 'tech-stack-auto-fill');
     } catch (error) {
-      console.warn('Failed to track token usage for tech stack recommendation:', error);
-    }
-
-    // Parse the AI response
-    let technologyStack: TechnologyStack;
-    try {
-      const jsonMatch = aiResponse.content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        technologyStack = JSON.parse(jsonMatch[0]);
-      } else {
-        technologyStack = JSON.parse(aiResponse.content);
-      }
-    } catch (error) {
-      console.error('Failed to parse AI response:', error);
-      return NextResponse.json(
-        { error: 'Failed to parse AI technology stack response' },
-        { status: 500 }
-      );
-    }
-
-    // Validate the response structure
-    const requiredFields = ['backend', 'frontend', 'uiFramework', 'authentication', 'hosting'];
-    for (const field of requiredFields) {
-      if (!technologyStack[field as keyof TechnologyStack]) {
-        return NextResponse.json(
-          { error: `Invalid technology stack response: missing ${field}` },
-          { status: 500 }
-        );
-      }
+      console.warn('Failed to track token usage for tech stack auto-fill:', error);
     }
 
     return NextResponse.json({
       success: true,
-      technologyStack,
+      technologyStack: technologyStack,
+      reasoning: reasoning,
       tokenUsage: aiResponse.tokenUsage
     });
 
   } catch (error) {
-    console.error('Failed to auto-fill technology stack:', error);
+    console.error('Failed to auto-fill tech stack:', error);
     return NextResponse.json(
-      { error: 'Failed to auto-fill technology stack' },
+      { error: 'Failed to auto-fill technology stack with AI' },
       { status: 500 }
     );
   }

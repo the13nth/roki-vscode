@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ProjectDashboard } from '@/types';
 import { ProjectNavigation } from './ProjectNavigation';
-import { ProjectMetadata } from './ProjectMetadata';
+
 import { ProjectOverviewTab } from './ProjectOverviewTab';
 import { DocumentEditor } from './DocumentEditor';
 import { ProgressDashboard } from './ProgressDashboard';
@@ -167,10 +167,7 @@ export function ProjectDashboardLayout({
                 projectId={projectId}
                 onSync={loadProject}
               />
-              <ProjectMetadata 
-                project={project} 
-                onUpdate={handleProjectUpdate}
-              />
+
             </div>
 
             {/* Main Content */}

@@ -3,7 +3,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { ContextDocument } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
-import { pineconeSyncService } from '@/lib/pineconeSyncService';
+import { PineconeSyncServiceInstance } from '@/lib/pineconeSyncService';
 
 // GET /api/projects/[id]/context - Get all context documents
 export async function GET(
@@ -247,7 +247,7 @@ export async function POST(
 
     // Auto-embed the new document to Pinecone
     try {
-      const embedResult = await pineconeSyncService.embedSingleContextDocument(id, newDoc);
+      const embedResult = await PineconeSyncServiceInstance.embedSingleContextDocument(id, newDoc);
       if (embedResult.success) {
         console.log(`Auto-embedded new context document: ${newDoc.title}`);
       } else {

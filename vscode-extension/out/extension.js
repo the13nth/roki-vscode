@@ -10,6 +10,8 @@ const contextInjector_1 = require("./lib/contextInjector");
 const progressTracker_1 = require("./lib/progressTracker");
 const fileWatcher_1 = require("./lib/fileWatcher");
 const sidebarProvider_1 = require("./lib/sidebarProvider");
+const authService_1 = require("./lib/authService");
+const projectLoader_1 = require("./lib/projectLoader");
 let extension;
 let sidebarProvider;
 /**
@@ -139,10 +141,19 @@ async function connectToDashboard() {
 async function activate(context) {
     console.log('AI Project Manager extension is now active!');
     try {
+        // Store extension context globally for auth service
+        global.aiProjectManagerContext = context;
         // Initialize error handling
         setupGlobalErrorHandling();
         // Debug: Show activation message
         vscode.window.showInformationMessage('🤖 AI Project Manager extension activated!');
+        // Debug: Check auth service initialization
+        const authService = authService_1.AuthService.getInstance();
+        console.log('Auth service initialized, authenticated:', authService.isAuthenticated());
+        if (authService.isAuthenticated()) {
+            const user = authService.getCurrentUser();
+            console.log('Current user:', user?.name, user?.email);
+        }
     }
     catch (error) {
         console.error('Error during extension initialization:', error);
@@ -234,6 +245,20 @@ async function activate(context) {
     const refreshSidebarCommand = vscode.commands.registerCommand('aiProjectManager.refreshSidebar', () => {
         sidebarProvider.refresh();
         vscode.window.showInformationMessage('AI Project Manager sidebar refreshed');
+    });
+    const forceRefreshCommand = vscode.commands.registerCommand('aiProjectManager.forceRefresh', async () => {
+        try {
+            // Force reload user projects
+            await sidebarProvider.refresh();
+            // Check authentication status
+            const authService = authService_1.AuthService.getInstance();
+            const isAuthenticated = authService.isAuthenticated();
+            const user = authService.getCurrentUser();
+            vscode.window.showInformationMessage(`Sidebar refreshed. Auth: ${isAuthenticated ? 'Yes' : 'No'}, User: ${user?.email || 'None'}`);
+        }
+        catch (error) {
+            handleError(error, 'Force refresh');
+        }
     });
     const openDocumentCommand = vscode.commands.registerCommand('aiProjectManager.openDocument', async (filePath) => {
         try {
@@ -337,7 +362,263 @@ async function activate(context) {
             handleError(error, 'Repair project');
         }
     });
-    context.subscriptions.push(injectContextCommand, detectProjectCommand, connectToDashboardCommand, toggleAutoInjectCommand, openContextPreferencesCommand, autoInjectContextCommand, refreshSidebarCommand, openDocumentCommand, setSyncStatusCommand, showSidebarCommand, createProjectCommand, validateProjectCommand, repairProjectCommand, treeDataProvider);
+    const updateProjectUserInfoCommand = vscode.commands.registerCommand('aiProjectManager.updateProjectUserInfo', async () => {
+        try {
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            if (!workspaceFolder) {
+                vscode.window.showErrorMessage('No workspace folder found');
+                return;
+            }
+            const authService = authService_1.AuthService.getInstance();
+            if (!authService.isAuthenticated()) {
+                vscode.window.showWarningMessage('Please login first to update project user information.');
+                return;
+            }
+            const currentUser = authService.getCurrentUser();
+            if (!currentUser) {
+                vscode.window.showErrorMessage('No user information available');
+                return;
+            }
+            await updateProjectWithUserInfo(workspaceFolder.uri.fsPath, currentUser);
+            vscode.window.showInformationMessage(`✅ Project updated with user information for ${currentUser.email}`);
+        }
+        catch (error) {
+            handleError(error, 'Update project user info');
+        }
+    });
+    // Authentication commands
+    const loginCommand = vscode.commands.registerCommand('aiProjectManager.login', async () => {
+        try {
+            const authService = authService_1.AuthService.getInstance();
+            const success = await authService.login();
+            if (success) {
+                // Refresh sidebar to show projects
+                sidebarProvider.refresh();
+            }
+        }
+        catch (error) {
+            handleError(error, 'Login');
+        }
+    });
+    const logoutCommand = vscode.commands.registerCommand('aiProjectManager.logout', async () => {
+        try {
+            const authService = authService_1.AuthService.getInstance();
+            await authService.logout();
+            // Refresh sidebar
+            sidebarProvider.refresh();
+        }
+        catch (error) {
+            handleError(error, 'Logout');
+        }
+    });
+    // Project loading commands
+    const loadProjectCommand = vscode.commands.registerCommand('aiProjectManager.loadProject', async (projectId) => {
+        try {
+            const authService = authService_1.AuthService.getInstance();
+            if (!authService.isAuthenticated()) {
+                const choice = await vscode.window.showInformationMessage('You need to login first to load projects from the cloud.', 'Login', 'Cancel');
+                if (choice === 'Login') {
+                    await vscode.commands.executeCommand('aiProjectManager.login');
+                }
+                return;
+            }
+            const projectLoader = projectLoader_1.ProjectLoader.getInstance();
+            let selectedProjectId = projectId;
+            // If no project ID provided, show project picker
+            if (!selectedProjectId) {
+                selectedProjectId = await projectLoader.showProjectPicker();
+            }
+            if (selectedProjectId) {
+                await projectLoader.loadProjectToWorkspace(selectedProjectId);
+                // Refresh file explorer and sidebar
+                await vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
+                sidebarProvider.refresh();
+            }
+        }
+        catch (error) {
+            handleError(error, 'Load project');
+        }
+    });
+    const loadProjectRequirementsCommand = vscode.commands.registerCommand('aiProjectManager.loadProjectRequirements', async (projectId) => {
+        try {
+            const authService = authService_1.AuthService.getInstance();
+            if (!authService.isAuthenticated()) {
+                vscode.window.showWarningMessage('Please login first to view project requirements.');
+                return;
+            }
+            const projectLoader = projectLoader_1.ProjectLoader.getInstance();
+            const project = await projectLoader.getProjectDetails(projectId);
+            if (project) {
+                // Create a new document with the project requirements
+                const document = await vscode.workspace.openTextDocument({
+                    content: `# ${project.name}\n\n${project.description}\n\n## Requirements\n\n${project.requirements || 'No requirements available'}`,
+                    language: 'markdown'
+                });
+                await vscode.window.showTextDocument(document);
+            }
+        }
+        catch (error) {
+            handleError(error, 'Load project requirements');
+        }
+    });
+    const listProjectsCommand = vscode.commands.registerCommand('aiProjectManager.listProjects', async () => {
+        try {
+            const authService = authService_1.AuthService.getInstance();
+            if (!authService.isAuthenticated()) {
+                vscode.window.showWarningMessage('Please login first to view your projects.');
+                return;
+            }
+            const projectLoader = projectLoader_1.ProjectLoader.getInstance();
+            const projects = await projectLoader.listUserProjects();
+            if (projects.length === 0) {
+                vscode.window.showInformationMessage('No projects found. Create one using the web dashboard.');
+                return;
+            }
+            const projectList = projects.map(p => `• ${p.name} - ${p.description} (${p.progress}% complete)`).join('\n');
+            vscode.window.showInformationMessage(`Your Projects:\n${projectList}`);
+        }
+        catch (error) {
+            handleError(error, 'List projects');
+        }
+    });
+    // Authentication settings command
+    const openAuthSettingsCommand = vscode.commands.registerCommand('aiProjectManager.openAuthSettings', async () => {
+        try {
+            // Open browser first to get the token
+            const config = vscode.workspace.getConfiguration('aiProjectManager');
+            const dashboardUrl = config.get('dashboardUrl', 'http://localhost:3000');
+            const loginUrl = `${dashboardUrl}/auth/vscode-login`;
+            await vscode.env.openExternal(vscode.Uri.parse(loginUrl));
+            // Wait a moment for browser to open
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Show instructions
+            vscode.window.showInformationMessage('🌐 Browser opened! Copy the token from the browser and click "Enter Token" in the sidebar to continue.', 'OK');
+        }
+        catch (error) {
+            handleError(error, 'Open auth settings');
+        }
+    });
+    const enterTokenCommand = vscode.commands.registerCommand('aiProjectManager.enterToken', async () => {
+        try {
+            const config = vscode.workspace.getConfiguration('aiProjectManager');
+            // Prompt user to paste token
+            const token = await vscode.window.showInputBox({
+                prompt: 'Paste your authentication token from the browser',
+                placeHolder: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+                password: true,
+                ignoreFocusOut: true,
+                validateInput: (value) => {
+                    if (!value || value.trim().length === 0) {
+                        return 'Token cannot be empty';
+                    }
+                    if (!value.startsWith('eyJ')) {
+                        return 'Token should start with "eyJ" (JWT format)';
+                    }
+                    return null;
+                }
+            });
+            if (token) {
+                // Save token to settings
+                await config.update('authToken', token, vscode.ConfigurationTarget.Global);
+                // Show success message
+                vscode.window.showInformationMessage('✅ Token saved! Click "Confirm Token" to verify it.', 'Confirm Now').then(choice => {
+                    if (choice === 'Confirm Now') {
+                        vscode.commands.executeCommand('aiProjectManager.checkToken');
+                    }
+                });
+                // Refresh sidebar to show updated state
+                sidebarProvider.refresh();
+            }
+        }
+        catch (error) {
+            handleError(error, 'Enter token');
+        }
+    });
+    // Check token command
+    const checkTokenCommand = vscode.commands.registerCommand('aiProjectManager.checkToken', async () => {
+        try {
+            const authService = authService_1.AuthService.getInstance();
+            const config = vscode.workspace.getConfiguration('aiProjectManager');
+            const token = config.get('authToken', '');
+            if (!token) {
+                const choice = await vscode.window.showWarningMessage('No authentication token found. Would you like to set one up?', 'Set Up Token', 'Cancel');
+                if (choice === 'Set Up Token') {
+                    await vscode.commands.executeCommand('aiProjectManager.openAuthSettings');
+                }
+                return;
+            }
+            // Show progress
+            await vscode.window.withProgress({
+                location: vscode.ProgressLocation.Notification,
+                title: "🔍 Verifying token...",
+                cancellable: false
+            }, async (progress) => {
+                progress.report({ increment: 0 });
+                // Verify the token
+                const dashboardUrl = config.get('dashboardUrl', 'http://localhost:3000');
+                const response = await fetch(`${dashboardUrl}/api/auth/verify-token`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                progress.report({ increment: 50 });
+                if (response.ok) {
+                    const userData = await response.json();
+                    const user = {
+                        id: userData.userId,
+                        email: userData.email,
+                        name: userData.name,
+                        accessToken: token
+                    };
+                    // Update user settings and ensure they're saved
+                    await authService.updateUserSettings(user);
+                    progress.report({ increment: 100 });
+                    // Force a configuration update to trigger sidebar refresh
+                    await config.update('authToken', token, vscode.ConfigurationTarget.Global);
+                    vscode.window.showInformationMessage(`✅ Welcome, ${user.name}! Your projects are now available.`, 'View Projects').then(choice => {
+                        if (choice === 'View Projects') {
+                            sidebarProvider.refresh();
+                        }
+                    });
+                    // Force immediate sidebar refresh
+                    setTimeout(() => {
+                        sidebarProvider.refresh();
+                    }, 100);
+                }
+                else {
+                    const errorData = await response.text();
+                    console.error('Token verification failed:', response.status, errorData);
+                    vscode.window.showErrorMessage('❌ Token verification failed. The token may be expired or invalid.', 'Try Again', 'Clear Token').then(choice => {
+                        if (choice === 'Try Again') {
+                            vscode.commands.executeCommand('aiProjectManager.checkToken');
+                        }
+                        else if (choice === 'Clear Token') {
+                            config.update('authToken', '', vscode.ConfigurationTarget.Global);
+                            authService.clearUserSettings();
+                            sidebarProvider.refresh();
+                        }
+                    });
+                }
+            });
+        }
+        catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Token verification failed';
+            vscode.window.showErrorMessage(`❌ ${errorMessage}`, 'Try Again', 'Clear Token').then(choice => {
+                if (choice === 'Try Again') {
+                    vscode.commands.executeCommand('aiProjectManager.checkToken');
+                }
+                else if (choice === 'Clear Token') {
+                    const config = vscode.workspace.getConfiguration('aiProjectManager');
+                    config.update('authToken', '', vscode.ConfigurationTarget.Global);
+                    authService_1.AuthService.getInstance().clearUserSettings();
+                    sidebarProvider.refresh();
+                }
+            });
+        }
+    });
+    context.subscriptions.push(injectContextCommand, detectProjectCommand, connectToDashboardCommand, toggleAutoInjectCommand, openContextPreferencesCommand, autoInjectContextCommand, refreshSidebarCommand, forceRefreshCommand, openDocumentCommand, setSyncStatusCommand, showSidebarCommand, createProjectCommand, validateProjectCommand, repairProjectCommand, updateProjectUserInfoCommand, loginCommand, logoutCommand, loadProjectCommand, listProjectsCommand, loadProjectRequirementsCommand, openAuthSettingsCommand, enterTokenCommand, checkTokenCommand, treeDataProvider);
     // Start file watching and auto progress tracking if project is detected
     if (extension.projectDetector.detectAiProject()) {
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
@@ -371,7 +652,58 @@ async function activate(context) {
             }
         }
     }, 15000); // Every 15 seconds
+    // Listen for auth token changes in settings
+    const authService = authService_1.AuthService.getInstance();
+    const config = vscode.workspace.getConfiguration('aiProjectManager');
+    // Check if there's a token in settings on startup
+    const existingToken = config.get('authToken', '');
+    if (existingToken && !authService.isAuthenticated()) {
+        // Try to verify the existing token
+        try {
+            const dashboardUrl = config.get('dashboardUrl', 'http://localhost:3000');
+            const response = await fetch(`${dashboardUrl}/api/auth/verify-token`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${existingToken}`
+                }
+            });
+            if (response.ok) {
+                const userData = await response.json();
+                const user = {
+                    id: userData.userId,
+                    email: userData.email,
+                    name: userData.name,
+                    accessToken: existingToken
+                };
+                await authService.updateUserSettings(user);
+                vscode.window.showInformationMessage(`✅ Welcome back, ${user.name}!`);
+                sidebarProvider.refresh();
+            }
+            else {
+                // Token is invalid, clear it
+                await config.update('authToken', '', vscode.ConfigurationTarget.Global);
+                await authService.clearUserSettings();
+            }
+        }
+        catch (error) {
+            console.error('Failed to verify existing token:', error);
+            // Clear invalid token
+            await config.update('authToken', '', vscode.ConfigurationTarget.Global);
+            await authService.clearUserSettings();
+        }
+    }
     context.subscriptions.push({ dispose: () => clearInterval(heartbeatInterval) });
+}
+/**
+ * Generates a unique project ID
+ */
+function generateProjectId() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
 }
 /**
  * Creates a new AI project structure with templates
@@ -382,6 +714,40 @@ async function createProjectStructure(workspacePath, projectName, template) {
     if (!fs.existsSync(kiroSpecsPath)) {
         fs.mkdirSync(kiroSpecsPath, { recursive: true });
     }
+    // Get current user information if authenticated
+    const authService = authService_1.AuthService.getInstance();
+    const currentUser = authService.getCurrentUser();
+    // Generate a unique project ID
+    const projectId = generateProjectId();
+    // Create project configuration with user information
+    const projectConfig = {
+        projectId: projectId,
+        name: projectName,
+        description: `A ${template.toLowerCase()} project created with AI Project Manager`,
+        template: template.toLowerCase().replace(/\s+/g, '-'),
+        createdAt: new Date().toISOString(),
+        lastModified: new Date().toISOString(),
+        aiModel: "gpt-4",
+        // Include user information if authenticated
+        ...(currentUser && {
+            userId: currentUser.id,
+            userEmail: currentUser.email,
+            userName: currentUser.name,
+            createdBy: currentUser.email
+        }),
+        technologyStack: {
+            backend: "node-express",
+            frontend: "react",
+            uiFramework: "material-ui",
+            authentication: "firebase-auth",
+            hosting: "google-cloud"
+        },
+        contextPreferences: {
+            maxContextSize: 8000,
+            prioritizeRecent: true,
+            includeProgress: true
+        }
+    };
     // Create requirements.md
     const requirementsTemplate = getRequirementsTemplate(projectName, template);
     fs.writeFileSync(path.join(kiroSpecsPath, 'requirements.md'), requirementsTemplate);
@@ -391,16 +757,23 @@ async function createProjectStructure(workspacePath, projectName, template) {
     // Create tasks.md
     const tasksTemplate = getTasksTemplate(projectName, template);
     fs.writeFileSync(path.join(kiroSpecsPath, 'tasks.md'), tasksTemplate);
-    // Create initial progress.json
+    // Create initial progress.json with user information
     const initialProgress = {
         totalTasks: 0,
         completedTasks: 0,
         percentage: 0,
         lastUpdated: new Date().toISOString(),
         recentActivity: [],
-        milestones: []
+        milestones: [],
+        // Include user information if authenticated
+        ...(currentUser && {
+            lastUpdatedBy: currentUser.email,
+            createdBy: currentUser.email
+        })
     };
     fs.writeFileSync(path.join(kiroSpecsPath, 'progress.json'), JSON.stringify(initialProgress, null, 2));
+    // Create config.json with project and user information
+    fs.writeFileSync(path.join(kiroSpecsPath, 'config.json'), JSON.stringify(projectConfig, null, 2));
     // Create context directory
     const contextDir = path.join(workspacePath, '.ai-project', 'context');
     if (!fs.existsSync(contextDir)) {
@@ -409,6 +782,8 @@ async function createProjectStructure(workspacePath, projectName, template) {
     // Create sample context document
     const contextTemplate = getContextTemplate(projectName, template);
     fs.writeFileSync(path.join(contextDir, 'project-overview.md'), contextTemplate);
+    // Log project creation
+    console.log(`Created project "${projectName}" with ID: ${projectId}${currentUser ? ` for user: ${currentUser.email}` : ' (no user authentication)'}`);
 }
 /**
  * Repairs missing project files
@@ -417,6 +792,24 @@ async function repairProjectStructure(workspacePath) {
     const kiroSpecsPath = path.join(workspacePath, '.kiro', 'specs', 'ai-project-manager');
     if (!fs.existsSync(kiroSpecsPath)) {
         fs.mkdirSync(kiroSpecsPath, { recursive: true });
+    }
+    // Get current user information if authenticated
+    const authService = authService_1.AuthService.getInstance();
+    const currentUser = authService.getCurrentUser();
+    // Generate project ID if config doesn't exist
+    let projectId = generateProjectId();
+    let projectName = 'Repaired Project';
+    // Try to read existing config to preserve project information
+    const configPath = path.join(kiroSpecsPath, 'config.json');
+    if (fs.existsSync(configPath)) {
+        try {
+            const existingConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+            projectId = existingConfig.projectId || projectId;
+            projectName = existingConfig.name || projectName;
+        }
+        catch (error) {
+            console.error('Failed to read existing config:', error);
+        }
     }
     const files = [
         { name: 'requirements.md', template: '# Requirements Document\n\n## Introduction\n\n## Requirements\n' },
@@ -428,13 +821,93 @@ async function repairProjectStructure(workspacePath) {
                 percentage: 0,
                 lastUpdated: new Date().toISOString(),
                 recentActivity: [],
-                milestones: []
+                milestones: [],
+                // Include user information if authenticated
+                ...(currentUser && {
+                    lastUpdatedBy: currentUser.email,
+                    createdBy: currentUser.email
+                })
             }, null, 2) }
     ];
     for (const file of files) {
         const filePath = path.join(kiroSpecsPath, file.name);
         if (!fs.existsSync(filePath)) {
             fs.writeFileSync(filePath, file.template);
+        }
+    }
+    // Create or update config.json with user information
+    const projectConfig = {
+        projectId: projectId,
+        name: projectName,
+        description: 'Project repaired by AI Project Manager',
+        template: 'custom',
+        createdAt: new Date().toISOString(),
+        lastModified: new Date().toISOString(),
+        aiModel: "gpt-4",
+        // Include user information if authenticated
+        ...(currentUser && {
+            userId: currentUser.id,
+            userEmail: currentUser.email,
+            userName: currentUser.name,
+            lastModifiedBy: currentUser.email
+        }),
+        technologyStack: {
+            backend: "node-express",
+            frontend: "react",
+            uiFramework: "material-ui",
+            authentication: "firebase-auth",
+            hosting: "google-cloud"
+        },
+        contextPreferences: {
+            maxContextSize: 8000,
+            prioritizeRecent: true,
+            includeProgress: true
+        }
+    };
+    fs.writeFileSync(configPath, JSON.stringify(projectConfig, null, 2));
+}
+/**
+ * Updates existing project with user information
+ */
+async function updateProjectWithUserInfo(workspacePath, user) {
+    const kiroSpecsPath = path.join(workspacePath, '.kiro', 'specs', 'ai-project-manager');
+    const configPath = path.join(kiroSpecsPath, 'config.json');
+    const progressPath = path.join(kiroSpecsPath, 'progress.json');
+    // Update config.json with user information
+    if (fs.existsSync(configPath)) {
+        try {
+            const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+            const updatedConfig = {
+                ...config,
+                userId: user.id,
+                userEmail: user.email,
+                userName: user.name,
+                lastModifiedBy: user.email,
+                lastModified: new Date().toISOString()
+            };
+            fs.writeFileSync(configPath, JSON.stringify(updatedConfig, null, 2));
+            console.log(`Updated config.json with user info for ${user.email}`);
+        }
+        catch (error) {
+            console.error('Failed to update config.json:', error);
+        }
+    }
+    // Update progress.json with user information
+    if (fs.existsSync(progressPath)) {
+        try {
+            const progress = JSON.parse(fs.readFileSync(progressPath, 'utf-8'));
+            const updatedProgress = {
+                ...progress,
+                lastUpdatedBy: user.email,
+                lastUpdated: new Date().toISOString(),
+                // Add createdBy if not present
+                ...(progress.createdBy ? {} : { createdBy: user.email })
+            };
+            fs.writeFileSync(progressPath, JSON.stringify(updatedProgress, null, 2));
+            console.log(`Updated progress.json with user info for ${user.email}`);
+        }
+        catch (error) {
+            console.error('Failed to update progress.json:', error);
         }
     }
 }

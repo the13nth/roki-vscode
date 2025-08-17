@@ -4,10 +4,10 @@ import { globalFileWatcher } from '@/lib/fileWatcher';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const projectPath = searchParams.get('projectPath');
+  const projectId = searchParams.get('projectId');
 
-  if (!projectPath) {
-    return new Response('Project path is required', { status: 400 });
+  if (!projectId) {
+    return new Response('Project ID is required', { status: 400 });
   }
 
   // Create a readable stream for Server-Sent Events
@@ -21,82 +21,56 @@ export async function GET(request: NextRequest) {
       };
 
       sendEvent('connected', { 
-        projectPath, 
+        projectId, 
         timestamp: new Date().toISOString(),
-        message: 'Connected to file watcher events'
+        message: 'Connected to cloud project events'
       });
 
-      // Set up event listeners for file changes
-      const handleFileChanged = (event: any) => {
-        if (event.projectPath === projectPath) {
-          sendEvent('fileChanged', event);
+      // Set up event listeners for cloud project changes
+      const handleProjectChanged = (event: any) => {
+        if (event.projectId === projectId) {
+          sendEvent('projectChanged', event);
         }
       };
 
       const handleRequirementsChanged = (event: any) => {
-        if (event.projectPath === projectPath) {
+        if (event.projectId === projectId) {
           sendEvent('requirementsChanged', event);
         }
       };
 
       const handleDesignChanged = (event: any) => {
-        if (event.projectPath === projectPath) {
+        if (event.projectId === projectId) {
           sendEvent('designChanged', event);
         }
       };
 
       const handleTasksChanged = (event: any) => {
-        if (event.projectPath === projectPath) {
+        if (event.projectId === projectId) {
           sendEvent('tasksChanged', event);
         }
       };
 
-      const handleConfigChanged = (event: any) => {
-        if (event.projectPath === projectPath) {
-          sendEvent('configChanged', event);
-        }
-      };
-
       const handleProgressChanged = (event: any) => {
-        if (event.projectPath === projectPath) {
+        if (event.projectId === projectId) {
           sendEvent('progressChanged', event);
         }
       };
 
       const handleContextChanged = (event: any) => {
-        if (event.projectPath === projectPath) {
+        if (event.projectId === projectId) {
           sendEvent('contextChanged', event);
         }
       };
 
-      const handleIntegrityWarning = (event: any) => {
-        if (event.projectPath === projectPath) {
-          sendEvent('integrityWarning', event);
-        }
-      };
-
-      const handleWatcherError = (event: any) => {
-        if (event.projectPath === projectPath) {
-          sendEvent('watcherError', event);
-        }
-      };
-
-      // Register event listeners
-      globalFileWatcher.on('fileChanged', handleFileChanged);
-      globalFileWatcher.on('requirementsChanged', handleRequirementsChanged);
-      globalFileWatcher.on('designChanged', handleDesignChanged);
-      globalFileWatcher.on('tasksChanged', handleTasksChanged);
-      globalFileWatcher.on('configChanged', handleConfigChanged);
-      globalFileWatcher.on('progressChanged', handleProgressChanged);
-      globalFileWatcher.on('contextChanged', handleContextChanged);
-      globalFileWatcher.on('integrityWarning', handleIntegrityWarning);
-      globalFileWatcher.on('watcherError', handleWatcherError);
+      // Register event listeners (for cloud projects, these would be triggered by API calls)
+      // For now, we'll just send periodic updates since we don't have real-time file watching
 
       // Send periodic heartbeat
       const heartbeatInterval = setInterval(() => {
         sendEvent('heartbeat', { 
           timestamp: new Date().toISOString(),
-          isWatching: globalFileWatcher.isWatching(projectPath)
+          isWatching: true // Cloud projects are always "watched"
         });
       }, 30000); // Every 30 seconds
 

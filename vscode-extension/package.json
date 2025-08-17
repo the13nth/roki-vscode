@@ -56,6 +56,11 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "aiProjectManager.forceRefresh",
+        "title": "AI Project Manager: Force Refresh",
+        "icon": "$(sync)"
+      },
+      {
         "command": "aiProjectManager.openDocument",
         "title": "Open Document",
         "icon": "$(go-to-file)"
@@ -85,6 +90,11 @@
         "icon": "$(tools)"
       },
       {
+        "command": "aiProjectManager.updateProjectUserInfo",
+        "title": "AI Project Manager: Update Project User Info",
+        "icon": "$(account)"
+      },
+      {
         "command": "aiProjectManager.createProject",
         "title": "AI Project Manager: Create New Project",
         "icon": "$(add)"
@@ -98,6 +108,41 @@
         "command": "aiProjectManager.repairProject",
         "title": "AI Project Manager: Repair Project",
         "icon": "$(tools)"
+      },
+      {
+        "command": "aiProjectManager.login",
+        "title": "AI Project Manager: Login",
+        "icon": "$(sign-in)"
+      },
+      {
+        "command": "aiProjectManager.logout",
+        "title": "AI Project Manager: Logout",
+        "icon": "$(sign-out)"
+      },
+      {
+        "command": "aiProjectManager.loadProject",
+        "title": "AI Project Manager: Load Project from Cloud",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "aiProjectManager.listProjects",
+        "title": "AI Project Manager: List My Projects",
+        "icon": "$(list-unordered)"
+      },
+      {
+        "command": "aiProjectManager.checkToken",
+        "title": "AI Project Manager: Check Token",
+        "icon": "$(check)"
+      },
+      {
+        "command": "aiProjectManager.openAuthSettings",
+        "title": "AI Project Manager: Open Browser to Login",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "aiProjectManager.enterToken",
+        "title": "AI Project Manager: Enter Token",
+        "icon": "$(key)"
       }
     ],
     "configuration": {
@@ -138,9 +183,33 @@
           "type": "string",
           "default": "http://localhost:3000",
           "description": "URL of the AI Project Manager dashboard"
+        },
+        "aiProjectManager.authToken": {
+          "type": "string",
+          "default": "",
+          "description": "Authentication token for AI Project Manager dashboard (get from browser login)",
+          "scope": "application"
+        },
+        "aiProjectManager.userId": {
+          "type": "string",
+          "default": "",
+          "description": "User ID for AI Project Manager (auto-filled after token verification)",
+          "scope": "application"
+        },
+        "aiProjectManager.userEmail": {
+          "type": "string",
+          "default": "",
+          "description": "User email for AI Project Manager (auto-filled after token verification)",
+          "scope": "application"
+        },
+        "aiProjectManager.userName": {
+          "type": "string",
+          "default": "",
+          "description": "User name for AI Project Manager (auto-filled after token verification)",
+          "scope": "application"
         }
-      }
-    },
+              }
+      },
     "views": {
       "aiProjectManager": [
         {
@@ -213,6 +282,10 @@
           "when": "false"
         },
         {
+          "command": "aiProjectManager.forceRefresh",
+          "when": "true"
+        },
+        {
           "command": "aiProjectManager.openDocument",
           "when": "false"
         },
@@ -234,6 +307,38 @@
         },
         {
           "command": "aiProjectManager.repairProject",
+          "when": "true"
+        },
+        {
+          "command": "aiProjectManager.updateProjectUserInfo",
+          "when": "true"
+        },
+        {
+          "command": "aiProjectManager.login",
+          "when": "true"
+        },
+        {
+          "command": "aiProjectManager.logout",
+          "when": "true"
+        },
+        {
+          "command": "aiProjectManager.loadProject",
+          "when": "true"
+        },
+        {
+          "command": "aiProjectManager.listProjects",
+          "when": "true"
+        },
+        {
+          "command": "aiProjectManager.checkToken",
+          "when": "true"
+        },
+        {
+          "command": "aiProjectManager.openAuthSettings",
+          "when": "true"
+        },
+        {
+          "command": "aiProjectManager.enterToken",
           "when": "true"
         }
       ]

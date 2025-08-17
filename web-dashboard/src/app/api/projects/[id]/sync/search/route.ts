@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { pineconeSyncService } from '@/lib/pineconeSyncService';
+import { PineconeSyncServiceInstance } from '@/lib/pineconeSyncService';
 
 export async function POST(
   request: NextRequest,
@@ -9,7 +9,7 @@ export async function POST(
     const { id: projectId } = await params;
     const { query, topK = 5 } = await request.json();
     
-    const results = await pineconeSyncService.searchContextDocuments(projectId, query, topK);
+    const results = await PineconeSyncServiceInstance.searchContextDocuments(projectId, query, topK);
     
     return NextResponse.json(results);
   } catch (error) {

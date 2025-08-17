@@ -6,6 +6,8 @@ import { useRealtimeSync, useDocumentSync } from '../hooks/useRealtimeSync';
 import { RealtimeSyncStatus, DocumentSyncIndicator, UnsavedChangesIndicator } from './RealtimeSyncStatus';
 import { BackupManager } from './BackupManager';
 import AddTaskDialog from './AddTaskDialog';
+import AddRequirementDialog from './AddRequirementDialog';
+import TransitionRequirementDialog from './TransitionRequirementDialog';
 
 interface DocumentEditorProps {
   projectId: string;
@@ -121,6 +123,12 @@ export function DocumentEditor({
     loadDocument();
   }, [loadDocument]);
 
+  // Handle requirement added callback
+  const handleRequirementAdded = useCallback(() => {
+    // Reload the document to show the new requirement
+    loadDocument();
+  }, [loadDocument]);
+
   if (isLoading || documentState.isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -181,14 +189,6 @@ export function DocumentEditor({
           
           {/* Document Actions */}
           <div className="flex items-center space-x-2">
-            {/* Add Task Dialog - only show for tasks document */}
-            {documentType === 'tasks' && (
-              <AddTaskDialog
-                projectId={projectId}
-                onTaskAdded={handleTaskAdded}
-              />
-            )}
-            
             <button
               onClick={loadDocument}
               className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -241,6 +241,33 @@ export function DocumentEditor({
           autoSaveDelay={2000}
           showPreview={true}
           height="100%"
+          additionalToolbarButtons={
+            <>
+              {/* Add Task Dialog - only show for tasks document */}
+              {documentType === 'tasks' && (
+                <AddTaskDialog
+                  projectId={projectId}
+                  onTaskAdded={handleTaskAdded}
+                />
+              )}
+              
+              {/* Add Requirement Dialog - only show for requirements document */}
+              {documentType === 'requirements' && (
+                <AddRequirementDialog
+                  projectId={projectId}
+                  onRequirementAdded={handleRequirementAdded}
+                />
+              )}
+              
+              {/* Transition Requirement Dialog - only show for requirements document */}
+              {documentType === 'requirements' && (
+                <TransitionRequirementDialog
+                  projectId={projectId}
+                  onTaskAdded={handleTaskAdded}
+                />
+              )}
+            </>
+          }
         />
       </div>
     </div>

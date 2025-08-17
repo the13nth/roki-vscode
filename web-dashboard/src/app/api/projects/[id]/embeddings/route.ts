@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { pinecone } from '@/lib/pinecone';
+import { getPineconeClient } from '@/lib/pinecone';
 
 export async function GET(
   request: NextRequest,
@@ -10,13 +10,7 @@ export async function GET(
     
     console.log('Fetching embeddings for project:', projectId);
     
-    if (!pinecone) {
-      return NextResponse.json(
-        { error: 'Pinecone not configured' },
-        { status: 500 }
-      );
-    }
-
+    const pinecone = getPineconeClient();
     const index = pinecone.index(process.env.NEXT_PUBLIC_PINECONE_INDEX_NAME || 'roki');
     
     // Fetch all vectors for this project (using 1024 dimension to match the index)

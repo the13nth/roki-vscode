@@ -1,42 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getGoogleAIConfig, validateSecureConfig } from '@/lib/secureConfig';
-import { promises as fs } from 'fs';
-import path from 'path';
-import { ProjectConfiguration } from '@/types';
+import { auth } from '@clerk/nextjs/server';
+import { ProjectService } from '@/lib/projectService';
 
 interface ApiConfiguration {
   provider: string;
   apiKey: string;
   model: string;
   baseUrl?: string;
-}
-
-function getApiConfigPath(projectId: string): string {
-  return path.join(process.cwd(), '.ai-project', 'projects', projectId, 'api-config.json');
-}
-
-
-
-async function findProjectById(projectId: string): Promise<string | null> {
-  const internalProjectsPath = path.join(process.cwd(), '.ai-project', 'projects', projectId);
-  const configPath = path.join(internalProjectsPath, 'config.json');
-  
-  if (await fileExists(configPath)) {
-    const configContent = await fs.readFile(configPath, 'utf-8');
-    const config: ProjectConfiguration = JSON.parse(configContent);
-    return config.originalPath || internalProjectsPath;
-  }
-  
-  return null;
-}
-
-async function fileExists(filePath: string): Promise<boolean> {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 async function callGoogleAI(config: ApiConfiguration, prompt: string): Promise<{ content: string; tokenUsage: any }> {
@@ -155,60 +125,57 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const { id: projectId } = await params;
 
-    // Find project by ID
-    const projectPath = await findProjectById(projectId);
-    if (!projectPath) {
+    // Get project from Pinecone using ProjectService
+    const projectService = ProjectService.getInstance();
+    const project = await projectService.getProject(userId, projectId);
+    
+    console.log('Project service getProject result:', project);
+    
+    if (!project) {
       return NextResponse.json(
         { error: 'Project not found' },
         { status: 404 }
       );
     }
 
-    // Load project configuration
-    const configPath = path.join(process.cwd(), '.ai-project', 'projects', projectId, 'config.json');
-    if (!await fileExists(configPath)) {
+    console.log('Loaded project config:', project);
+
+    // Load API configuration from environment variable
+    const apiKey = process.env.GOOGLE_AI_API_KEY;
+    
+    if (!apiKey) {
       return NextResponse.json(
-        { error: 'Project configuration not found' },
-        { status: 404 }
+        { error: 'No AI configuration found. Please set GOOGLE_AI_API_KEY environment variable or configure an AI provider in the global settings.' },
+        { status: 400 }
       );
     }
 
-    const configContent = await fs.readFile(configPath, 'utf-8');
-    const projectConfig: ProjectConfiguration = JSON.parse(configContent);
-    console.log('Loaded project config:', projectConfig);
-
-    // Load API configuration (try project-specific first, then global)
-    let apiConfig: ApiConfiguration;
-    const apiConfigPath = getApiConfigPath(projectId);
-    
-    if (await fileExists(apiConfigPath)) {
-      // Use project-specific configuration
-      const apiConfigData = await fs.readFile(apiConfigPath, 'utf8');
-      apiConfig = JSON.parse(apiConfigData);
-    } else {
-      // Try global configuration
-      const globalConfigPath = path.join(process.cwd(), '.ai-project', 'global-api-config.json');
-      if (!await fileExists(globalConfigPath)) {
-        return NextResponse.json(
-          { error: 'No API configuration found. Please configure an AI provider in the global settings or project settings.' },
-          { status: 400 }
-        );
-      }
-      
-      const globalConfigData = await fs.readFile(globalConfigPath, 'utf8');
-      apiConfig = JSON.parse(globalConfigData);
-    }
+    const apiConfig: ApiConfiguration = {
+      provider: 'google',
+      apiKey: apiKey,
+      model: 'gemini-1.5-flash'
+    };
 
     // Generate specs prompt
-    const prompt = generateSpecsPrompt(projectConfig);
+    const prompt = generateSpecsPrompt(project);
     console.log('Generated prompt for specs:', prompt);
 
     // Call Google AI to generate specs
     console.log('Calling Google AI with config:', { provider: apiConfig.provider, model: apiConfig.model });
+    console.log('Prompt length:', prompt.length);
     const aiResponse = await callGoogleAI(apiConfig, prompt);
     console.log('AI Response received, content length:', aiResponse.content?.length || 0);
+    console.log('AI Response preview:', aiResponse.content?.substring(0, 200) + '...');
 
     // Track token usage
     try {
@@ -230,12 +197,17 @@ export async function POST(
       
       const jsonMatch = aiResponse.content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
+        console.log('Found JSON match, length:', jsonMatch[0].length);
         specsData = JSON.parse(jsonMatch[0]);
       } else {
+        console.log('No JSON match found, trying to parse entire content');
         specsData = JSON.parse(aiResponse.content);
       }
       
       console.log('Successfully parsed specs data, keys:', Object.keys(specsData));
+      console.log('Requirements length:', specsData.requirements?.length || 0);
+      console.log('Design length:', specsData.design?.length || 0);
+      console.log('Tasks length:', specsData.tasks?.length || 0);
     } catch (error) {
       console.error('Failed to parse AI response:', error);
       console.error('AI response content:', aiResponse.content);
@@ -253,63 +225,27 @@ export async function POST(
       );
     }
 
-    // Update the project files with generated specs
-    const aiProjectPath = path.join(projectPath, '.ai-project');
-    if (!await fileExists(aiProjectPath)) {
-      await fs.mkdir(aiProjectPath, { recursive: true });
+    // Update the project in Pinecone with the generated specs
+    const updatedProject = {
+      ...project,
+      requirements: specsData.requirements,
+      design: specsData.design,
+      tasks: specsData.tasks,
+      lastModified: new Date().toISOString()
+    };
+
+    console.log('Updating project with specs, requirements length:', specsData.requirements?.length || 0);
+    const success = await projectService.updateProject(userId, projectId, updatedProject);
+    
+    if (!success) {
+      console.error('Failed to update project with specs');
+      return NextResponse.json(
+        { error: 'Failed to save generated specifications' },
+        { status: 500 }
+      );
     }
 
-    // Write the generated specifications
-    console.log('Writing requirements.md to:', path.join(aiProjectPath, 'requirements.md'));
-    await fs.writeFile(
-      path.join(aiProjectPath, 'requirements.md'),
-      specsData.requirements,
-      'utf-8'
-    );
-
-    console.log('Writing design.md to:', path.join(aiProjectPath, 'design.md'));
-    await fs.writeFile(
-      path.join(aiProjectPath, 'design.md'),
-      specsData.design,
-      'utf-8'
-    );
-
-    console.log('Writing tasks.md to:', path.join(aiProjectPath, 'tasks.md'));
-    await fs.writeFile(
-      path.join(aiProjectPath, 'tasks.md'),
-      specsData.tasks,
-      'utf-8'
-    );
-
-    // Also create the files in the internal project directory for consistency
-    const internalProjectPath = path.join(process.cwd(), '.ai-project', 'projects', projectId);
-    await fs.mkdir(internalProjectPath, { recursive: true });
-
-    await fs.writeFile(
-      path.join(internalProjectPath, 'requirements.md'),
-      specsData.requirements,
-      'utf-8'
-    );
-
-    await fs.writeFile(
-      path.join(internalProjectPath, 'design.md'),
-      specsData.design,
-      'utf-8'
-    );
-
-    await fs.writeFile(
-      path.join(internalProjectPath, 'tasks.md'),
-      specsData.tasks,
-      'utf-8'
-    );
-
-    // Update the project configuration with new lastModified timestamp
-    projectConfig.lastModified = new Date().toISOString();
-    await fs.writeFile(
-      path.join(process.cwd(), '.ai-project', 'projects', projectId, 'config.json'),
-      JSON.stringify(projectConfig, null, 2),
-      'utf-8'
-    );
+    console.log('Successfully updated project with specs');
 
     return NextResponse.json({
       success: true,

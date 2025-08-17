@@ -1,5 +1,44 @@
-import { pinecone } from './pinecone';
-import { generateEmbedding } from './pinecone';
+import { getPineconeClient, PINECONE_INDEX_NAME } from './pinecone';
+
+// Helper function for embeddings (same as in projectService)
+async function generateEmbedding(text: string, dimensions: number = 768): Promise<number[]> {
+  try {
+    // Use Gemini for embeddings
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${process.env.GOOGLE_AI_API_KEY}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'models/text-embedding-004',
+        content: {
+          parts: [{ text }]
+        }
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Gemini embedding API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.embedding.values;
+  } catch (error) {
+    console.error('Failed to generate embedding with Gemini:', error);
+    // Fallback to a simple hash-based embedding
+    const hash = text.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+
+    // Create a vector with specified dimensions
+    const vector = new Array(dimensions).fill(0);
+    for (let i = 0; i < dimensions; i++) {
+      vector[i] = Math.sin(hash + i) * 0.1;
+    }
+    return vector;
+  }
+}
 
 export interface TokenUsage {
   inputTokens: number;
@@ -87,14 +126,10 @@ export class TokenTrackingService {
   }
 
   private async saveToPinecone(tokenUsage: TokenUsage): Promise<void> {
-    if (!pinecone) {
-      console.warn('Pinecone not configured, skipping token usage storage');
-      return;
-    }
-
     try {
-      const index = pinecone.index(process.env.NEXT_PUBLIC_PINECONE_INDEX_NAME || 'roki');
-      
+      const pinecone = getPineconeClient();
+      const index = pinecone.index(PINECONE_INDEX_NAME);
+
       // Create a simple embedding for the token usage data
       const content = `Token usage for ${tokenUsage.analysisType} analysis in project ${tokenUsage.projectId}`;
       const embedding = await generateEmbedding(content, 1024);
@@ -126,12 +161,9 @@ export class TokenTrackingService {
 
   async getCumulativeUsage(projectId: string): Promise<CumulativeTokenUsage> {
     try {
-      if (!pinecone) {
-        return this.getDefaultCumulativeUsage();
-      }
+      const pinecone = getPineconeClient();
+      const index = pinecone.index(PINECONE_INDEX_NAME);
 
-      const index = pinecone.index(process.env.NEXT_PUBLIC_PINECONE_INDEX_NAME || 'roki');
-      
       const queryResponse = await index.query({
         vector: new Array(1024).fill(0),
         filter: {
@@ -152,11 +184,11 @@ export class TokenTrackingService {
           const inputTokens = typeof match.metadata.inputTokens === 'number' ? match.metadata.inputTokens : 0;
           const outputTokens = typeof match.metadata.outputTokens === 'number' ? match.metadata.outputTokens : 0;
           const cost = typeof match.metadata.cost === 'number' ? match.metadata.cost : 0;
-          
+
           totalInputTokens += inputTokens;
           totalOutputTokens += outputTokens;
           totalCost += cost;
-          
+
           if (match.metadata.sessionId && typeof match.metadata.sessionId === 'string') {
             sessionIds.add(match.metadata.sessionId);
           }
@@ -179,12 +211,9 @@ export class TokenTrackingService {
 
   async getSessionUsage(projectId: string): Promise<SessionTokenUsage> {
     try {
-      if (!pinecone) {
-        return this.getDefaultSessionUsage();
-      }
+      const pinecone = getPineconeClient();
+      const index = pinecone.index(PINECONE_INDEX_NAME);
 
-      const index = pinecone.index(process.env.NEXT_PUBLIC_PINECONE_INDEX_NAME || 'roki');
-      
       const queryResponse = await index.query({
         vector: new Array(1024).fill(0),
         filter: {
@@ -206,7 +235,7 @@ export class TokenTrackingService {
           const inputTokens = typeof match.metadata.inputTokens === 'number' ? match.metadata.inputTokens : 0;
           const outputTokens = typeof match.metadata.outputTokens === 'number' ? match.metadata.outputTokens : 0;
           const cost = typeof match.metadata.cost === 'number' ? match.metadata.cost : 0;
-          
+
           totalInputTokens += inputTokens;
           totalOutputTokens += outputTokens;
           totalCost += cost;

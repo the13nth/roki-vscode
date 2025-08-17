@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { pineconeSyncService } from '@/lib/pineconeSyncService';
+import { PineconeSyncServiceInstance } from '@/lib/pineconeSyncService';
 
 export async function POST(
   request: NextRequest,
@@ -9,7 +9,7 @@ export async function POST(
     const { id: projectId } = await params;
     const { documentId, resolution } = await request.json();
     
-    const result = await pineconeSyncService.resolveConflict(projectId, documentId, resolution);
+    const result = await PineconeSyncServiceInstance.resolveConflict(projectId, documentId, resolution);
     
     return NextResponse.json(result);
   } catch (error) {

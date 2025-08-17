@@ -40,7 +40,9 @@ import {
   Grid3X3,
   Expand,
   Eye,
-  Presentation
+  Presentation,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { JSX } from 'react/jsx-runtime';
 
@@ -133,14 +135,25 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
   const [savedAnalyses, setSavedAnalyses] = useState<Record<string, boolean>>({});
   const [savingAnalyses, setSavingAnalyses] = useState<Record<string, boolean>>({});
 
+
+
   // Define all available analysis types
   const allAnalysisTypes = ['technical', 'market', 'differentiation', 'financial', 'bmc', 'roast'];
+
+  // Define required analyses for roast (exclude roast itself)
+  const requiredForRoast = ['technical', 'market', 'differentiation', 'financial', 'bmc'];
 
   // Check if all analyses are complete
   const allAnalysesComplete = allAnalysisTypes.every(type => analysisResults[type]);
 
+  // Check if all required analyses for roast are complete
+  const roastAnalysesComplete = requiredForRoast.every(type => analysisResults[type]);
+
   // Get remaining analyses
   const remainingAnalyses = allAnalysisTypes.filter(type => !analysisResults[type]);
+
+  // Get remaining analyses for roast (excluding roast itself)
+  const remainingForRoast = requiredForRoast.filter(type => !analysisResults[type]);
 
   // BMC Card Component
   const BMCCard = ({ title, content, colorClass, borderClass, textClass }: {
@@ -221,6 +234,10 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
   const [projectDocuments, setProjectDocuments] = useState<any[]>([]);
   const [contextDocuments, setContextDocuments] = useState<any[]>([]);
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
+  
+  // Collapsible state for document sections
+  const [projectDocsExpanded, setProjectDocsExpanded] = useState(false);
+  const [contextDocsExpanded, setContextDocsExpanded] = useState(false);
 
   useEffect(() => {
     loadProjectContext();
@@ -499,6 +516,15 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
     }
   };
 
+  const handleRoastClick = () => {
+    if (roastAnalysesComplete) {
+      handleAnalyze('roast');
+    } else {
+      // Show a modal or alert that all analyses need to be completed first
+      setError(`Please complete all other analyses before running the roast analysis. The roast needs comprehensive project context to provide meaningful criticism. Missing: ${remainingForRoast.join(', ')}`);
+    }
+  };
+
   const getAnalysisTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
       technical: 'Technical Analysis',
@@ -613,13 +639,34 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleAnalyze('roast')}
-                    disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
+                    onClick={() => handleRoastClick()}
+                    disabled={isAnalyzing || !roastAnalysesComplete}
                     className="justify-start rounded-none border-red-200 text-red-700 hover:bg-red-50"
                   >
                     <Flame className="w-4 h-4 mr-2" />
                     Roast My Idea
                     {analysisResults.roast && <CheckCircle className="w-3 h-3 ml-auto text-green-600" />}
+                    {!roastAnalysesComplete && (
+                      <Badge variant="secondary" className="ml-auto text-xs">
+                        {remainingForRoast.length}
+                      </Badge>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowPitchModal(true)}
+                    disabled={isAnalyzing || !allAnalysesComplete}
+                    className="justify-start rounded-none border-purple-200 text-purple-700 hover:bg-purple-50"
+                  >
+                    <Presentation className="w-4 h-4 mr-2" />
+                    Generate Pitch
+                    {allAnalysesComplete && <CheckCircle className="w-3 h-3 ml-auto text-green-600" />}
+                    {!allAnalysesComplete && (
+                      <Badge variant="secondary" className="ml-auto text-xs">
+                        {remainingAnalyses.length}
+                      </Badge>
+                    )}
                   </Button>
                 </div>
               </div>
@@ -639,58 +686,100 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                   {/* Project Documents */}
                   {projectDocuments.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-muted-foreground mb-2 flex items-center">
+                      <button
+                        onClick={() => setProjectDocsExpanded(!projectDocsExpanded)}
+                        className="w-full text-left text-sm font-medium text-muted-foreground mb-2 flex items-center hover:text-foreground transition-colors"
+                      >
+                        {projectDocsExpanded ? (
+                          <ChevronDown className="w-4 h-4 mr-2" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4 mr-2" />
+                        )}
                         <FileText className="w-4 h-4 mr-2" />
                         Project Documents ({projectDocuments.length})
-                      </h3>
-                      <div className="grid grid-cols-1 gap-3">
-                        {projectDocuments.map((doc, index) => (
-                          <Card key={index} className="border-l-4 border-l-blue-500">
-                            <CardHeader className="pb-2">
-                              <CardTitle className="text-sm flex items-center justify-between">
-                                <span className="truncate">{doc.title || doc.filename}</span>
-                                <Badge variant="secondary" className="text-xs">
-                                  {doc.documentType || 'document'}
-                                </Badge>
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent className="pt-0">
-                              <p className="text-xs text-muted-foreground">
-                                {doc.content?.substring(0, 150)}...
-                              </p>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
+                      </button>
+                      
+                      {projectDocsExpanded && (
+                        <div className="grid grid-cols-1 gap-3 ml-6">
+                          {projectDocuments.map((doc, index) => (
+                            <Card key={index} className="border-l-4 border-l-blue-500 overflow-hidden">
+                              <CardHeader className="pb-3">
+                                <div className="space-y-1">
+                                  <CardTitle className="text-sm font-medium truncate">
+                                    {doc.title || doc.filename}
+                                  </CardTitle>
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-xs text-muted-foreground">
+                                      Document Type
+                                    </p>
+                                    <Badge variant="secondary" className="text-xs">
+                                      {doc.documentType || 'document'}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </CardHeader>
+                              <CardContent className="pt-0">
+                                <div className="space-y-2">
+                                  <p className="text-xs text-muted-foreground line-clamp-3">
+                                    {doc.content?.substring(0, 120) || 'No content preview available'}
+                                    {doc.content && doc.content.length > 120 && '...'}
+                                  </p>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
                   {/* Context Documents */}
                   {contextDocuments.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-muted-foreground mb-2 flex items-center">
+                      <button
+                        onClick={() => setContextDocsExpanded(!contextDocsExpanded)}
+                        className="w-full text-left text-sm font-medium text-muted-foreground mb-2 flex items-center hover:text-foreground transition-colors"
+                      >
+                        {contextDocsExpanded ? (
+                          <ChevronDown className="w-4 h-4 mr-2" />
+                        ) : (
+                          <ChevronRight className="w-4 h-4 mr-2" />
+                        )}
                         <FileText className="w-4 h-4 mr-2" />
                         Context Documents ({contextDocuments.length})
-                      </h3>
-                      <div className="grid grid-cols-1 gap-3">
-                        {contextDocuments.map((doc, index) => (
-                          <Card key={index} className="border-l-4 border-l-green-500">
-                            <CardHeader className="pb-2">
-                              <CardTitle className="text-sm flex items-center justify-between">
-                                <span className="truncate">{doc.title || doc.filename}</span>
-                                <Badge variant="outline" className="text-xs">
-                                  {doc.category || 'context'}
-                                </Badge>
-                              </CardTitle>
-                            </CardHeader>
-                            <CardContent className="pt-0">
-                              <p className="text-xs text-muted-foreground">
-                                {doc.content?.substring(0, 150)}...
-                              </p>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
+                      </button>
+                      
+                      {contextDocsExpanded && (
+                        <div className="grid grid-cols-1 gap-3 ml-6">
+                          {contextDocuments.map((doc, index) => (
+                            <Card key={index} className="border-l-4 border-l-green-500 overflow-hidden">
+                              <CardHeader className="pb-3">
+                                <div className="space-y-1">
+                                  <CardTitle className="text-sm font-medium truncate">
+                                    {doc.title || doc.filename}
+                                  </CardTitle>
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-xs text-muted-foreground">
+                                      Category
+                                    </p>
+                                    <Badge variant="outline" className="text-xs">
+                                      {doc.category || 'context'}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </CardHeader>
+                              <CardContent className="pt-0">
+                                <div className="space-y-2">
+                                  <p className="text-xs text-muted-foreground line-clamp-3">
+                                    {doc.content?.substring(0, 120) || 'No content preview available'}
+                                    {doc.content && doc.content.length > 120 && '...'}
+                                  </p>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1233,16 +1322,6 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
               <div className="text-center py-12 text-muted-foreground">
                 <Brain className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>Run an analysis to see AI-powered insights about your project</p>
-                <div className="mt-6">
-                  <Button
-                    onClick={() => setShowPitchModal(true)}
-                    variant="outline"
-                    className="text-purple-700 border-purple-200 hover:bg-purple-50"
-                  >
-                    <Presentation className="w-4 h-4 mr-2" />
-                    Generate Pitch
-                  </Button>
-                </div>
               </div>
             )}
 

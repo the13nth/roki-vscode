@@ -58,6 +58,9 @@ export interface ProjectConfiguration {
   aiModel: string;
   originalPath?: string; // For imported projects
   technologyStack?: TechnologyStack;
+  requirements?: string; // Generated requirements document
+  design?: string; // Generated design document
+  tasks?: string; // Generated tasks document
   tokenTracking?: {
     totalTokens: number;
     totalCost: number;

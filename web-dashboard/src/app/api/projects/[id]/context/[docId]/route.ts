@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { ContextDocument } from '@/types';
-import { pineconeSyncService } from '@/lib/pineconeSyncService';
+import { PineconeSyncServiceInstance } from '@/lib/pineconeSyncService';
 
 // GET /api/projects/[id]/context/[docId] - Get specific context document
 export async function GET(
@@ -118,7 +118,7 @@ export async function PUT(
 
     // Auto-embed the updated document to Pinecone
     try {
-      const embedResult = await pineconeSyncService.embedSingleContextDocument(id, updatedDoc);
+      const embedResult = await PineconeSyncServiceInstance.embedSingleContextDocument(id, updatedDoc);
       if (embedResult.success) {
         console.log(`Auto-embedded updated context document: ${updatedDoc.title}`);
       } else {
@@ -181,7 +181,7 @@ export async function DELETE(
 
     // Delete from Pinecone vector database
     try {
-      const deleteResult = await pineconeSyncService.deleteContextDocument(id, docId);
+      const deleteResult = await PineconeSyncServiceInstance.deleteContextDocument(id, docId);
       if (deleteResult.success) {
         console.log(`Deleted context document from Pinecone: ${existingDoc.title}`);
       } else {

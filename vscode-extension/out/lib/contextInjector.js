@@ -18,9 +18,15 @@ class ContextInjectorImpl {
             throw new Error('No AI project detected');
         }
         const structure = this.projectDetector.getProjectStructure();
+        // Try to load specs from .kiro first, then fallback to .ai-project
+        const requirementsSummary = this.getRequirementsSummaryFromMultipleSources(structure.requirementsPath);
+        const designSummary = this.getDesignSummaryFromMultipleSources(structure.designPath);
+        const tasksSummary = this.getTasksSummaryFromMultipleSources(structure.tasksPath);
         return {
             currentTask: this.getCurrentTask(),
-            requirementsSummary: this.getRequirementsSummary(structure.requirementsPath),
+            requirementsSummary: requirementsSummary,
+            designSummary: designSummary,
+            tasksSummary: tasksSummary,
             relevantContextDocs: this.loadContextDocuments(structure.contextDir),
             progressSummary: this.getProgressSummary(structure.progressPath)
         };
@@ -48,6 +54,14 @@ class ContextInjectorImpl {
             }
             formatted += '## Requirements Summary\n';
             formatted += context.requirementsSummary + '\n\n';
+            if (context.designSummary && context.designSummary !== 'Design summary not available') {
+                formatted += '## Design Summary\n';
+                formatted += context.designSummary + '\n\n';
+            }
+            if (context.tasksSummary && context.tasksSummary !== 'Tasks summary not available') {
+                formatted += '## Tasks Summary\n';
+                formatted += context.tasksSummary + '\n\n';
+            }
             if (this.contextPreferences.includeCurrentTask && context.currentTask) {
                 formatted += '## Current Task\n';
                 formatted += context.currentTask + '\n\n';
@@ -103,6 +117,45 @@ class ContextInjectorImpl {
         }))
             .sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0))
             .slice(0, 5);
+    }
+    getRequirementsSummaryFromMultipleSources(projectPath) {
+        // Try .kiro/specs/ai-project-manager first
+        const kiroRequirementsPath = path.join(projectPath, '.kiro', 'specs', 'ai-project-manager', 'requirements.md');
+        if (fs.existsSync(kiroRequirementsPath)) {
+            return this.getRequirementsSummary(kiroRequirementsPath);
+        }
+        // Fallback to .ai-project
+        const aiProjectRequirementsPath = path.join(projectPath, '.ai-project', 'requirements.md');
+        if (fs.existsSync(aiProjectRequirementsPath)) {
+            return this.getRequirementsSummary(aiProjectRequirementsPath);
+        }
+        return 'Requirements summary not available';
+    }
+    getDesignSummaryFromMultipleSources(projectPath) {
+        // Try .kiro/specs/ai-project-manager first
+        const kiroDesignPath = path.join(projectPath, '.kiro', 'specs', 'ai-project-manager', 'design.md');
+        if (fs.existsSync(kiroDesignPath)) {
+            return this.getRequirementsSummary(kiroDesignPath); // Reuse the same logic
+        }
+        // Fallback to .ai-project
+        const aiProjectDesignPath = path.join(projectPath, '.ai-project', 'design.md');
+        if (fs.existsSync(aiProjectDesignPath)) {
+            return this.getRequirementsSummary(aiProjectDesignPath); // Reuse the same logic
+        }
+        return 'Design summary not available';
+    }
+    getTasksSummaryFromMultipleSources(projectPath) {
+        // Try .kiro/specs/ai-project-manager first
+        const kiroTasksPath = path.join(projectPath, '.kiro', 'specs', 'ai-project-manager', 'tasks.md');
+        if (fs.existsSync(kiroTasksPath)) {
+            return this.getRequirementsSummary(kiroTasksPath); // Reuse the same logic
+        }
+        // Fallback to .ai-project
+        const aiProjectTasksPath = path.join(projectPath, '.ai-project', 'tasks.md');
+        if (fs.existsSync(aiProjectTasksPath)) {
+            return this.getRequirementsSummary(aiProjectTasksPath); // Reuse the same logic
+        }
+        return 'Tasks summary not available';
     }
     getRequirementsSummary(requirementsPath) {
         try {

@@ -15,6 +15,7 @@ interface MarkdownEditorProps extends EditorProps {
   height?: string;
   onImproveWithAI?: () => Promise<void>;
   isImprovingWithAI?: boolean;
+  additionalToolbarButtons?: React.ReactNode;
 }
 
 export function MarkdownEditor({
@@ -26,7 +27,8 @@ export function MarkdownEditor({
   showPreview = true,
   height = '600px',
   onImproveWithAI,
-  isImprovingWithAI = false
+  isImprovingWithAI = false,
+  additionalToolbarButtons
 }: MarkdownEditorProps) {
   const [editorContent, setEditorContent] = useState(content);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
@@ -169,6 +171,9 @@ export function MarkdownEditor({
               </Button>
             </div>
           )}
+
+          {/* Additional Toolbar Buttons */}
+          {additionalToolbarButtons}
 
           {/* Improve with AI Button */}
           {onImproveWithAI && (

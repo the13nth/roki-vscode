@@ -15,7 +15,9 @@ import {
   AlertCircle, 
   Clock,
   Wifi,
-  WifiOff
+  WifiOff,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { pineconeClient, SyncStatus as SyncStatusType } from '@/lib/pineconeClient';
 
@@ -33,6 +35,7 @@ export default function SyncStatus({ projectId, onSync }: SyncStatusProps) {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     loadSyncStatus();
@@ -151,12 +154,43 @@ export default function SyncStatus({ projectId, onSync }: SyncStatusProps) {
   return (
     <Card className="w-full rounded-none">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-sm">
-          <Cloud className="h-4 w-4" />
-          Online Sync
-        </CardTitle>
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="w-full flex items-center justify-between text-left hover:bg-muted/50 transition-colors rounded-sm p-1 -m-1"
+        >
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Cloud className="h-4 w-4" />
+            Online Sync
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            {/* Status Icons */}
+            <div className="flex items-center gap-1">
+              {syncStatus.isOnline ? (
+                <Wifi className="h-3 w-3 text-green-500" />
+              ) : (
+                <WifiOff className="h-3 w-3 text-red-500" />
+              )}
+              {syncStatus.conflicts > 0 && (
+                <AlertCircle className="h-3 w-3 text-red-500" />
+              )}
+              {syncStatus.pendingChanges > 0 && (
+                <Clock className="h-3 w-3 text-yellow-500" />
+              )}
+              {syncStatus.isOnline && syncStatus.conflicts === 0 && syncStatus.pendingChanges === 0 && (
+                <CheckCircle className="h-3 w-3 text-green-500" />
+              )}
+            </div>
+            {isExpanded ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </div>
+        </button>
       </CardHeader>
-      <CardContent className="space-y-4">
+      
+      {isExpanded && (
+        <CardContent className="space-y-4">
         {/* Connection Status */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -254,7 +288,8 @@ export default function SyncStatus({ projectId, onSync }: SyncStatusProps) {
             </AlertDescription>
           </Alert>
         )}
-      </CardContent>
+        </CardContent>
+      )}
     </Card>
   );
 }

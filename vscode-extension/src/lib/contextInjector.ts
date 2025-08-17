@@ -39,9 +39,9 @@ export class ContextInjectorImpl implements ContextInjector {
         const structure = this.projectDetector.getProjectStructure();
         
         // Try to load specs from .kiro first, then fallback to .ai-project
-        const requirementsSummary = this.getRequirementsSummaryFromMultipleSources(structure.projectPath);
-        const designSummary = this.getDesignSummaryFromMultipleSources(structure.projectPath);
-        const tasksSummary = this.getTasksSummaryFromMultipleSources(structure.projectPath);
+        const requirementsSummary = this.getRequirementsSummaryFromMultipleSources(structure.requirementsPath);
+        const designSummary = this.getDesignSummaryFromMultipleSources(structure.designPath);
+        const tasksSummary = this.getTasksSummaryFromMultipleSources(structure.tasksPath);
         
         return {
             currentTask: this.getCurrentTask(),

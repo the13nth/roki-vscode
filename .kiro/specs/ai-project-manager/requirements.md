@@ -1,78 +1,31 @@
-# Requirements Document
+# text - Requirements Document
 
 ## Introduction
 
-The AI Project Manager is a browser-based project management system with VS Code integration that helps developers organize, track, and enhance their coding projects through structured documentation and intelligent AI context injection. The system maintains project specifications, requirements, design documents, and tasks in markdown format while providing seamless integration with AI development workflows through a VS Code extension.
+This project aims to develop a ride-hailing application, mirroring core functionalities of Uber.  The application will connect riders needing transportation with nearby drivers.  It will provide real-time tracking of rides, estimated fares, secure payment processing, and a robust communication system between riders and drivers.  The application will be accessible through user-friendly mobile interfaces for both riders and drivers, facilitating seamless booking and ride management.  Two primary user groups are targeted: riders seeking convenient and reliable transportation, and drivers looking to earn income by providing rides. Riders will benefit from on-demand transportation, transparent pricing, and secure payment options. Drivers will benefit from a platform to connect with riders, manage their earnings, and track their ride history.  The application will contribute to efficient urban mobility by connecting supply and demand for transportation services effectively.
+
+Key features include user registration and authentication, real-time location tracking and mapping, ride requesting and matching, fare calculation and payment processing, in-app communication between riders and drivers, ride history and rating systems, and administrative features for managing users and rides.  The application must be scalable to accommodate a growing user base and handle concurrent ride requests.  Security is paramount, ensuring the protection of user data and secure transactions.  The user experience should be intuitive and user-friendly, with clear navigation and efficient workflows for both riders and drivers.  Performance is crucial, with minimal latency in location updates and ride matching.
+
+Users will interact with the application through intuitive mobile interfaces. Riders will be able to request rides by specifying their pickup and drop-off locations, view estimated fares and arrival times, track their driver's location in real-time, communicate with their driver through the app, and rate their ride experience.  Drivers will receive ride requests, navigate to pickup locations using integrated maps, track their earnings, and manage their availability.  The application solves the problem of inefficient transportation by providing a platform that connects riders and drivers seamlessly, offering convenient and reliable on-demand transportation.  It benefits riders by offering accessibility, transparency, and safety, and benefits drivers by providing income opportunities and flexible work arrangements.
+
+Success will be measured by several key metrics, including the number of registered users, the number of completed rides, user satisfaction ratings, driver retention rates, and revenue generation.  Achieving a high level of user engagement and satisfaction, along with a sustainable business model, will indicate the project's success.  The application will be developed iteratively, with regular feedback and testing to ensure alignment with user needs and market demands.
+
 ## Requirements
 
 ### Requirement 1
 
-**User Story:** As a developer, I want to create and manage project documentation through a web interface, so that I can organize my project requirements, design, and tasks without leaving my browser.
+**User Story:** As a user, I want to...
 
 #### Acceptance Criteria
 
-1. WHEN a user accesses the web dashboard THEN the system SHALL display a project overview with all available projects
-2. WHEN a user creates a new project THEN the system SHALL generate a `.ai-project/` folder structure with template markdown files
-3. WHEN a user edits requirements.md, design.md, or tasks.md THEN the system SHALL auto-save changes to the local file system
-4. WHEN a user adds context documents THEN the system SHALL store them in the `.ai-project/context/` directory
-5. IF a user navigates between different markdown documents THEN the system SHALL preserve unsaved changes and provide save notifications
+1. WHEN... THEN...
+2. WHEN... THEN...
 
 ### Requirement 2
 
-**User Story:** As a developer, I want my VS Code extension to automatically inject relevant project context into AI conversations, so that I can get more accurate and contextual assistance without manually copying information.
+**User Story:** As a user, I want to...
 
 #### Acceptance Criteria
 
-1. WHEN a user opens an AI chat in VS Code AND a `.ai-project/` folder exists THEN the extension SHALL detect the project structure
-2. WHEN a user starts an AI conversation THEN the extension SHALL automatically inject current task, requirements summary, and relevant context documents
-3. WHEN a user is editing a specific file THEN the extension SHALL prioritize context documents related to that file or feature
-4. IF multiple context documents exist THEN the extension SHALL intelligently select the most relevant ones based on current work
-5. WHEN project context is injected THEN the extension SHALL format it clearly for the AI model to understand
-
-### Requirement 3
-
-**User Story:** As a developer, I want the system to automatically track my project progress based on task completion and code changes, so that I can see real-time progress without manual updates.
-
-#### Acceptance Criteria
-
-1. WHEN a user marks tasks as complete in tasks.md THEN the system SHALL update the progress.json file automatically
-2. WHEN the VS Code extension detects file changes or git commits THEN it SHALL analyze if tasks should be marked as complete
-3. WHEN progress is updated THEN the web dashboard SHALL reflect changes in real-time
-4. IF a task is marked complete THEN the system SHALL timestamp the completion and update percentage calculations
-5. WHEN a user views the progress page THEN the system SHALL display visual progress bars, completion percentages, and recent activity
-
-### Requirement 4
-
-**User Story:** As a developer, I want to manage context documents that inform AI interactions, so that the AI has access to relevant project information like API specifications, design guidelines, and research notes.
-
-#### Acceptance Criteria
-
-1. WHEN a user uploads or creates context documents THEN the system SHALL store them in the `.ai-project/context/` directory
-2. WHEN a user organizes context documents THEN the system SHALL support categorization and tagging
-3. WHEN the VS Code extension injects context THEN it SHALL include relevant context documents based on current work
-4. IF context documents are updated THEN the changes SHALL be immediately available to the VS Code extension
-5. WHEN a user deletes context documents THEN the system SHALL remove them from both the web dashboard and local file system
-
-### Requirement 5
-
-**User Story:** As a developer, I want the web dashboard and VS Code extension to stay synchronized, so that changes made in either interface are reflected in the other without conflicts.
-
-#### Acceptance Criteria
-
-1. WHEN a user makes changes in the web dashboard THEN the VS Code extension SHALL detect file system changes within 2 seconds
-2. WHEN a user modifies files directly in VS Code THEN the web dashboard SHALL update to reflect changes automatically
-3. IF both interfaces modify the same file simultaneously THEN the system SHALL prevent data loss through conflict resolution
-4. WHEN the system detects conflicts THEN it SHALL notify the user and provide merge options
-5. WHEN files are synchronized THEN the system SHALL maintain file integrity and preserve formatting
-
-### Requirement 6
-
-**User Story:** As a developer, I want template-based project initialization, so that I can quickly set up new projects with appropriate structure and documentation templates.
-
-#### Acceptance Criteria
-
-1. WHEN a user creates a new project THEN the system SHALL offer template options (web app, API, mobile app, etc.)
-2. WHEN a user selects a template THEN the system SHALL generate appropriate requirements.md, design.md, and tasks.md files
-3. WHEN templates are applied THEN the system SHALL include relevant context document templates
-4. IF a user wants custom templates THEN the system SHALL allow template customization and saving
-5. WHEN a project is initialized THEN the system SHALL create a valid `.ai-project/` structure that the VS Code extension can recognize
+1. WHEN... THEN...
+2. WHEN... THEN...

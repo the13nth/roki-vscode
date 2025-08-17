@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { TokenTrackingService } from '@/lib/tokenTrackingService';
-import { pinecone } from '@/lib/pinecone';
+import { getPineconeClient } from '@/lib/pinecone';
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,10 +15,7 @@ export async function GET(request: NextRequest) {
     const timeRange = searchParams.get('timeRange') || '30d'; // 7d, 30d, 90d, all
     const groupBy = searchParams.get('groupBy') || 'day'; // day, week, month
 
-    if (!pinecone) {
-      return NextResponse.json({ error: 'Pinecone not configured' }, { status: 500 });
-    }
-
+    const pinecone = getPineconeClient();
     const index = pinecone.index(process.env.NEXT_PUBLIC_PINECONE_INDEX_NAME || 'roki');
     
     // Build filter based on parameters

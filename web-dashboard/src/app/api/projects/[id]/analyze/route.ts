@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { pineconeSyncService } from '@/lib/pineconeSyncService';
+import { PineconeSyncServiceInstance } from '@/lib/pineconeSyncService';
 import { TokenTrackingService } from '@/lib/tokenTrackingService';
 import { getGoogleAIConfig, validateSecureConfig } from '@/lib/secureConfig';
 import { promises as fs } from 'fs';
@@ -52,14 +52,37 @@ export async function POST(
 
     // Fetch documents from Pinecone instead of relying on context parameter
     console.log('📚 Fetching documents from Pinecone...');
-    const pineconeResult = await pineconeSyncService.downloadProject(id);
+    const pineconeResult = await PineconeSyncServiceInstance.downloadProject(id);
 
     let project, documents, contextDocuments;
 
     if (pineconeResult.success) {
       const data = pineconeResult.data;
       project = data.project;
-      documents = data.documents;
+      
+      // Convert documents object to array format expected by the rest of the code
+      const docTypes = ['requirements', 'design', 'tasks'];
+      documents = [];
+      console.log('📄 Converting documents from object to array format...');
+      console.log('📄 Raw documents data:', data.documents);
+      
+      for (const docType of docTypes) {
+        console.log(`📄 Processing ${docType}:`, data.documents[docType]);
+        if (data.documents[docType] && data.documents[docType].trim() !== '') {
+          documents.push({
+            title: `${docType.charAt(0).toUpperCase() + docType.slice(1)}`,
+            documentType: docType,
+            content: data.documents[docType],
+            filename: `${docType}.md`
+          });
+          console.log(`✅ Added ${docType} document with ${data.documents[docType].length} characters`);
+        } else {
+          console.log(`⚠️ Skipping ${docType} - empty or missing`);
+        }
+      }
+      
+      console.log(`📄 Final documents array:`, documents);
+      
       contextDocuments = data.contextDocuments;
       console.log('✅ Successfully fetched documents from Pinecone');
     } else {
@@ -140,10 +163,18 @@ export async function POST(
     // If fetchOnly is true, return the documents without analysis
     if (fetchOnly) {
       console.log('📚 Returning documents for display');
+      console.log('📄 Documents array:', documents);
+      console.log('📄 Context documents array:', contextDocuments);
+      
       return NextResponse.json({
         projectDocuments: documents || [],
         contextDocuments: contextDocuments || [],
-        project: project
+        project: project,
+        // Also include individual document fields for compatibility
+        requirements: documents?.find(d => d.documentType === 'requirements')?.content || '',
+        design: documents?.find(d => d.documentType === 'design')?.content || '',
+        tasks: documents?.find(d => d.documentType === 'tasks')?.content || '',
+        hasDocuments: (documents && documents.length > 0) || (contextDocuments && contextDocuments.length > 0)
       });
     }
 
@@ -161,6 +192,91 @@ export async function POST(
       }
     }
     analysisContext += `\n`;
+
+    // For roast analysis, fetch existing analysis results to provide comprehensive context
+    if (analysisType === 'roast') {
+      console.log('🔥 Fetching existing analysis results for roast context...');
+      
+      try {
+        // Fetch existing analysis results from the analyses API
+        const analysesResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/projects/${id}/analyses`);
+        
+        if (analysesResponse.ok) {
+          const analysesData = await analysesResponse.json();
+          
+          if (analysesData.success && analysesData.analyses) {
+            console.log('✅ Found existing analyses for roast context');
+            analysisContext += `## Existing Analysis Results\n\n`;
+            
+            const analysisTypes = ['technical', 'market', 'differentiation', 'financial', 'bmc'];
+            for (const type of analysisTypes) {
+              const analysis = analysesData.analyses[type];
+              if (analysis) {
+                console.log(`📊 Adding ${type} analysis to roast context`);
+                analysisContext += `### ${type.charAt(0).toUpperCase() + type.slice(1)} Analysis\n`;
+                
+                if (analysis.summary) {
+                  analysisContext += `**Summary:** ${analysis.summary}\n\n`;
+                }
+                
+                if (analysis.insights && analysis.insights.length > 0) {
+                  analysisContext += `**Key Insights:**\n`;
+                  analysis.insights.forEach((insight: any) => {
+                    analysisContext += `- ${insight.content || insight}\n`;
+                  });
+                  analysisContext += `\n`;
+                }
+                
+                if (analysis.recommendations && analysis.recommendations.length > 0) {
+                  analysisContext += `**Recommendations:**\n`;
+                  analysis.recommendations.forEach((rec: any) => {
+                    analysisContext += `- ${rec.content || rec}\n`;
+                  });
+                  analysisContext += `\n`;
+                }
+                
+                if (analysis.risks && analysis.risks.length > 0) {
+                  analysisContext += `**Risks:**\n`;
+                  analysis.risks.forEach((risk: any) => {
+                    analysisContext += `- ${risk.content || risk}\n`;
+                  });
+                  analysisContext += `\n`;
+                }
+                
+                // Add specific analysis sections
+                if (analysis.marketAnalysis) {
+                  analysisContext += `**Market Analysis:** ${analysis.marketAnalysis.content}\n\n`;
+                }
+                
+                if (analysis.differentiationAnalysis) {
+                  analysisContext += `**Differentiation Analysis:** ${analysis.differentiationAnalysis.content}\n\n`;
+                }
+                
+                if (analysis.financialProjections) {
+                  analysisContext += `**Financial Projections:** ${analysis.financialProjections.content}\n\n`;
+                }
+                
+                if (analysis.businessModelCanvas) {
+                  analysisContext += `**Business Model Canvas:**\n`;
+                  Object.entries(analysis.businessModelCanvas).forEach(([key, value]) => {
+                    if (value) {
+                      analysisContext += `- ${key}: ${value}\n`;
+                    }
+                  });
+                  analysisContext += `\n`;
+                }
+              }
+            }
+          } else {
+            console.warn('⚠️ No existing analyses found for roast context');
+          }
+        } else {
+          console.warn('⚠️ Failed to fetch existing analyses for roast context');
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to fetch existing analyses for roast context:', error);
+      }
+    }
 
     // Add project documents (requirements, design, tasks)
     if (documents && documents.length > 0) {
@@ -195,25 +311,115 @@ export async function POST(
       );
     }
 
-    // Try to get Google AI configuration from environment
-    let apiConfig: ApiConfiguration;
+    // Get the appropriate API configuration for this project (respects user/app key selection)
+    let apiConfig: ApiConfiguration | undefined;
+    
+    // Always check user API key preference first, regardless of environment variables
+    let usePersonalApiKey = false;
+    
     try {
+      const selection = await PineconeSyncServiceInstance.getApiKeySelection(id, userId);
+      usePersonalApiKey = selection?.usePersonalApiKey || false;
+      console.log(`🔑 API key selection: ${usePersonalApiKey ? 'personal' : 'app default'}`);
+      console.log(`🔑 API Source: ${usePersonalApiKey ? 'USER PERSONAL API KEY' : 'APP DEFAULT API KEY'}`);
+      console.log(`👤 User ID: ${userId}`);
+      console.log(`📁 Project ID: ${id}`);
+    } catch (error) {
+      console.warn('⚠️ Failed to read API key selection from Pinecone, defaulting to global config');
+      console.log(`🔑 API Source: APP DEFAULT API KEY (fallback)`);
+      console.log(`👤 User ID: ${userId}`);
+      console.log(`📁 Project ID: ${id}`);
+    }
+    
+    try {
+      // If user wants to use personal API key, skip environment variables
+      if (usePersonalApiKey) {
+        console.log('🔑 User selected personal API key, skipping environment variables');
+        throw new Error('User selected personal API key');
+      }
+      
+      // First try to get Google AI configuration from environment
       apiConfig = getGoogleAIConfig();
       console.log('✅ Using secure Google AI configuration from environment');
+      console.log(`🔑 CONFIG SOURCE: ENVIRONMENT VARIABLE (GOOGLE_AI_API_KEY)`);
     } catch (error) {
-      console.warn('⚠️ Failed to get Google AI config from environment, falling back to global config file');
+      console.warn('⚠️ Failed to get Google AI config from environment, checking project API configuration...');
       
-      // Fallback to global configuration file
-      const globalConfigPath = getGlobalConfigPath();
-      if (!await fileExists(globalConfigPath)) {
-        return NextResponse.json(
-          { error: 'No AI configuration found. Please set GOOGLE_AI_API_KEY environment variable or configure an AI provider in the global settings.' },
-          { status: 400 }
-        );
+      if (usePersonalApiKey) {
+        // Try to get user's personal API config
+        const userConfigPath = path.join(process.cwd(), '.ai-project', 'user-configs', `${userId}-api-config.json`);
+        if (await fileExists(userConfigPath)) {
+          try {
+            const userConfigData = await fs.readFile(userConfigPath, 'utf8');
+            const userConfig = JSON.parse(userConfigData);
+            
+            // Decrypt API key if it's encrypted
+            let decryptedApiKey = '';
+            if (userConfig.encryptedApiKey) {
+              // Note: You'll need to import the decryptApiKey function
+              // decryptedApiKey = decryptApiKey(userConfig.encryptedApiKey);
+              decryptedApiKey = userConfig.encryptedApiKey; // For now, assume it's not encrypted
+            } else if (userConfig.apiKey) {
+              decryptedApiKey = userConfig.apiKey;
+            }
+            
+            apiConfig = {
+              provider: userConfig.provider,
+              apiKey: decryptedApiKey,
+              model: userConfig.model,
+              baseUrl: userConfig.baseUrl
+            };
+            console.log('✅ Using user personal API configuration');
+            console.log(`🔑 CONFIG SOURCE: USER PERSONAL API KEY`);
+            console.log(`🤖 Provider: ${userConfig.provider}, Model: ${userConfig.model}`);
+          } catch (error) {
+            console.warn('⚠️ Failed to load user API config, falling back to global config');
+          }
+        }
       }
+      
+      // If we still don't have a config, try project-specific config
+      if (!apiConfig) {
+        const projectConfigPath = path.join(process.cwd(), '.ai-project', 'projects', id, 'api-config.json');
+        if (await fileExists(projectConfigPath)) {
+          try {
+            const projectConfigData = await fs.readFile(projectConfigPath, 'utf8');
+            const parsedConfig = JSON.parse(projectConfigData);
+            apiConfig = parsedConfig;
+            console.log('✅ Using project-specific API configuration');
+            console.log(`🔑 CONFIG SOURCE: PROJECT-SPECIFIC API KEY`);
+            console.log(`🤖 Provider: ${parsedConfig.provider}, Model: ${parsedConfig.model}`);
+          } catch (error) {
+            console.warn('⚠️ Failed to load project API config, falling back to global config');
+          }
+        }
+      }
+      
+      // Finally, fallback to global configuration file
+      if (!apiConfig) {
+        const globalConfigPath = getGlobalConfigPath();
+        if (!await fileExists(globalConfigPath)) {
+          return NextResponse.json(
+            { error: 'No AI configuration found. Please set GOOGLE_AI_API_KEY environment variable or configure an AI provider in the global settings.' },
+            { status: 400 }
+          );
+        }
 
-      const globalConfigData = await fs.readFile(globalConfigPath, 'utf8');
-      apiConfig = JSON.parse(globalConfigData);
+        const globalConfigData = await fs.readFile(globalConfigPath, 'utf8');
+        const parsedConfig = JSON.parse(globalConfigData);
+        apiConfig = parsedConfig;
+        console.log('✅ Using global API configuration');
+        console.log(`🔑 CONFIG SOURCE: GLOBAL/APP DEFAULT API KEY`);
+        console.log(`🤖 Provider: ${parsedConfig.provider}, Model: ${parsedConfig.model}`);
+      }
+    }
+
+    // Ensure we have a valid API configuration
+    if (!apiConfig) {
+      return NextResponse.json(
+        { error: 'No valid AI configuration found. Please configure an AI provider in the project settings or global settings.' },
+        { status: 400 }
+      );
     }
 
     // Determine max tokens based on analysis type
@@ -336,19 +542,19 @@ Focus on providing detailed financial projections with realistic assumptions and
 
 For each section, provide detailed, specific content based on the project context. Focus on practical, implementable elements rather than generic descriptions.`;
     } else if (analysisType === 'roast') {
-      prompt = `Please provide a brutally honest critique of this project idea. Be direct and critical:
+      prompt = `Based on the comprehensive analysis results provided, please provide a brutally honest critique of this project idea. Use the insights from all previous analyses to inform your criticism. Be direct and critical:
 
-1. **Brutal Critique**: 3-5 brutally honest criticisms of the project
-2. **Reality Check**: Harsh reality checks about the project's viability
-3. **Market Reality**: Honest assessment of market challenges
-4. **Improvements Needed**: What needs to be improved or changed
-5. **Honest Advice**: Direct, honest advice about the project
+1. **Brutal Critique**: 3-5 brutally honest criticisms of the project based on the technical, market, differentiation, financial, and business model analysis
+2. **Reality Check**: Harsh reality checks about the project's viability considering all the analysis results
+3. **Market Reality**: Honest assessment of market challenges based on the market and competitive analysis
+4. **Improvements Needed**: What needs to be improved or changed based on the comprehensive analysis
+5. **Honest Advice**: Direct, honest advice about the project considering all the insights gathered
 
-Be brutally honest and critical - don't sugarcoat anything.`;
+Be brutally honest and critical - don't sugarcoat anything. Use the analysis results to provide specific, informed criticism.`;
     }
 
     // Call AI service
-    let analysisResult;
+    let analysisResult: any;
     try {
       if (apiConfig.provider === 'google') {
         // Check if context is too long for Gemini (limit is ~30k characters)
@@ -525,6 +731,8 @@ Be brutally honest and critical - don't sugarcoat anything.`;
           businessModelCanvas = bmcSections;
         }
 
+
+
         // Calculate token usage
         const inputTokens = Math.ceil((analysisContext.length + prompt.length) / 4); // Rough estimation: 1 token ≈ 4 characters
         const outputTokens = Math.ceil(content.length / 4);
@@ -551,6 +759,103 @@ Be brutally honest and critical - don't sugarcoat anything.`;
             cost: (inputTokens / 1000) * 0.000125 + (outputTokens / 1000) * 0.000375
           }
         };
+
+        // Special handling for Roast analysis
+        if (analysisType === 'roast') {
+          console.log('🔥 Parsing roast analysis content...');
+          console.log('📝 Raw content preview:', content.substring(0, 500));
+
+          const roastSections = {
+            summary: '',
+            brutallyCritical: [] as string[],
+            realityCheck: [] as string[],
+            improvements: [] as string[],
+            marketReality: [] as string[],
+            honestAdvice: [] as string[]
+          };
+
+          // Extract roast sections from content
+          let roastMatches = content.match(/\*\*\d+\.\s*([^*]*)\*\*([\s\S]*?)(?=\*\*\d+\.|$)/g);
+
+          if (!roastMatches) {
+            // Try alternative pattern without numbered sections
+            roastMatches = content.match(/\*\*([^*]*)\*\*([\s\S]*?)(?=\*\*[^*]*\*\*|$)/g);
+          }
+
+          if (roastMatches) {
+            console.log(`🔥 Found ${roastMatches.length} roast sections`);
+            roastMatches.forEach((match: any, index: number) => {
+              // Try both patterns for header extraction
+              let headerMatch = match.match(/\*\*\d+\.\s*([^*]*)\*\*/);
+              if (!headerMatch) {
+                headerMatch = match.match(/\*\*([^*]*)\*\*/);
+              }
+
+              if (headerMatch) {
+                const title = headerMatch[1].trim().toLowerCase();
+                const sectionContent = match.replace(/\*\*[^*]*\*\*/, '').trim();
+                console.log(`  ${index + 1}. "${title}" -> ${sectionContent.substring(0, 100)}...`);
+
+                // Split content into bullet points or lines
+                const items = sectionContent.split(/\n\s*[-•*]\s*/).filter((item: string) => item.trim().length > 0);
+                
+                if (title.includes('brutal critique') || title.includes('criticism')) {
+                  roastSections.brutallyCritical = items.length > 0 ? items : [sectionContent];
+                } else if (title.includes('reality check')) {
+                  roastSections.realityCheck = items.length > 0 ? items : [sectionContent];
+                } else if (title.includes('improvements') || title.includes('improvement')) {
+                  roastSections.improvements = items.length > 0 ? items : [sectionContent];
+                } else if (title.includes('market reality')) {
+                  roastSections.marketReality = items.length > 0 ? items : [sectionContent];
+                } else if (title.includes('honest advice')) {
+                  roastSections.honestAdvice = items.length > 0 ? items : [sectionContent];
+                } else {
+                  // If no specific section matches, add to summary or brutallyCritical
+                  if (roastSections.summary === '') {
+                    roastSections.summary = sectionContent;
+                  } else {
+                    roastSections.brutallyCritical.push(sectionContent);
+                  }
+                }
+              }
+            });
+          } else {
+            console.warn('⚠️ No roast sections found in content, using fallback parsing...');
+            // Fallback: split content into sections based on common patterns
+            const lines = content.split('\n').filter((line: string) => line.trim().length > 0);
+            roastSections.summary = lines[0] || 'Brutal analysis completed';
+            roastSections.brutallyCritical = lines.slice(1, 4).filter((line: string) => line.trim().length > 0);
+          }
+
+          console.log('🔥 Final roast sections:', {
+            summary: roastSections.summary ? 'Yes' : 'No',
+            brutallyCritical: roastSections.brutallyCritical.length,
+            realityCheck: roastSections.realityCheck.length,
+            improvements: roastSections.improvements.length,
+            marketReality: roastSections.marketReality.length,
+            honestAdvice: roastSections.honestAdvice.length
+          });
+
+          // Add roastIdea to the analysis result
+          analysisResult.roastIdea = roastSections;
+        }
+
+        // Save the analysis result to the analyses API for future reference
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/projects/${id}/analyses`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              analysisType,
+              analysisData: analysisResult
+            }),
+          });
+          console.log(`💾 ${analysisType} analysis saved to analyses API`);
+        } catch (error) {
+          console.warn(`⚠️ Failed to save ${analysisType} analysis to analyses API:`, error);
+        }
 
       } else if (apiConfig.provider === 'openai') {
         const response = await fetch('https://api.openai.com/v1/chat/completions', {

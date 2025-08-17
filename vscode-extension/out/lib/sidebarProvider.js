@@ -5,6 +5,8 @@ const vscode = require("vscode");
 const fs = require("fs");
 const path = require("path");
 const projectDetector_1 = require("./projectDetector");
+const authService_1 = require("./authService");
+const projectLoader_1 = require("./projectLoader");
 class SidebarItem extends vscode.TreeItem {
     constructor(label, collapsibleState, contextValue, command, tooltip, iconPath, description) {
         super(label, collapsibleState);
@@ -27,33 +29,80 @@ class SidebarProvider {
         this._onDidChangeTreeData = new vscode.EventEmitter();
         this.onDidChangeTreeData = this._onDidChangeTreeData.event;
         this.projectDetector = new projectDetector_1.ProjectDetectorImpl();
+        this.authService = authService_1.AuthService.getInstance();
         this.syncStatus = 'disconnected';
+        this.userProjects = [];
+        this.loginExpanded = false;
+        this.userDetailsExpanded = false;
+        this.userProjectsExpanded = true;
         console.log('SidebarProvider constructor called');
         // Set up periodic refresh
         setInterval(() => {
             this.refresh();
-        }, 30000); // Refresh every 30 seconds
+        }, 10000); // Refresh every 10 seconds for better responsiveness
+        // Load user projects on initialization
+        this.loadUserProjects();
+        // Listen for configuration changes to refresh immediately
+        vscode.workspace.onDidChangeConfiguration((event) => {
+            if (event.affectsConfiguration('aiProjectManager.authToken') ||
+                event.affectsConfiguration('aiProjectManager.userId') ||
+                event.affectsConfiguration('aiProjectManager.userEmail')) {
+                console.log('Auth configuration changed, refreshing sidebar');
+                this.refresh();
+            }
+        });
     }
     refresh() {
-        this._onDidChangeTreeData.fire();
+        this.loadUserProjects().then(() => {
+            this._onDidChangeTreeData.fire();
+        });
+    }
+    async loadUserProjects() {
+        try {
+            if (this.authService.isAuthenticated()) {
+                const projectLoader = projectLoader_1.ProjectLoader.getInstance();
+                this.userProjects = await projectLoader.listUserProjects();
+                console.log('Loaded user projects:', this.userProjects.length);
+            }
+            else {
+                this.userProjects = [];
+            }
+        }
+        catch (error) {
+            console.error('Failed to load user projects:', error);
+            this.userProjects = [];
+        }
     }
     getTreeItem(element) {
         return element;
     }
     async getChildren(element) {
         console.log('getChildren called with element:', element?.label || 'root');
-        if (!this.projectDetector.detectAiProject()) {
-            console.log('No AI project detected, showing warning');
-            return [
-                new SidebarItem('No AI Project Detected', vscode.TreeItemCollapsibleState.None, 'noProject', undefined, 'No .ai-project folder found in workspace', new vscode.ThemeIcon('warning', new vscode.ThemeColor('problemsWarningIcon.foreground')))
-            ];
+        // Debug authentication status
+        const isAuthenticated = this.authService.isAuthenticated();
+        const currentUser = this.authService.getCurrentUser();
+        console.log('Auth service authenticated:', isAuthenticated);
+        console.log('Current user:', currentUser?.email || 'none');
+        // Check authentication status first
+        if (!isAuthenticated) {
+            console.log('Not authenticated, showing login screen');
+            // Only return root items when not authenticated, no children
+            if (!element) {
+                return this.getNotLoggedInItems();
+            }
+            // If we have an element and not authenticated, return empty array to prevent recursion
+            return [];
         }
+        // Logged in - show second screen
         if (!element) {
-            // Root level items
-            return this.getRootItems();
+            return this.getLoggedInRootItems();
         }
         // Child items based on parent
         switch (element.contextValue) {
+            case 'userDetails':
+                return this.getUserDetailsItems();
+            case 'userProjects':
+                return this.getUserProjectItems();
             case 'documents':
                 return this.getDocumentItems();
             case 'progress':
@@ -68,22 +117,127 @@ class SidebarProvider {
                 return [];
         }
     }
-    getRootItems() {
+    getNotLoggedInItems() {
+        return [
+            new SidebarItem('🌐 Open Browser to Login', vscode.TreeItemCollapsibleState.None, 'openBrowserLogin', {
+                command: 'aiProjectManager.openAuthSettings',
+                title: 'Open Browser to Login'
+            }, 'Open browser to login and get authentication token', new vscode.ThemeIcon('globe')),
+            new SidebarItem('📋 Enter Token', vscode.TreeItemCollapsibleState.None, 'enterToken', {
+                command: 'aiProjectManager.enterToken',
+                title: 'Enter Token'
+            }, 'Click to enter your authentication token', new vscode.ThemeIcon('key')),
+            new SidebarItem('✅ Confirm Token', vscode.TreeItemCollapsibleState.None, 'confirmToken', {
+                command: 'aiProjectManager.checkToken',
+                title: 'Confirm Token'
+            }, 'Verify your authentication token', new vscode.ThemeIcon('check')),
+            new SidebarItem('➕ Create Local Project', vscode.TreeItemCollapsibleState.None, 'createLocalProject', {
+                command: 'aiProjectManager.createProject',
+                title: 'Create Local Project'
+            }, 'Create a new AI project locally', new vscode.ThemeIcon('add'))
+        ];
+    }
+    getLoggedInRootItems() {
         const items = [];
-        // Sync Status
-        items.push(new SidebarItem('Sync Status', vscode.TreeItemCollapsibleState.Expanded, 'sync', undefined, 'Dashboard synchronization status', new vscode.ThemeIcon('sync')));
-        // Project Documents
-        items.push(new SidebarItem('Project Documents', vscode.TreeItemCollapsibleState.Expanded, 'documents', undefined, 'Requirements, Design, and Tasks documents', new vscode.ThemeIcon('file-text')));
-        // Progress Overview
-        items.push(new SidebarItem('Progress Overview', vscode.TreeItemCollapsibleState.Collapsed, 'progress', undefined, 'Task completion progress', new vscode.ThemeIcon('graph')));
-        // Context Documents
-        items.push(new SidebarItem('Context Documents', vscode.TreeItemCollapsibleState.Collapsed, 'context', undefined, 'AI context documents', new vscode.ThemeIcon('library')));
-        // Quick Actions
-        items.push(new SidebarItem('Inject AI Context', vscode.TreeItemCollapsibleState.None, 'contextAction', {
-            command: 'aiProjectManager.injectContext',
-            title: 'Inject AI Context'
-        }, 'Inject project context for AI assistance', new vscode.ThemeIcon('robot')));
+        // User Details (collapsible)
+        const user = this.authService.getCurrentUser();
+        items.push(new SidebarItem(`👤 User Details`, vscode.TreeItemCollapsibleState.Collapsed, 'userDetails', undefined, 'Your account information', new vscode.ThemeIcon('account')));
+        // Check if we have a local project
+        const hasLocalProject = this.projectDetector.detectAiProject();
+        // Local Project Status (if exists)
+        if (hasLocalProject) {
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            const projectName = workspaceFolder?.name || 'Current Project';
+            // Try to get project user information
+            let projectUserInfo = '';
+            try {
+                const configPath = path.join(workspaceFolder.uri.fsPath, '.kiro', 'specs', 'ai-project-manager', 'config.json');
+                if (fs.existsSync(configPath)) {
+                    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+                    if (config.userEmail) {
+                        projectUserInfo = ` • Created by: ${config.userEmail}`;
+                    }
+                }
+            }
+            catch (error) {
+                console.error('Failed to read project config:', error);
+            }
+            items.push(new SidebarItem(`📂 Local Project: ${projectName}${projectUserInfo}`, vscode.TreeItemCollapsibleState.None, 'localProject', undefined, 'Currently loaded local project', new vscode.ThemeIcon('folder-opened')));
+        }
+        // Cloud Projects (collapsible)
+        items.push(new SidebarItem(`☁️ Cloud Projects (${this.userProjects.length})`, vscode.TreeItemCollapsibleState.Expanded, 'userProjects', undefined, 'Your projects from the cloud dashboard', new vscode.ThemeIcon('cloud')));
+        // Logout option
+        items.push(new SidebarItem('🚪 Logout', vscode.TreeItemCollapsibleState.None, 'logout', {
+            command: 'aiProjectManager.logout',
+            title: 'Logout'
+        }, 'Logout from your account', new vscode.ThemeIcon('sign-out')));
+        // Only show project-specific items if we have a local project
+        if (hasLocalProject) {
+            // Project Documents
+            items.push(new SidebarItem('📄 Project Documents', vscode.TreeItemCollapsibleState.Collapsed, 'documents', undefined, 'Requirements, Design, and Tasks documents', new vscode.ThemeIcon('file-text')));
+            // Progress Overview
+            items.push(new SidebarItem('📊 Progress Overview', vscode.TreeItemCollapsibleState.Collapsed, 'progress', undefined, 'Task completion progress', new vscode.ThemeIcon('graph')));
+            // Context Documents
+            items.push(new SidebarItem('🤖 Context Documents', vscode.TreeItemCollapsibleState.Collapsed, 'context', undefined, 'AI context documents', new vscode.ThemeIcon('library')));
+            // Quick Actions
+            items.push(new SidebarItem('⚡ Inject AI Context', vscode.TreeItemCollapsibleState.None, 'contextAction', {
+                command: 'aiProjectManager.injectContext',
+                title: 'Inject AI Context'
+            }, 'Inject project context for AI assistance', new vscode.ThemeIcon('robot')));
+        }
+        else {
+            // No local project - show options
+            items.push(new SidebarItem('📥 Load Project from Cloud', vscode.TreeItemCollapsibleState.None, 'loadProject', {
+                command: 'aiProjectManager.loadProject',
+                title: 'Load Project from Cloud'
+            }, 'Load a project from the cloud', new vscode.ThemeIcon('cloud-download')));
+            items.push(new SidebarItem('➕ Create Local Project', vscode.TreeItemCollapsibleState.None, 'createLocalProject', {
+                command: 'aiProjectManager.createProject',
+                title: 'Create Local Project'
+            }, 'Create a new AI project locally', new vscode.ThemeIcon('add')));
+        }
         return items;
+    }
+    getUserDetailsItems() {
+        const user = this.authService.getCurrentUser();
+        if (!user) {
+            return [
+                new SidebarItem('No user data available', vscode.TreeItemCollapsibleState.None, 'noUserData', undefined, 'User information not available', new vscode.ThemeIcon('info'))
+            ];
+        }
+        return [
+            new SidebarItem(`Name: ${user.name || 'Not set'}`, vscode.TreeItemCollapsibleState.None, 'userName', undefined, 'Your display name', new vscode.ThemeIcon('person')),
+            new SidebarItem(`Email: ${user.email || 'Not set'}`, vscode.TreeItemCollapsibleState.None, 'userEmail', undefined, 'Your email address', new vscode.ThemeIcon('mail')),
+            new SidebarItem(`User ID: ${user.id || 'Not set'}`, vscode.TreeItemCollapsibleState.None, 'userId', undefined, 'Your unique user identifier', new vscode.ThemeIcon('key')),
+            new SidebarItem('🔄 Refresh Token', vscode.TreeItemCollapsibleState.None, 'refreshToken', {
+                command: 'aiProjectManager.checkToken',
+                title: 'Refresh Token'
+            }, 'Verify your authentication token', new vscode.ThemeIcon('refresh'))
+        ];
+    }
+    getUserProjectItems() {
+        if (this.userProjects.length === 0) {
+            return [
+                new SidebarItem('No cloud projects found', vscode.TreeItemCollapsibleState.None, 'noCloudProjects', undefined, 'No projects found in your cloud dashboard. Create one using the web dashboard.', new vscode.ThemeIcon('info')),
+                new SidebarItem('🌐 Open Dashboard', vscode.TreeItemCollapsibleState.None, 'openDashboard', {
+                    command: 'vscode.open',
+                    title: 'Open Dashboard',
+                    arguments: [vscode.Uri.parse('http://localhost:3000')]
+                }, 'Open the web dashboard to create cloud projects', new vscode.ThemeIcon('globe')),
+                new SidebarItem('📥 Load Project from Cloud', vscode.TreeItemCollapsibleState.None, 'loadProject', {
+                    command: 'aiProjectManager.loadProject',
+                    title: 'Load Project from Cloud'
+                }, 'Load a project from the cloud dashboard', new vscode.ThemeIcon('cloud-download'))
+            ];
+        }
+        return this.userProjects.map(project => {
+            const description = `${project.progress}% complete • ${this.getTimeAgo(project.lastModified)}`;
+            return new SidebarItem(project.name, vscode.TreeItemCollapsibleState.None, 'project', {
+                command: 'aiProjectManager.loadProject',
+                title: 'Load Project',
+                arguments: [project.id]
+            }, `${project.name} - ${project.description}`, new vscode.ThemeIcon('folder'), description);
+        });
     }
     getSyncItems() {
         const items = [];
@@ -195,6 +349,29 @@ class SidebarProvider {
             console.error('Error in getDocumentItems:', error);
             return [
                 new SidebarItem(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`, vscode.TreeItemCollapsibleState.None, 'error', undefined, 'Failed to load project documents', new vscode.ThemeIcon('error'))
+            ];
+        }
+    }
+    getProjectItems() {
+        try {
+            if (this.userProjects.length === 0) {
+                return [
+                    new SidebarItem('No projects found', vscode.TreeItemCollapsibleState.None, 'noProjects', undefined, 'No cloud projects found', new vscode.ThemeIcon('info'))
+                ];
+            }
+            return this.userProjects.map(project => {
+                const description = `${project.progress}% complete • ${this.getTimeAgo(project.lastModified)}`;
+                return new SidebarItem(project.name, vscode.TreeItemCollapsibleState.Collapsed, 'project', {
+                    command: 'aiProjectManager.loadProject',
+                    title: 'Load Project',
+                    arguments: [project.id]
+                }, `${project.name} - ${project.description}`, new vscode.ThemeIcon('folder'), description);
+            });
+        }
+        catch (error) {
+            console.error('Error in getProjectItems:', error);
+            return [
+                new SidebarItem(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`, vscode.TreeItemCollapsibleState.None, 'error', undefined, 'Failed to load projects', new vscode.ThemeIcon('error'))
             ];
         }
     }

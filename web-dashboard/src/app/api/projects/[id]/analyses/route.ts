@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { Pinecone } from '@pinecone-database/pinecone';
+import { getPineconeClient, PINECONE_INDEX_NAME } from '@/lib/pinecone';
 
-const pinecone = new Pinecone({
-  apiKey: process.env.PINECONE_API_KEY!,
-});
-
-const index = pinecone.index(process.env.PINECONE_INDEX_NAME!);
+function getPineconeIndex() {
+  const pinecone = getPineconeClient();
+  return pinecone.index(PINECONE_INDEX_NAME);
+}
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const projectId = params.id;
+    const { id: projectId } = await params;
     console.log(`📚 Loading saved analyses for project ${projectId}`);
+
+    const index = getPineconeIndex();
 
     // Query for saved analyses
     const queryResponse = await index.namespace('analyses').query({
@@ -66,10 +67,10 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const projectId = params.id;
+    const { id: projectId } = await params;
     const { analysisType, analysisData } = await request.json();
 
     if (!analysisType || !analysisData) {
@@ -80,6 +81,8 @@ export async function POST(
     }
 
     console.log(`💾 Saving ${analysisType} analysis for project ${projectId}`);
+
+    const index = getPineconeIndex();
 
     // Create a unique ID for this analysis
     const analysisId = `${projectId}-analysis-${analysisType}`;

@@ -1,69 +1,8 @@
 {
-  "totalTasks": 35,
-  "completedTasks": 24,
-  "percentage": 69,
-  "lastUpdated": "2025-08-12T15:55:39.475Z",
-  "recentActivity": [
-    {
-      "taskId": "4.2",
-      "title": "Create conflict resolution mechanisms",
-      "completedAt": "2025-08-12T15:55:39.475Z",
-      "completedBy": "auto-detection"
-    },
-    {
-      "taskId": "task-11",
-      "title": "5. Develop progress tracking system",
-      "completedAt": "2025-08-12T15:55:39.475Z",
-      "completedBy": "auto-detection"
-    },
-    {
-      "taskId": "5.1",
-      "title": "Create task parsing and progress calculation",
-      "completedAt": "2025-08-12T15:55:39.475Z",
-      "completedBy": "auto-detection"
-    },
-    {
-      "taskId": "5.2",
-      "title": "Build progress visualization components",
-      "completedAt": "2025-08-12T15:55:39.475Z",
-      "completedBy": "auto-detection"
-    },
-    {
-      "taskId": "task-14",
-      "title": "6. Implement context document management",
-      "completedAt": "2025-08-12T15:55:39.475Z",
-      "completedBy": "auto-detection"
-    },
-    {
-      "taskId": "6.1",
-      "title": "Create context document CRUD operations",
-      "completedAt": "2025-08-12T15:55:39.475Z",
-      "completedBy": "auto-detection"
-    },
-    {
-      "taskId": "6.2",
-      "title": "Build intelligent context selection for AI injection",
-      "completedAt": "2025-08-12T15:55:39.475Z",
-      "completedBy": "auto-detection"
-    },
-    {
-      "taskId": "task-17",
-      "title": "7. Develop VS Code extension core features",
-      "completedAt": "2025-08-12T15:55:39.475Z",
-      "completedBy": "auto-detection"
-    },
-    {
-      "taskId": "7.1",
-      "title": "Create context injection functionality",
-      "completedAt": "2025-08-12T15:55:39.475Z",
-      "completedBy": "auto-detection"
-    },
-    {
-      "taskId": "7.2",
-      "title": "Implement automatic progress tracking",
-      "completedAt": "2025-08-12T15:55:39.475Z",
-      "completedBy": "auto-detection"
-    }
-  ],
+  "totalTasks": 7,
+  "completedTasks": 0,
+  "percentage": 0,
+  "lastUpdated": "2025-08-17T16:39:58.666Z",
+  "recentActivity": [],
   "milestones": []
 }

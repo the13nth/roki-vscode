@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { pineconeSyncService } from '@/lib/pineconeSyncService';
+import { PineconeSyncServiceInstance } from '@/lib/pineconeSyncService';
 
 export async function GET(
   request: NextRequest,
@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { id: projectId } = await params;
-    const syncStatus = await pineconeSyncService.getSyncStatus(projectId);
+    const syncStatus = await PineconeSyncServiceInstance.getSyncStatus(projectId);
     
     return NextResponse.json(syncStatus);
   } catch (error) {

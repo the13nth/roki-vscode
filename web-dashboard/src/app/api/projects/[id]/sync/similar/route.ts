@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { pineconeSyncService } from '@/lib/pineconeSyncService';
+import { PineconeSyncServiceInstance } from '@/lib/pineconeSyncService';
 
 export async function POST(
   request: NextRequest,
@@ -9,7 +9,7 @@ export async function POST(
     const { id: projectId } = await params;
     const { content, topK = 5 } = await request.json();
     
-    const results = await pineconeSyncService.getSimilarDocuments(projectId, content, topK);
+    const results = await PineconeSyncServiceInstance.getSimilarDocuments(projectId, content, topK);
     
     return NextResponse.json(results);
   } catch (error) {

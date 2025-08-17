@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { ProjectListItem, ProjectConfiguration } from '@/types';
+import { TechStackReasoningModal } from './TechStackReasoningModal';
 
 interface ProjectCreationWizardProps {
   onClose: () => void;
@@ -169,12 +170,10 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
   const [step, setStep] = useState(1);
   const [isCreating, setIsCreating] = useState(false);
   const [isExpanding, setIsExpanding] = useState(false);
-  const [isAutoFilling, setIsAutoFilling] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     template: '',
-    projectPath: '',
     aiModel: 'gpt-4',
     backend: '',
     frontend: '',
@@ -184,6 +183,18 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
     regulatoryCompliance: [] as string[]
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  
+  // Modal state for tech stack reasoning
+  const [showReasoningModal, setShowReasoningModal] = useState(false);
+  const [aiReasoning, setAiReasoning] = useState('');
+  const [suggestedTechStack, setSuggestedTechStack] = useState({
+    backend: '',
+    frontend: '',
+    uiFramework: '',
+    authentication: '',
+    hosting: ''
+  });
+  const [hasReasoning, setHasReasoning] = useState(false);
 
   const validateStep1 = () => {
     const newErrors: Record<string, string> = {};
@@ -192,10 +203,6 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
       newErrors.name = 'Project name is required';
     } else if (formData.name.length < 3) {
       newErrors.name = 'Project name must be at least 3 characters';
-    }
-    
-    if (!formData.projectPath.trim()) {
-      newErrors.projectPath = 'Project path is required';
     }
     
     setErrors(newErrors);
@@ -241,6 +248,7 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
         body: JSON.stringify({
           description: formData.description,
           template: formData.template,
+          includeTechStack: formData.template !== 'business', // Include tech stack for non-business templates
           [formData.template === 'business' ? 'regulatoryStack' : 'technologyStack']: formData.template === 'business' ? {
             regulatoryCompliance: formData.regulatoryCompliance
           } : {
@@ -255,7 +263,30 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
 
       if (response.ok) {
         const result = await response.json();
+        console.log('📋 Expand API response:', result);
+        
         setFormData(prev => ({ ...prev, description: result.expandedDescription }));
+        
+        // Handle tech stack if provided
+        if (result.technologyStack && result.reasoning) {
+          console.log('✅ Tech stack found:', result.technologyStack);
+          console.log('✅ Reasoning found:', result.reasoning);
+          
+          setSuggestedTechStack({
+            backend: result.technologyStack.backend || '',
+            frontend: result.technologyStack.frontend || '',
+            uiFramework: result.technologyStack.uiFramework || '',
+            authentication: result.technologyStack.authentication || '',
+            hosting: result.technologyStack.hosting || ''
+          });
+          setAiReasoning(result.reasoning);
+          setHasReasoning(true);
+          setShowReasoningModal(true);
+        } else {
+          console.log('❌ No tech stack or reasoning in response');
+          console.log('Technology stack:', result.technologyStack);
+          console.log('Reasoning:', result.reasoning);
+        }
         
         // Token usage is tracked on the server side
         if (result.tokenUsage) {
@@ -263,7 +294,14 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
         }
       } else {
         const errorData = await response.json();
-        setErrors({ description: errorData.error || 'Failed to expand description with AI' });
+        let errorMessage = errorData.error || 'Failed to expand description with AI';
+        
+        // Provide better guidance for API configuration errors
+        if (errorMessage.includes('No AI configuration found') || errorMessage.includes('No valid AI configuration')) {
+          errorMessage = 'AI configuration not found. Please configure an AI provider in the global settings (click the settings icon in the top navigation).';
+        }
+        
+        setErrors({ description: errorMessage });
       }
     } catch (error) {
       console.error('Failed to expand description:', error);
@@ -273,57 +311,29 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
     }
   };
 
-  const handleAutoFillTechStack = async () => {
-    if (!formData.description.trim()) return;
-    
-    try {
-      setIsAutoFilling(true);
-      setErrors({});
-      
-      const response = await fetch('/api/auto-fill-tech-stack', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          description: formData.description,
-          template: formData.template,
-          currentCompliance: formData.template === 'business' ? formData.regulatoryCompliance : undefined
-        }),
-      });
 
-      if (response.ok) {
-        const result = await response.json();
-        if (formData.template === 'business' && result.regulatoryStack?.regulatoryCompliance) {
-          setFormData(prev => ({
-            ...prev,
-            regulatoryCompliance: result.regulatoryStack.regulatoryCompliance
-          }));
-        } else if (result.technologyStack) {
-          setFormData(prev => ({
-            ...prev,
-            backend: result.technologyStack.backend || '',
-            frontend: result.technologyStack.frontend || '',
-            uiFramework: result.technologyStack.uiFramework || '',
-            authentication: result.technologyStack.authentication || '',
-            hosting: result.technologyStack.hosting || ''
-          }));
-        }
-        
-        // Token usage is tracked on the server side
-        if (result.tokenUsage) {
-          console.log('Token usage for tech stack recommendation:', result.tokenUsage);
-        }
-      } else {
-        const errorData = await response.json();
-        setErrors({ general: errorData.error || `Failed to auto-fill ${formData.template === 'business' ? 'regulatory' : 'technology'} stack` });
-      }
-    } catch (error) {
-      console.error('Failed to auto-fill technology stack:', error);
-      setErrors({ general: `Failed to auto-fill ${formData.template === 'business' ? 'regulatory' : 'technology'} stack. Please try again.` });
-    } finally {
-      setIsAutoFilling(false);
-    }
+
+  const handleApproveTechStack = () => {
+    setFormData(prev => ({
+      ...prev,
+      backend: suggestedTechStack.backend,
+      frontend: suggestedTechStack.frontend,
+      uiFramework: suggestedTechStack.uiFramework,
+      authentication: suggestedTechStack.authentication,
+      hosting: suggestedTechStack.hosting
+    }));
+    setShowReasoningModal(false);
+  };
+
+  // Reset reasoning when description or template changes
+  const handleDescriptionChange = (description: string) => {
+    setFormData(prev => ({ ...prev, description }));
+    setHasReasoning(false);
+  };
+
+  const handleTemplateChange = (template: string) => {
+    setFormData(prev => ({ ...prev, template }));
+    setHasReasoning(false);
   };
 
   const handleNext = () => {
@@ -331,8 +341,6 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
       setStep(2);
     } else if (step === 2 && validateStep2()) {
       setStep(3);
-    } else if (step === 3 && validateStep3()) {
-      setStep(4);
     }
   };
 
@@ -343,35 +351,7 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
     }
   };
 
-  const handleSelectFolder = () => {
-    // Create a hidden file input with webkitdirectory attribute for folder selection
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.webkitdirectory = true;
-    input.style.display = 'none';
-    
-    input.addEventListener('change', (event) => {
-      const target = event.target as HTMLInputElement;
-      const files = target.files;
-      
-      if (files && files.length > 0) {
-        // Get the folder path from the first file
-        const firstFile = files[0];
-        const folderPath = firstFile.webkitRelativePath.split('/')[0];
-        
-        // For security reasons, we can't get the full path from the browser
-        // So we'll use a relative path or ask the user to provide the full path
-        // For now, we'll use the folder name as a relative path
-        setFormData(prev => ({ ...prev, projectPath: `./${folderPath}` }));
-      }
-    });
-    
-    input.click();
-  };
 
-  const handleManualPathInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({ ...prev, projectPath: e.target.value }));
-  };
 
   const handleRegulatoryComplianceToggle = (regulationId: string) => {
     setFormData(prev => ({
@@ -406,7 +386,6 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
         },
         body: JSON.stringify({
           ...projectConfig,
-          projectPath: formData.projectPath,
           [formData.template === 'business' ? 'regulatoryStack' : 'technologyStack']: formData.template === 'business' ? {
             regulatoryCompliance: formData.regulatoryCompliance
           } : {
@@ -474,7 +453,7 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">Create New Project</h2>
-            <p className="text-sm text-gray-500 mt-1">Step {step} of 4</p>
+            <p className="text-sm text-gray-500 mt-1">Step {step} of 3</p>
           </div>
           <button
             onClick={onClose}
@@ -489,7 +468,7 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
         {/* Progress Bar */}
         <div className="px-6 py-4 bg-gray-50">
           <div className="flex items-center">
-            {[1, 2, 3, 4].map((stepNumber) => (
+            {[1, 2, 3].map((stepNumber) => (
               <div key={stepNumber} className="flex items-center">
                 <div className={`w-8 h-8 rounded-none flex items-center justify-center text-sm font-medium ${
                   stepNumber <= step 
@@ -498,7 +477,7 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
                 }`}>
                   {stepNumber}
                 </div>
-                {stepNumber < 4 && (
+                {stepNumber < 3 && (
                   <div className={`w-12 h-1 mx-2 ${
                     stepNumber < step ? 'bg-blue-600' : 'bg-gray-200'
                   }`} />
@@ -536,31 +515,8 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
 
 
                   <div>
-                    <label htmlFor="projectPath" className="block text-sm font-medium text-gray-700 mb-1">
-                      Project Folder *
-                    </label>
-                    <div className="flex space-x-2">
-                      <input
-                        type="text"
-                        id="projectPath"
-                        value={formData.projectPath}
-                        onChange={handleManualPathInput}
-                        className={`flex-1 px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${
-                          errors.projectPath ? 'border-red-300' : 'border-gray-300'
-                        }`}
-                        placeholder="Select a folder or enter path manually"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleSelectFolder}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-                      >
-                        Browse
-                      </button>
-                    </div>
-                    {errors.projectPath && <p className="mt-1 text-sm text-red-600">{errors.projectPath}</p>}
-                    <p className="mt-1 text-sm text-gray-500">
-                      Select the folder where your project files are located
+                    <p className="text-sm text-gray-600">
+                      Your project will be stored in the cloud and can be loaded into any workspace using the VSCode extension.
                     </p>
                   </div>
                 </div>
@@ -580,7 +536,7 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
                   {PROJECT_TEMPLATES.map((template) => (
                     <div
                       key={template.id}
-                      onClick={() => setFormData(prev => ({ ...prev, template: template.id }))}
+                                                      onClick={() => handleTemplateChange(template.id)}
                       className={`p-4 border-2 rounded-lg cursor-pointer transition-all duration-200 ${
                         formData.template === template.id
                           ? 'border-blue-500 bg-blue-50'
@@ -646,7 +602,7 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
                             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                             </svg>
-                            Expand with AI
+                            {formData.template === 'business' ? 'Expand with AI' : 'Expand & Auto-fill Tech Stack'}
                           </>
                         )}
                       </button>
@@ -655,7 +611,7 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
                       id="description"
                       rows={4}
                       value={formData.description}
-                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                                                  onChange={(e) => handleDescriptionChange(e.target.value)}
                       className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                         errors.description ? 'border-red-300' : 'border-gray-300'
                       }`}
@@ -664,6 +620,11 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
                     {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
                     <p className="mt-1 text-sm text-gray-500">
                       Be as detailed as possible to help generate better project requirements and tasks.
+                      {errors.description && errors.description.includes('AI configuration not found') && (
+                        <span className="block mt-2 text-blue-600">
+                          💡 Tip: Click the settings icon (⚙️) in the top navigation to configure your AI provider.
+                        </span>
+                      )}
                     </p>
                   </div>
 
@@ -682,29 +643,21 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
                           }
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={handleAutoFillTechStack}
-                        disabled={!formData.description.trim() || isAutoFilling}
-                        className="text-sm text-blue-600 hover:text-blue-800 disabled:text-gray-400 disabled:cursor-not-allowed flex items-center"
-                      >
-                        {isAutoFilling ? (
-                          <>
-                            <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Analyzing...
-                          </>
-                        ) : (
-                          <>
-                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                            </svg>
-                            {formData.template === 'business' ? 'Auto-fill Regulatory Stack' : 'Auto-fill Tech Stack'}
-                          </>
-                        )}
-                      </button>
+
+                      
+                      {/* Show Reasoning Button */}
+                      {hasReasoning && !isExpanding && (
+                        <button
+                          type="button"
+                          onClick={() => setShowReasoningModal(true)}
+                          className="ml-2 px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors flex items-center"
+                        >
+                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                          </svg>
+                          Show Reasoning
+                        </button>
+                      )}
                     </div>
                     
                     {formData.template === 'business' ? (
@@ -872,10 +825,7 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
                       {selectedTemplate?.icon} {selectedTemplate?.name}
                     </span>
                   </div>
-                  <div>
-                    <span className="text-sm font-medium text-gray-700">Project Path:</span>
-                    <span className="ml-2 text-sm text-gray-900 font-mono">{formData.projectPath}</span>
-                  </div>
+
                   
                   {/* Technology/Regulatory Stack Summary */}
                   {(formData.template === 'business' ? 
@@ -955,6 +905,11 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
                 {errors.general && (
                   <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
                     <p className="text-sm text-red-600">{errors.general}</p>
+                    {errors.general.includes('AI configuration not found') && (
+                      <p className="text-sm text-blue-600 mt-2">
+                        💡 Tip: Click the settings icon (⚙️) in the top navigation to configure your AI provider.
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
@@ -971,7 +926,7 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
             {step === 1 ? 'Cancel' : 'Back'}
           </button>
           
-          {step < 4 ? (
+          {step < 3 ? (
             <button
               onClick={handleNext}
               className="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 transition-colors"
@@ -995,6 +950,22 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
           )}
         </div>
       </div>
+
+      {/* Tech Stack Reasoning Modal */}
+      <TechStackReasoningModal
+        isOpen={showReasoningModal}
+        onClose={() => setShowReasoningModal(false)}
+        reasoning={aiReasoning}
+        suggestedStack={suggestedTechStack}
+        currentStack={{
+          backend: formData.backend,
+          frontend: formData.frontend,
+          uiFramework: formData.uiFramework,
+          authentication: formData.authentication,
+          hosting: formData.hosting
+        }}
+        onApprove={handleApproveTechStack}
+      />
     </div>
   );
 }

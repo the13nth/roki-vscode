@@ -182,11 +182,11 @@ export function HomePage() {
 
   const testimonials = [
     {
-      name: "Sarah Chen",
-      role: "Lead Developer",
-      company: "TechFlow Inc",
-      content: "AI Project Manager transformed how we approach project planning. The market analysis feature alone saved us weeks of research.",
-      avatar: "SC"
+      name: "Germain R.",
+      role: "CTO",
+      company: "HarakaPlus",
+      content: "AI Project Manager transformed how we approach project planning. The BMC analysis feature alone saved us HOURS of research.",
+      avatar: "GR"
     },
     {
       name: "Marcus Rodriguez",
