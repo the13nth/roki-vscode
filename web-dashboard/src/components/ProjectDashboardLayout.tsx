@@ -13,6 +13,7 @@ import { ContextDocumentManager } from './ContextDocumentManager';
 import { ApiConfiguration } from './ApiConfiguration';
 import { ProjectAnalysis } from './ProjectAnalysis';
 import { SocialPostsGenerator } from './SocialPostsGenerator';
+import { PromptsViewer } from './PromptsViewer';
 
 import SyncStatus from './SyncStatus';
 import { EmbeddingsVisualization } from './EmbeddingsVisualization';
@@ -22,7 +23,7 @@ import { RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface ProjectDashboardLayoutProps {
   projectId: string;
-  activeTab?: 'overview' | 'requirements' | 'design' | 'tasks' | 'context' | 'api' | 'analysis' | 'enhanced-analysis' | 'progress' | 'visualization' | 'social';
+  activeTab?: 'overview' | 'requirements' | 'design' | 'tasks' | 'context' | 'api' | 'analysis' | 'enhanced-analysis' | 'progress' | 'visualization' | 'social' | 'prompts';
 }
 
 export function ProjectDashboardLayout({ 
@@ -260,6 +261,12 @@ export function ProjectDashboardLayout({
                       
                       <SocialPostsGenerator projectId={projectId} />
                     </div>
+                  </div>
+                )}
+                
+                {activeTab === 'prompts' && (
+                  <div className="p-6">
+                    <PromptsViewer projectId={projectId} />
                   </div>
                 )}
                 </CardContent>

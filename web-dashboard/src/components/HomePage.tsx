@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { TypewriterEffect } from '@/components/ui/typewriter-effect';
 import { SlidingText } from '@/components/ui/sliding-text';
 import { SignedIn, SignedOut, SignInButton, SignUpButton } from '@clerk/nextjs';
@@ -31,7 +32,16 @@ import {
   Building2,
   Code,
   Download,
-  Flame
+  Flame,
+  Mail,
+  Bell,
+  Gift,
+  Zap,
+  ArrowRight,
+  Twitter,
+  Linkedin,
+  Github,
+  Instagram
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -81,6 +91,35 @@ const SketchArrow = ({ className = "" }: { className?: string }) => (
 );
 
 export function HomePage() {
+  const [waitlistEmail, setWaitlistEmail] = useState('');
+  const [waitlistStatus, setWaitlistStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+
+  const handleWaitlistSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!waitlistEmail || waitlistStatus === 'submitting') return;
+
+    setWaitlistStatus('submitting');
+    
+    try {
+      // Simulate API call - replace with actual waitlist API
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setWaitlistStatus('success');
+      setWaitlistEmail('');
+      
+      // Reset status after 3 seconds
+      setTimeout(() => setWaitlistStatus('idle'), 3000);
+    } catch (error) {
+      setWaitlistStatus('error');
+      setTimeout(() => setWaitlistStatus('idle'), 3000);
+    }
+  };
+
+  const scrollToWaitlist = () => {
+    const waitlistSection = document.getElementById('waitlist-section');
+    if (waitlistSection) {
+      waitlistSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
   const features = [
     {
       icon: <Rocket className="h-8 w-8" />,
@@ -88,95 +127,100 @@ export function HomePage() {
       description: "Choose from specialized templates for software development (web apps, APIs, mobile) or business initiatives with regulatory compliance frameworks."
     },
     {
-      icon: <Layers className="h-8 w-8" />,
-      title: "Intelligent Project Setup",
-      description: "Technical projects get technology stack recommendations, while business projects receive regulatory guidance and compliance frameworks."
+      icon: <Brain className="h-8 w-8" />,
+      title: "Advanced AI Analysis Suite",
+      description: "Get comprehensive technical, market, competitive, and financial analysis. Each analysis is automatically saved and embedded for use in social media content generation and future insights."
     },
     {
       icon: <Target className="h-8 w-8" />,
-      title: "Intelligent Task Tracking",
-      description: "AI-powered task breakdown, automatic progress detection, and visual milestone tracking with smart recommendations."
+      title: "Smart Task Management & Progress Tracking",
+      description: "AI-powered task breakdown with automatic progress detection, visual milestone tracking, and intelligent recommendations. Tasks adapt to your project type and complexity."
     },
     {
       icon: <PieChart className="h-8 w-8" />,
-      title: "Current Market Analysis & Financial Projections",
-      description: "Stay ahead with real-time market insights, emerging technology trends, and up-to-date financial projections. Our AI continuously monitors industry changes to keep your projects competitive."
+      title: "Real-Time Market Intelligence & Financial Modeling",
+      description: "Stay ahead with live market insights, emerging technology trends, competitive landscape analysis, and detailed financial projections with ROI calculations and funding requirements."
     },
     {
-      icon: <Brain className="h-8 w-8" />,
-      title: "Always-Current AI Intelligence",
-      description: "Context-aware analysis that adapts to your project type and stays current with evolving business trends, technology advances, and regulatory changes."
+      icon: <MessageSquare className="h-8 w-8" />,
+      title: "AI-Powered Social Media Content Generation",
+      description: "Generate platform-specific social media posts automatically using your saved analysis data. Create engaging content for Twitter, LinkedIn, Instagram, and more with context-aware AI."
     },
     {
-      icon: <Globe className="h-8 w-8" />,
-      title: "Global Project Overview",
-      description: "Unified dashboard showing all your projects, cross-project insights, portfolio analytics, and team collaboration features."
-    },
-    {
-      icon: <Download className="h-8 w-8" />,
-      title: "Complete Data Portability",
-      description: "Your data, your choice. Export all analysis to JSON, sync to cloud services, or integrate with spreadsheets. No vendor lock-in, ever."
+      icon: <Layers className="h-8 w-8" />,
+      title: "Business Model Canvas & Strategic Planning",
+      description: "Generate comprehensive business model canvases, strategic frameworks, and competitive differentiation analysis. Visual tools help you understand your business from every angle."
     },
     {
       icon: <Flame className="h-8 w-8" />,
-      title: "Brutally Honest Project Roasting",
-      description: "Get unfiltered, reality-check feedback on your ideas. Our AI identifies fundamental flaws, market realities, and provides actionable solutions to fix them."
+      title: "Brutally Honest Project Roasting + AI Mitigations",
+      description: "Get unfiltered, reality-check feedback on your ideas with AI-generated mitigation strategies. Turn harsh criticism into actionable improvements with specific solutions."
+    },
+    {
+      icon: <Download className="h-8 w-8" />,
+      title: "Complete Data Portability & Cloud Sync",
+      description: "Your data, your choice. Export all analysis to JSON, sync to Pinecone cloud, integrate with spreadsheets, or share via VS Code extension. Zero vendor lock-in, ever."
     }
   ];
 
   const plans = [
     {
       name: "Starter",
-      price: "$9",
-      period: "/month",
+      price: "Coming Soon",
+      period: "",
       description: "Perfect for individual developers and small projects",
       features: [
-        "Up to 3 projects",
-        "Basic AI analysis",
-        "Honest project roasting",
+        "Up to 5 projects",
+        "Basic AI analysis (Technical, Market)",
+        "Saved analysis insights & embeddings",
+        "Social media content generation (3 platforms)",
+        "Project roasting with mitigation strategies",
         "Technical & business templates",
-        "JSON export",
+        "JSON export & cloud sync",
         "Email support"
       ],
       popular: false,
-      cta: "Start Free Trial"
+      cta: "Join Waitlist"
     },
     {
-      name: "Pro",
-      price: "$29",
-      period: "/month",
+      name: "Professional",
+      price: "Coming Soon",
+      period: "",
       description: "Ideal for professional developers and growing teams",
       features: [
         "Unlimited projects",
-        "Advanced AI insights",
+        "Full AI analysis suite (Technical, Market, Financial, BMC)",
+        "Advanced saved insights & semantic embeddings",
+        "Unlimited social media content generation (all platforms)",
+        "Business Model Canvas generation",
         "Financial projections & market analysis",
         "AI-powered mitigation strategies",
-        "Technical & business templates",
-        "Cloud sync & spreadsheet export",
-        "VS Code integration",
+        "Pinecone cloud sync & spreadsheet export",
+        "VS Code extension integration",
         "Priority support",
-        "Team collaboration"
+        "Team collaboration features"
       ],
       popular: true,
-      cta: "Start Free Trial"
+      cta: "Join Waitlist"
     },
     {
       name: "Enterprise",
-      price: "$99",
-      period: "/month",
+      price: "Coming Soon",
+      period: "",
       description: "For teams and organizations with advanced needs",
       features: [
-        "Everything in Pro",
-        "Custom AI models for technical & business",
+        "Everything in Professional",
+        "Custom AI models & analysis types",
         "Advanced portfolio analytics",
         "Enterprise data export & API access",
-        "SSO integration",
-        "Dedicated support",
-        "Custom integrations",
-        "On-premise deployment"
+        "White-label solutions",
+        "SSO integration & enterprise security",
+        "Dedicated success manager",
+        "Custom integrations & workflows",
+        "On-premise deployment options"
       ],
       popular: false,
-      cta: "Contact Sales"
+      cta: "Join Waitlist"
     }
   ];
 
@@ -300,10 +344,9 @@ export function HomePage() {
               />
             </h1>
             <p className="text-xl md:text-2xl text-gray-600 mb-8 max-w-4xl mx-auto leading-relaxed">
-              The AI-powered platform for both <strong>technical development</strong> and <strong>business initiatives</strong>. 
-              In an ever-changing business and technology landscape, you need an assistant that stays on top. 
-              Get brutally honest feedback, AI-powered mitigation strategies, financial projections, and intelligent 
-              project management tailored to your project type.
+              The complete AI-powered platform for <strong>technical development</strong> and <strong>business initiatives</strong>. 
+              Get comprehensive analysis, saved insights, social media content generation, and brutally honest feedback with AI-powered mitigation strategies. 
+              From concept to launch, with intelligent project management that adapts to your needs.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
               <SignedOut>
@@ -384,8 +427,8 @@ export function HomePage() {
             <span className="text-black"> Successful Projects</span>
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            From initial concept to market launch, our AI-powered platform provides honest feedback, actionable solutions, and guidance you need at every step. 
-            Get brutally honest project roasting with AI-powered mitigation strategies to turn criticism into success.
+            From initial concept to market launch, our AI-powered platform provides comprehensive analysis, saved insights for social media generation, 
+            and honest feedback with actionable solutions at every step. Turn analysis into action with intelligent project management and content creation.
           </p>
         </div>
 
@@ -457,6 +500,10 @@ export function HomePage() {
                     <CheckCircle className="h-4 w-4 text-black mr-2" />
                     AI-powered mitigation strategies
                   </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="h-4 w-4 text-black mr-2" />
+                    Social media content generation
+                  </li>
                 </ul>
               </CardContent>
             </Card>
@@ -497,6 +544,14 @@ export function HomePage() {
                     <CheckCircle className="h-4 w-4 text-black mr-2" />
                     Brutal honesty & reality checks
                   </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="h-4 w-4 text-black mr-2" />
+                    Business Model Canvas generation
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="h-4 w-4 text-black mr-2" />
+                    Social media marketing content
+                  </li>
                 </ul>
               </CardContent>
             </Card>
@@ -513,10 +568,10 @@ export function HomePage() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-              Simple, Transparent Pricing
+              Choose Your Future Plan
             </h2>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Choose the plan that fits your needs. All plans include a 14-day free trial.
+              Join the waitlist to be notified when these plans become available. Early access members get special launch pricing.
             </p>
             <div className="mt-6 p-4 bg-white/70 border-2 border-gray-800 rounded-none max-w-4xl mx-auto relative">
               <SketchArrow className="top-1 right-1 text-gray-300 scale-75" />
@@ -557,6 +612,7 @@ export function HomePage() {
                     ))}
                   </ul>
                   <Button 
+                    onClick={scrollToWaitlist}
                     className={`w-full border-2 ${plan.popular ? 'bg-black hover:bg-gray-800 text-white border-black' : 'bg-white/80 hover:bg-white/90 text-black border-gray-800'}`}
                     size="lg"
                   >
@@ -568,19 +624,19 @@ export function HomePage() {
           </div>
 
           <div className="text-center mt-12">
-            <p className="text-gray-600 mb-4">All plans include 24/7 support and regular updates</p>
+            <p className="text-gray-600 mb-4">All plans will include 24/7 support and regular updates when launched</p>
             <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-gray-500">
               <div className="flex items-center">
-                <Shield className="h-4 w-4 mr-1" />
-                30-day money back guarantee
+                <Bell className="h-4 w-4 mr-1" />
+                Early access notifications
               </div>
               <div className="flex items-center">
                 <Award className="h-4 w-4 mr-1" />
-                No setup fees
+                Special launch pricing
               </div>
               <div className="flex items-center">
                 <Clock className="h-4 w-4 mr-1" />
-                Cancel anytime
+                No commitment required
               </div>
               <div className="flex items-center">
                 <Download className="h-4 w-4 mr-1" />
@@ -633,46 +689,226 @@ export function HomePage() {
         </div>
       </div>
 
-      {/* Final CTA Section */}
-      <div className="bg-black py-20 border-t-2 border-gray-800 relative">
-        <SketchLine className="top-10 left-20 text-gray-600" />
-        <CircuitDiagram className="bottom-10 right-20 text-gray-600" />
-        <MeasurementLines className="top-32 right-1/4 text-gray-600" />
+
+
+      {/* Waitlist Section */}
+      <div id="waitlist-section" className="bg-white/40 py-20 border-t-2 border-gray-800 relative">
+        <SketchLine className="top-16 left-16 text-gray-400 rotate-45" />
+        <CircuitDiagram className="bottom-16 right-16 text-gray-300" />
+        <MeasurementLines className="top-32 right-1/3 text-gray-400" />
         
         <div className="container mx-auto px-4 text-center relative z-10">
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-            Ready to Transform Your Projects?
-          </h2>
-          <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-            Join thousands of developers who are building better projects faster with AI Project Manager.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-            <SignedOut>
-              <SignUpButton>
-                <Button size="lg" className="bg-white text-black hover:bg-gray-100 text-lg px-8 py-4 border-2 border-gray-300">
-                  <Rocket className="mr-2 h-5 w-5" />
-                  Start Your Free Trial
-                </Button>
-              </SignUpButton>
-            </SignedOut>
-            <SignedIn>
-              <Link href="/projects">
-                <Button size="lg" className="bg-white text-black hover:bg-gray-100 text-lg px-8 py-4 border-2 border-gray-300">
-                  <Rocket className="mr-2 h-5 w-5" />
-                  Go to Projects
-                </Button>
-              </Link>
-            </SignedIn>
-            <Button variant="outline" size="lg" className="border-2 border-white text-white hover:bg-white hover:text-black text-lg px-8 py-4">
-              <MessageSquare className="mr-2 h-5 w-5" />
-              Talk to Sales
-            </Button>
+          <div className="max-w-4xl mx-auto">
+            <Badge className="mb-6 bg-black text-white border-2 border-gray-800">
+              <Bell className="w-4 h-4 mr-2" />
+              Early Access Program
+            </Badge>
+            
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+              Join the AI Project Manager 
+              <span className="text-black"> Waitlist</span>
+            </h2>
+            
+            <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+              Be among the first to experience the next generation of AI-powered project management. 
+              Get early access to advanced features, exclusive beta testing opportunities, and special launch pricing.
+            </p>
+
+            {/* Waitlist Benefits */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+              <Card className="border-2 border-gray-800 bg-white/70 rounded-none relative">
+                <SketchArrow className="top-2 right-2 text-gray-400 scale-75" />
+                <CardContent className="p-6 text-center">
+                  <Gift className="h-8 w-8 text-black mx-auto mb-3" />
+                  <h4 className="font-semibold text-gray-900 mb-2">Early Access</h4>
+                  <p className="text-sm text-gray-600">Get access to new features before public release</p>
+                </CardContent>
+              </Card>
+              
+              <Card className="border-2 border-gray-800 bg-white/70 rounded-none relative">
+                <MeasurementLines className="top-1 left-1 text-gray-300 scale-75" />
+                <CardContent className="p-6 text-center">
+                  <Zap className="h-8 w-8 text-black mx-auto mb-3" />
+                  <h4 className="font-semibold text-gray-900 mb-2">Special Pricing</h4>
+                  <p className="text-sm text-gray-600">Exclusive launch discounts for early supporters</p>
+                </CardContent>
+              </Card>
+              
+              <Card className="border-2 border-gray-800 bg-white/70 rounded-none relative">
+                <CircuitDiagram className="bottom-1 right-1 text-gray-400 scale-50" />
+                <CardContent className="p-6 text-center">
+                  <Users className="h-8 w-8 text-black mx-auto mb-3" />
+                  <h4 className="font-semibold text-gray-900 mb-2">Community Access</h4>
+                  <p className="text-sm text-gray-600">Join exclusive beta tester community</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Waitlist Form */}
+            <Card className="max-w-md mx-auto border-2 border-gray-800 bg-white/80 rounded-none relative">
+              <SketchLine className="top-3 left-3 text-gray-400" />
+              <CardContent className="p-8">
+                <form onSubmit={handleWaitlistSubmit} className="space-y-4">
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="flex-1">
+                      <Input
+                        type="email"
+                        placeholder="Enter your email address"
+                        value={waitlistEmail}
+                        onChange={(e) => setWaitlistEmail(e.target.value)}
+                        disabled={waitlistStatus === 'submitting' || waitlistStatus === 'success'}
+                        className="border-2 border-gray-800 rounded-none"
+                        required
+                      />
+                    </div>
+                    <Button 
+                      type="submit"
+                      disabled={waitlistStatus === 'submitting' || waitlistStatus === 'success' || !waitlistEmail}
+                      className="bg-black hover:bg-gray-800 text-white border-2 border-gray-800 px-6"
+                    >
+                      {waitlistStatus === 'submitting' ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Joining...
+                        </>
+                      ) : waitlistStatus === 'success' ? (
+                        <>
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                          Joined!
+                        </>
+                      ) : (
+                        <>
+                          <ArrowRight className="w-4 h-4 mr-2" />
+                          Join Waitlist
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  
+                  {waitlistStatus === 'success' && (
+                    <div className="text-sm text-green-600 text-center">
+                      ✅ You're on the waitlist! We'll notify you when early access opens.
+                    </div>
+                  )}
+                  
+                  {waitlistStatus === 'error' && (
+                    <div className="text-sm text-red-600 text-center">
+                      ❌ Something went wrong. Please try again.
+                    </div>
+                  )}
+                </form>
+                
+                <div className="mt-6 text-center">
+                  <div className="flex items-center justify-center space-x-4 text-xs text-gray-500">
+                    <div className="flex items-center">
+                      <Mail className="h-3 w-3 mr-1" />
+                      No spam, ever
+                    </div>
+                    <div className="flex items-center">
+                      <Shield className="h-3 w-3 mr-1" />
+                      Unsubscribe anytime
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <div className="mt-8 text-center">
+              <p className="text-gray-600 text-sm">
+                Join <strong>2,847</strong> developers and project managers already on the waitlist
+              </p>
+            </div>
           </div>
-          <p className="text-gray-300 text-sm">
-            No credit card required • 14-day free trial • Cancel anytime
-          </p>
         </div>
       </div>
+
+      {/* Footer */}
+      <footer className="bg-black py-12 border-t-2 border-gray-800 relative">
+        <SketchLine className="top-6 left-12 text-gray-600" />
+        <CircuitDiagram className="top-8 right-16 text-gray-600" />
+        <MeasurementLines className="bottom-6 left-1/3 text-gray-600" />
+        
+        <div className="container mx-auto px-4 relative z-10">
+          <div className="flex flex-col md:flex-row items-center justify-between">
+            {/* Logo and Description */}
+            <div className="mb-6 md:mb-0">
+              <Link href="/" className="flex items-center space-x-2 mb-3">
+                <div className="bg-white p-2 border-2 border-gray-300">
+                  <Brain className="h-5 w-5 text-black" />
+                </div>
+                <span className="font-semibold text-lg text-white">
+                  AI Project Manager
+                </span>
+              </Link>
+              <p className="text-gray-400 text-sm max-w-md">
+                The complete AI-powered platform for technical development and business initiatives.
+              </p>
+            </div>
+
+            {/* Social Links */}
+            <div className="flex flex-col items-center md:items-end">
+              <div className="flex items-center space-x-4 mb-4">
+                <a 
+                  href="https://twitter.com/aiprojectmgr" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-gray-400 hover:text-white transition-colors p-2 border border-gray-700 hover:border-gray-500 rounded-none"
+                >
+                  <Twitter className="h-5 w-5" />
+                </a>
+                <a 
+                  href="https://linkedin.com/company/ai-project-manager" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-gray-400 hover:text-white transition-colors p-2 border border-gray-700 hover:border-gray-500 rounded-none"
+                >
+                  <Linkedin className="h-5 w-5" />
+                </a>
+                <a 
+                  href="https://github.com/ai-project-manager" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-gray-400 hover:text-white transition-colors p-2 border border-gray-700 hover:border-gray-500 rounded-none"
+                >
+                  <Github className="h-5 w-5" />
+                </a>
+                <a 
+                  href="https://instagram.com/aiprojectmanager" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-gray-400 hover:text-white transition-colors p-2 border border-gray-700 hover:border-gray-500 rounded-none"
+                >
+                  <Instagram className="h-5 w-5" />
+                </a>
+              </div>
+              
+              {/* Navigation Links */}
+              <div className="flex items-center space-x-6 text-sm text-gray-400 mb-4">
+                <Link href="/privacy" className="hover:text-white transition-colors">
+                  Privacy Policy
+                </Link>
+                <Link href="/terms" className="hover:text-white transition-colors">
+                  Terms of Service
+                </Link>
+                <Link href="/contact" className="hover:text-white transition-colors">
+                  Contact
+                </Link>
+                <Link href="/help" className="hover:text-white transition-colors">
+                  Help
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Copyright */}
+          <div className="pt-8 mt-8 border-t border-gray-800 text-center">
+            <p className="text-gray-400 text-sm">
+              © {new Date().getFullYear()} AI Project Manager. All rights reserved. 
+              <span className="ml-2">Built with intelligence, designed for success.</span>
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

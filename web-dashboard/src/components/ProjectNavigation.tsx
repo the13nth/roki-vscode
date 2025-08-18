@@ -15,7 +15,8 @@ import {
   Brain,
   BarChart3,
   Network,
-  Share2
+  Share2,
+  Code2
 } from 'lucide-react';
 
 interface ProjectNavigationProps {
@@ -103,6 +104,13 @@ export function ProjectNavigation({ projectId, activeTab, progress }: ProjectNav
       href: `/project/${projectId}/social`,
       description: 'Generate social media content for your project',
       icon: <Share2 className="w-5 h-5" />
+    },
+    {
+      id: 'prompts',
+      name: 'Prompts',
+      href: `/project/${projectId}/prompts`,
+      description: 'View AI prompts used for analysis and content generation',
+      icon: <Code2 className="w-5 h-5" />
     }
   ];
 
