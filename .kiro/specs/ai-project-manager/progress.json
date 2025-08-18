@@ -1,8 +1,8 @@
 {
-  "totalTasks": 30,
-  "completedTasks": 0,
-  "percentage": 0,
-  "lastUpdated": "2025-08-18T12:04:57.495Z",
+  "totalTasks": 24,
+  "completedTasks": 2,
+  "percentage": 8,
+  "lastUpdated": "2025-08-18T12:09:57.466Z",
   "recentActivity": [
     {
       "taskId": "task-1",
