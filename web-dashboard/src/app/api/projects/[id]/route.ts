@@ -60,41 +60,22 @@ export async function GET(
     // Parse tasks from the tasks.md content to get accurate counts
     const tasksContent = project.tasks || '';
     
-    // Use existing progress data if available, otherwise parse from tasks content
-    let progressData;
-    if (project.progress && typeof project.progress === 'object') {
-      // Use existing progress data from Pinecone
-      progressData = {
-        totalTasks: project.progress.totalTasks || 0,
-        completedTasks: project.progress.completedTasks || 0,
-        percentage: project.progress.percentage || 0,
-        lastUpdated: new Date(project.progress.lastUpdated || project.lastModified || new Date()),
-        recentActivity: project.progress.recentActivity || [],
-        milestones: project.progress.milestones || []
-      };
-      console.log('📊 Using existing progress data:', {
-        totalTasks: progressData.totalTasks,
-        completedTasks: progressData.completedTasks,
-        percentage: progressData.percentage
-      });
-    } else {
-      // Parse tasks to calculate progress (fallback)
-      const taskStats = parseTasksFromMarkdown(tasksContent);
-      progressData = {
-        totalTasks: taskStats.totalTasks,
-        completedTasks: taskStats.completedTasks,
-        percentage: taskStats.percentage,
-        lastUpdated: new Date(project.lastModified || new Date()),
-        recentActivity: [],
-        milestones: []
-      };
-      console.log('📊 Parsed task stats (fallback):', {
-        totalTasks: taskStats.totalTasks,
-        completedTasks: taskStats.completedTasks,
-        percentage: taskStats.percentage,
-        tasksContentLength: tasksContent.length
-      });
-    }
+    // Parse tasks to calculate progress (UserProject doesn't have progress property)
+    const taskStats = parseTasksFromMarkdown(tasksContent);
+    const progressData = {
+      totalTasks: taskStats.totalTasks,
+      completedTasks: taskStats.completedTasks,
+      percentage: taskStats.percentage,
+      lastUpdated: new Date(project.lastModified || new Date()),
+      recentActivity: [],
+      milestones: []
+    };
+    console.log('📊 Parsed task stats:', {
+      totalTasks: taskStats.totalTasks,
+      completedTasks: taskStats.completedTasks,
+      percentage: taskStats.percentage,
+      tasksContentLength: tasksContent.length
+    });
 
     // Convert to ProjectDashboard format with accurate task counts
     const projectDashboard: ProjectDashboard = {

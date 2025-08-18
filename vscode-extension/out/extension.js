@@ -485,6 +485,11 @@ async function activate(context) {
                 vscode.window.showWarningMessage('Please login first to view cloud documents.');
                 return;
             }
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            if (!workspaceFolder) {
+                vscode.window.showWarningMessage('Please open a workspace folder first to save documents locally.');
+                return;
+            }
             const config = vscode.workspace.getConfiguration('aiProjectManager');
             const dashboardUrl = config.get('dashboardUrl', 'http://localhost:3000');
             // Fetch the specific document from cloud using VS Code-specific endpoint
@@ -493,13 +498,37 @@ async function activate(context) {
                 throw new Error(`Failed to fetch document: ${response.status} ${response.statusText}`);
             }
             const documentData = await response.json();
-            // Create a new document with the cloud content
-            const document = await vscode.workspace.openTextDocument({
-                content: documentData.content || 'No content available',
-                language: 'markdown'
-            });
+            const content = documentData.content || '';
+            // Create local directory structure
+            const kiroSpecsPath = path.join(workspaceFolder.uri.fsPath, '.kiro', 'specs', 'ai-project-manager');
+            if (!fs.existsSync(kiroSpecsPath)) {
+                fs.mkdirSync(kiroSpecsPath, { recursive: true });
+                console.log(`✅ Created directory: ${kiroSpecsPath}`);
+            }
+            // Determine filename based on document type
+            let filename;
+            switch (documentType) {
+                case 'requirements':
+                    filename = 'requirements.md';
+                    break;
+                case 'design':
+                    filename = 'design.md';
+                    break;
+                case 'tasks':
+                    filename = 'tasks.md';
+                    break;
+                default:
+                    filename = `${documentType}.md`;
+            }
+            // Save the document to the local file system
+            const filePath = path.join(kiroSpecsPath, filename);
+            fs.writeFileSync(filePath, content, 'utf8');
+            // Open the document from the local file system
+            const document = await vscode.workspace.openTextDocument(filePath);
             await vscode.window.showTextDocument(document);
-            vscode.window.showInformationMessage(`📄 Opened ${documentType} from cloud`);
+            // Refresh the sidebar to show the newly saved document
+            sidebarProvider.refresh();
+            vscode.window.showInformationMessage(`📄 Opened and saved ${documentType} from cloud to ${filePath}`);
         }
         catch (error) {
             handleError(error, 'Open cloud document');
@@ -593,7 +622,7 @@ async function activate(context) {
                 const statusText = syncStatus.status === 'synced' ? '✅ Synced' :
                     syncStatus.status === 'syncing' ? '🔄 Syncing' :
                         syncStatus.status === 'error' ? '❌ Error' : '⚠️ Conflict';
-                vscode.window.showInformationMessage(`${statusText}\nLast sync: ${syncStatus.lastSync.toLocaleString()}\n${syncStatus.message || ''}`);
+                vscode.window.showInformationMessage(`${statusText}\nLast sync: ${syncStatus.lastSync?.toLocaleString() || 'Never'}\n${syncStatus.message || ''}`);
             }
             else {
                 vscode.window.showInformationMessage('No sync status available for this project');

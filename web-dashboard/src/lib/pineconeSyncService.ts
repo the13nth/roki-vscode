@@ -366,9 +366,9 @@ class PineconeSyncService {
         includeMetadata: true,
       });
 
-      let userId = null;
+      let userId: string | null = null;
       if (projectQuery.matches && projectQuery.matches.length > 0) {
-        userId = projectQuery.matches[0].metadata?.userId;
+        userId = String(projectQuery.matches[0].metadata?.userId || '');
       }
 
       if (!userId) {
@@ -404,11 +404,10 @@ class PineconeSyncService {
 
       // Get main documents (requirements, design, tasks) from the project data
       const documents: any = {};
-      const docTypes = ['requirements', 'design', 'tasks'];
       
-      for (const docType of docTypes) {
-        documents[docType] = project[docType] || '';
-      }
+      documents.requirements = project.requirements || '';
+      documents.design = project.design || '';
+      documents.tasks = project.tasks || '';
 
       // Get context documents
       const contextQuery = await index.namespace(PINECONE_NAMESPACE_PROJECTS).query({
@@ -440,7 +439,7 @@ class PineconeSyncService {
           project,
           documents,
           contextDocuments: contextDocs,
-          progress: project.progress || { totalTasks: 0, completedTasks: 0, percentage: 0 }
+          progress: { totalTasks: 0, completedTasks: 0, percentage: 0 }
         }
       };
     } catch (error) {

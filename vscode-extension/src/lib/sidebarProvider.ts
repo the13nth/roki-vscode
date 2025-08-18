@@ -5,7 +5,6 @@ import { ProjectDetectorImpl } from './projectDetector';
 import { AuthService } from './authService';
 import { ProgressData, ProjectStructure } from '../types';
 import { ProjectLoader, CloudProject } from './projectLoader';
-import { SyncService, SyncStatus } from './syncService';
 
 export class SidebarItem extends vscode.TreeItem {
     constructor(
@@ -32,7 +31,6 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
 
     private projectDetector = new ProjectDetectorImpl();
     private authService = AuthService.getInstance();
-    private syncService = SyncService.getInstance();
     private syncStatus: 'connected' | 'disconnected' | 'syncing' = 'disconnected';
     private lastSyncTime?: Date;
     private userProjects: CloudProject[] = [];
@@ -40,7 +38,6 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
     private userDetailsExpanded = false;
     private userProjectsExpanded = true;
     private selectedProjectId: string | null = null; // Track selected cloud project
-    private projectLocalPaths: Map<string, string> = new Map(); // Track local paths for projects
 
     constructor() {
         console.log('SidebarProvider constructor called');
@@ -91,12 +88,10 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
                 const projectLoader = ProjectLoader.getInstance();
                 this.userProjects = await projectLoader.listUserProjects();
                 console.log('Loaded user projects:', this.userProjects.length);
-                console.log('User projects:', this.userProjects.map(p => ({ id: p.id, name: p.name })));
                 
                 // If no project is selected and we have projects, select the first one
                 if (!this.selectedProjectId && this.userProjects.length > 0) {
                     this.selectedProjectId = this.userProjects[0].id;
-                    console.log('Auto-selected project:', this.selectedProjectId);
                 }
             } else {
                 this.userProjects = [];
@@ -309,51 +304,6 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
             ));
         }
 
-        // Sync Actions (only show if project is selected)
-        if (this.selectedProjectId) {
-            const syncStatus = this.syncService.getSyncStatus(this.selectedProjectId);
-            const statusText = syncStatus ? 
-                (syncStatus.status === 'synced' ? '✅ Synced' :
-                 syncStatus.status === 'syncing' ? '🔄 Syncing' :
-                 syncStatus.status === 'error' ? '❌ Error' : '⚠️ Conflict') : '❓ Unknown';
-            
-            items.push(new SidebarItem(
-                `🔄 Sync Status: ${statusText}`,
-                vscode.TreeItemCollapsibleState.None,
-                'syncStatus',
-                {
-                    command: 'aiProjectManager.showSyncStatus',
-                    title: 'Show Sync Status'
-                },
-                syncStatus ? `Last sync: ${syncStatus.lastSync.toLocaleString()}` : 'No sync data available',
-                new vscode.ThemeIcon('sync')
-            ));
-
-            items.push(new SidebarItem(
-                '🔄 Force Sync',
-                vscode.TreeItemCollapsibleState.None,
-                'forceSync',
-                {
-                    command: 'aiProjectManager.forceSync',
-                    title: 'Force Sync'
-                },
-                'Force sync between local and cloud documents',
-                new vscode.ThemeIcon('sync-ignored')
-            ));
-
-            items.push(new SidebarItem(
-                '🔍 Check Cloud Changes',
-                vscode.TreeItemCollapsibleState.None,
-                'checkCloudChanges',
-                {
-                    command: 'aiProjectManager.checkCloudChanges',
-                    title: 'Check Cloud Changes'
-                },
-                'Check for changes in cloud documents',
-                new vscode.ThemeIcon('search')
-            ));
-        }
-
         // Quick Actions
         items.push(new SidebarItem(
             '⚡ Inject AI Context',
@@ -550,6 +500,7 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
 
     private async getDocumentItems(): Promise<SidebarItem[]> {
         console.log('getDocumentItems called');
+        const items: SidebarItem[] = [];
         
         try {
             // If we have a selected cloud project, fetch documents from cloud
@@ -558,18 +509,9 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
                 return await this.getCloudDocumentItems();
             }
             
-            // No cloud project selected - show message
-            console.log('No cloud project selected');
-            return [
-                new SidebarItem(
-                    'No cloud project selected',
-                    vscode.TreeItemCollapsibleState.None,
-                    'noCloudProject',
-                    undefined,
-                    'Select a cloud project to view its documents',
-                    new vscode.ThemeIcon('info')
-                )
-            ];
+            // Fallback to local documents if no cloud project selected
+            console.log('No cloud project selected, using local documents');
+            return this.getLocalDocumentItems();
         } catch (error) {
             console.error('Error in getDocumentItems:', error);
             return [
@@ -590,52 +532,16 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
             const config = vscode.workspace.getConfiguration('aiProjectManager');
             const dashboardUrl = config.get('dashboardUrl', 'http://localhost:3000');
             
-            console.log('Fetching cloud documents from:', `${dashboardUrl}/api/projects/${this.selectedProjectId}/documents`);
-            console.log('Selected project ID:', this.selectedProjectId);
-            console.log('Auth service authenticated:', this.authService.isAuthenticated());
-            
-            // Check if we have a valid project ID
-            if (!this.selectedProjectId) {
-                throw new Error('No project selected');
-            }
-            
-            // Check authentication
-            if (!this.authService.isAuthenticated()) {
-                throw new Error('Not authenticated');
-            }
-            
-            // Try to find the project by name if the ID looks like a workspace name
-            let projectId = this.selectedProjectId;
-            if (!this.isValidUUID(projectId)) {
-                console.log('Project ID looks like a workspace name, trying to find by name');
-                const projectByName = this.userProjects.find(p => p.name.toLowerCase() === projectId.toLowerCase());
-                if (projectByName) {
-                    projectId = projectByName.id;
-                    console.log('Found project by name, using ID:', projectId);
-                } else {
-                    throw new Error(`Project "${projectId}" not found in cloud projects`);
-                }
-            }
-            
-            // Fetch project documents from cloud using VS Code-specific endpoint
+            // Fetch project documents from cloud using VSCode-specific endpoint
             const response = await this.authService.makeAuthenticatedRequest(
-                `${dashboardUrl}/api/vscode/projects/${projectId}/documents`
+                `${dashboardUrl}/api/vscode/projects/${this.selectedProjectId}/documents`
             );
             
-            console.log('Response status:', response.status, response.statusText);
-            
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Error response body:', errorText);
-                throw new Error(`Failed to fetch project documents: ${response.status} ${response.statusText} - ${errorText}`);
+                throw new Error(`Failed to fetch project documents: ${response.status} ${response.statusText}`);
             }
             
             const documents = await response.json();
-            console.log('Received documents:', documents);
-            
-            // Download documents to local folder
-            await this.downloadDocumentsToLocal(projectId, documents);
-            
             const items: SidebarItem[] = [];
             
             // Map cloud documents to sidebar items
@@ -650,19 +556,16 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
                     const lastModified = documents[docType.key].lastModified ? 
                         new Date(documents[docType.key].lastModified) : new Date();
                     
-                    // Get local file path
-                    const localFilePath = this.getLocalDocumentPath(projectId, docType.key);
-                    
                     items.push(new SidebarItem(
                         docType.name,
                         vscode.TreeItemCollapsibleState.None,
-                        'localDocument',
+                        'cloudDocument',
                         {
-                            command: 'aiProjectManager.openLocalDocument',
+                            command: 'aiProjectManager.openCloudDocument',
                             title: `Open ${docType.name}`,
-                            arguments: [localFilePath]
+                            arguments: [this.selectedProjectId, docType.key]
                         },
-                        `${docType.name} - Modified ${this.getTimeAgo(lastModified)}`,
+                        `${docType.name} from cloud - Modified ${this.getTimeAgo(lastModified)}`,
                         new vscode.ThemeIcon(docType.icon),
                         `Modified ${this.getTimeAgo(lastModified)}`
                     ));
@@ -672,7 +575,7 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
             if (items.length === 0) {
                 return [
                     new SidebarItem(
-                        'No cloud documents',
+                        'No documents found in cloud',
                         vscode.TreeItemCollapsibleState.None,
                         'noCloudDocuments',
                         undefined,
@@ -685,10 +588,9 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
             return items;
         } catch (error) {
             console.error('Error fetching cloud documents:', error);
-            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             return [
                 new SidebarItem(
-                    `Error fetching cloud documents: ${errorMessage}`,
+                    `Error fetching cloud documents: ${error instanceof Error ? error.message : 'Unknown error'}`,
                     vscode.TreeItemCollapsibleState.None,
                     'error',
                     undefined,
@@ -697,88 +599,6 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
                 )
             ];
         }
-    }
-
-    // Helper method to check if a string is a valid UUID
-    private isValidUUID(str: string): boolean {
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-        return uuidRegex.test(str);
-    }
-
-    /**
-     * Download documents to local folder with numbered folders if needed
-     */
-    private async downloadDocumentsToLocal(projectId: string, documents: any): Promise<void> {
-        try {
-            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-            if (!workspaceFolder) {
-                throw new Error('No workspace folder open');
-            }
-
-            const basePath = workspaceFolder.uri.fsPath;
-            const projectName = this.userProjects.find(p => p.id === projectId)?.name || 'project';
-            
-            // Find available folder number
-            let folderNumber = 1;
-            let localPath = path.join(basePath, `${projectName}-${projectId}`);
-            
-            while (fs.existsSync(localPath)) {
-                folderNumber++;
-                localPath = path.join(basePath, `${projectName}-${projectId}-${folderNumber}`);
-            }
-            
-            console.log(`Creating local folder: ${localPath}`);
-            
-            // Create the local folder structure
-            const kiroSpecsPath = path.join(localPath, '.kiro', 'specs', 'ai-project-manager');
-            fs.mkdirSync(kiroSpecsPath, { recursive: true });
-            
-            // Write documents to local files
-            const documentTypes = [
-                { key: 'requirements', filename: 'requirements.md' },
-                { key: 'design', filename: 'design.md' },
-                { key: 'tasks', filename: 'tasks.md' }
-            ];
-            
-            for (const docType of documentTypes) {
-                if (documents[docType.key] && documents[docType.key].content) {
-                    const filePath = path.join(kiroSpecsPath, docType.filename);
-                    fs.writeFileSync(filePath, documents[docType.key].content);
-                    console.log(`Downloaded ${docType.filename} to ${filePath}`);
-                }
-            }
-            
-            // Create a metadata file to track the project
-            const metadata = {
-                projectId: projectId,
-                projectName: projectName,
-                downloadedAt: new Date().toISOString(),
-                folderNumber: folderNumber
-            };
-            fs.writeFileSync(path.join(kiroSpecsPath, 'metadata.json'), JSON.stringify(metadata, null, 2));
-            
-            // Store the local path for this project
-            this.projectLocalPaths.set(projectId, localPath);
-            
-            vscode.window.showInformationMessage(`✅ Downloaded project documents to: ${path.basename(localPath)}`);
-            
-        } catch (error) {
-            console.error('Error downloading documents to local:', error);
-            throw error;
-        }
-    }
-
-    /**
-     * Get local document path for a project and document type
-     */
-    private getLocalDocumentPath(projectId: string, documentType: string): string {
-        const localPath = this.projectLocalPaths.get(projectId);
-        if (!localPath) {
-            throw new Error(`No local path found for project ${projectId}`);
-        }
-        
-        const filename = `${documentType}.md`;
-        return path.join(localPath, '.kiro', 'specs', 'ai-project-manager', filename);
     }
 
     private getLocalDocumentItems(): SidebarItem[] {

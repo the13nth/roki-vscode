@@ -22,19 +22,36 @@ class SyncService {
      */
     async downloadCloudDocuments(projectId, localPath) {
         try {
-            console.log(`Downloading cloud documents for project ${projectId} to ${localPath}`);
+            console.log(`📥 Downloading cloud documents for project ${projectId} to ${localPath}`);
             const config = vscode.workspace.getConfiguration('aiProjectManager');
             const dashboardUrl = config.get('dashboardUrl', 'http://localhost:3000');
             // Fetch documents from cloud using VS Code-specific endpoint
             const response = await this.authService.makeAuthenticatedRequest(`${dashboardUrl}/api/vscode/projects/${projectId}/documents`);
             if (!response.ok) {
-                throw new Error(`Failed to fetch cloud documents: ${response.status} ${response.statusText}`);
+                const errorText = await response.text();
+                console.error(`API Error Response: ${errorText}`);
+                throw new Error(`Failed to fetch cloud documents: ${response.status} ${response.statusText}. Response: ${errorText}`);
             }
-            const documents = await response.json();
+            const responseText = await response.text();
+            console.log(`API Response: ${responseText}`);
+            let documents;
+            try {
+                documents = JSON.parse(responseText);
+            }
+            catch (parseError) {
+                console.error('JSON Parse Error:', parseError);
+                console.error('Response was not valid JSON:', responseText);
+                throw new Error(`Invalid JSON response from server: ${responseText.substring(0, 200)}...`);
+            }
             // Create local directory structure
             const kiroSpecsPath = path.join(localPath, '.kiro', 'specs', 'ai-project-manager');
+            console.log(`📁 Creating directory structure: ${kiroSpecsPath}`);
             if (!fs.existsSync(kiroSpecsPath)) {
                 fs.mkdirSync(kiroSpecsPath, { recursive: true });
+                console.log(`✅ Created directory: ${kiroSpecsPath}`);
+            }
+            else {
+                console.log(`📁 Directory already exists: ${kiroSpecsPath}`);
             }
             // Create backup before updating
             await this.createBackup(kiroSpecsPath);
@@ -48,7 +65,10 @@ class SyncService {
                 if (documents[doc.key] && documents[doc.key].content) {
                     const filePath = path.join(kiroSpecsPath, doc.filename);
                     fs.writeFileSync(filePath, documents[doc.key].content);
-                    console.log(`Downloaded ${doc.filename}`);
+                    console.log(`💾 Downloaded and saved: ${doc.filename} to ${filePath}`);
+                }
+                else {
+                    console.log(`⚠️ No content found for ${doc.key}`);
                 }
             }
             // Update sync status
@@ -57,7 +77,8 @@ class SyncService {
                 status: 'synced',
                 message: 'Documents downloaded successfully'
             });
-            console.log(`Successfully downloaded cloud documents for project ${projectId}`);
+            console.log(`✅ Successfully downloaded cloud documents for project ${projectId}`);
+            console.log(`📂 Documents saved to: ${kiroSpecsPath}`);
         }
         catch (error) {
             console.error('Error downloading cloud documents:', error);
@@ -94,20 +115,18 @@ class SyncService {
                     };
                 }
             }
-            // Upload each document to cloud
+            // Upload each document to cloud using VS Code-specific endpoint
             for (const [docType, docData] of Object.entries(documents)) {
-                const response = await this.authService.makeAuthenticatedRequest(`${dashboardUrl}/api/projects/${projectId}/documents/${docType}`, {
+                const response = await this.authService.makeAuthenticatedRequest(`${dashboardUrl}/api/vscode/projects/${projectId}/documents/${docType}`, {
                     method: 'PUT',
-                    body: JSON.stringify({
-                        content: docData.content,
-                        lastKnownTimestamp: docData.lastModified
-                    })
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(docData)
                 });
                 if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`Failed to upload ${docType}: ${response.status} ${response.statusText} - ${errorText}`);
+                    throw new Error(`Failed to upload ${docType}: ${response.status} ${response.statusText}`);
                 }
-                console.log(`Uploaded ${docType} to cloud`);
             }
             // Update sync status
             this.syncStatus.set(projectId, {
@@ -128,32 +147,33 @@ class SyncService {
         }
     }
     /**
-     * Start watching local files for changes
+     * Start file watching for automatic sync
      */
     startFileWatching(projectId, localPath) {
-        console.log(`Starting file watching for project ${projectId} at ${localPath}`);
-        // Stop existing watcher if any
-        this.stopFileWatching(projectId);
-        const kiroSpecsPath = path.join(localPath, '.kiro', 'specs', 'ai-project-manager');
-        // Create watcher for document files
-        const watcher = vscode.workspace.createFileSystemWatcher(path.join(kiroSpecsPath, '*.md'));
-        // Handle file changes
-        watcher.onDidChange(async (uri) => {
-            console.log(`File changed: ${uri.fsPath}`);
-            await this.handleLocalFileChange(projectId, localPath, uri.fsPath);
-        });
-        watcher.onDidCreate(async (uri) => {
-            console.log(`File created: ${uri.fsPath}`);
-            await this.handleLocalFileChange(projectId, localPath, uri.fsPath);
-        });
-        watcher.onDidDelete(async (uri) => {
-            console.log(`File deleted: ${uri.fsPath}`);
-            await this.handleLocalFileChange(projectId, localPath, uri.fsPath);
-        });
-        this.fileWatchers.set(projectId, watcher);
+        try {
+            // Stop existing watcher if any
+            this.stopFileWatching(projectId);
+            const kiroSpecsPath = path.join(localPath, '.kiro', 'specs', 'ai-project-manager');
+            // Watch for changes in project files
+            const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(kiroSpecsPath, '*.md'));
+            watcher.onDidChange(async (uri) => {
+                console.log(`File changed: ${uri.fsPath}`);
+                try {
+                    await this.uploadLocalDocuments(projectId, localPath);
+                }
+                catch (error) {
+                    console.error('Error syncing file change:', error);
+                }
+            });
+            this.fileWatchers.set(projectId, watcher);
+            console.log(`Started file watching for project ${projectId}`);
+        }
+        catch (error) {
+            console.error('Error starting file watching:', error);
+        }
     }
     /**
-     * Stop watching local files
+     * Stop file watching
      */
     stopFileWatching(projectId) {
         const watcher = this.fileWatchers.get(projectId);
@@ -164,152 +184,60 @@ class SyncService {
         }
     }
     /**
-     * Handle local file changes
-     */
-    async handleLocalFileChange(projectId, localPath, filePath) {
-        try {
-            // Debounce rapid changes
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            console.log(`Handling local file change: ${filePath}`);
-            // Update sync status
-            this.syncStatus.set(projectId, {
-                lastSync: new Date(),
-                status: 'syncing',
-                message: 'Syncing local changes to cloud...'
-            });
-            // Upload the changed file to cloud
-            await this.uploadLocalDocuments(projectId, localPath);
-            vscode.window.showInformationMessage(`✅ Local changes synced to cloud`);
-        }
-        catch (error) {
-            console.error('Error handling local file change:', error);
-            vscode.window.showErrorMessage(`❌ Failed to sync local changes: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            this.syncStatus.set(projectId, {
-                lastSync: new Date(),
-                status: 'error',
-                message: error instanceof Error ? error.message : 'Unknown error'
-            });
-        }
-    }
-    /**
-     * Check for cloud changes and update local files
+     * Check for cloud changes
      */
     async checkCloudChanges(projectId, localPath) {
         try {
-            console.log(`Checking for cloud changes for project ${projectId}`);
             const config = vscode.workspace.getConfiguration('aiProjectManager');
             const dashboardUrl = config.get('dashboardUrl', 'http://localhost:3000');
-            // Fetch current cloud documents using VS Code-specific endpoint
-            const response = await this.authService.makeAuthenticatedRequest(`${dashboardUrl}/api/vscode/projects/${projectId}/documents`);
+            const response = await this.authService.makeAuthenticatedRequest(`${dashboardUrl}/api/vscode/projects/${projectId}/sync/status`);
             if (!response.ok) {
-                throw new Error(`Failed to fetch cloud documents: ${response.status} ${response.statusText}`);
+                throw new Error(`Failed to check cloud changes: ${response.status} ${response.statusText}`);
             }
-            const cloudDocuments = await response.json();
-            // Read local documents
-            const kiroSpecsPath = path.join(localPath, '.kiro', 'specs', 'ai-project-manager');
-            const localDocuments = {};
-            const documentFiles = [
-                { key: 'requirements', filename: 'requirements.md' },
-                { key: 'design', filename: 'design.md' },
-                { key: 'tasks', filename: 'tasks.md' }
-            ];
-            for (const doc of documentFiles) {
-                const filePath = path.join(kiroSpecsPath, doc.filename);
-                if (fs.existsSync(filePath)) {
-                    localDocuments[doc.key] = {
-                        content: fs.readFileSync(filePath, 'utf-8'),
-                        lastModified: fs.statSync(filePath).mtime
-                    };
-                }
+            const status = await response.json();
+            if (status.hasChanges) {
+                console.log(`Cloud changes detected for project ${projectId}, downloading...`);
+                await this.downloadCloudDocuments(projectId, localPath);
+                return true;
             }
-            // Check for changes
-            let hasChanges = false;
-            for (const doc of documentFiles) {
-                const cloudDoc = cloudDocuments[doc.key];
-                const localDoc = localDocuments[doc.key];
-                if (cloudDoc && cloudDoc.content && (!localDoc || cloudDoc.content !== localDoc.content)) {
-                    hasChanges = true;
-                    break;
-                }
-            }
-            if (hasChanges) {
-                console.log(`Cloud changes detected for project ${projectId}`);
-                // Create backup before updating
-                await this.createBackup(kiroSpecsPath);
-                // Update local files
-                for (const doc of documentFiles) {
-                    if (cloudDocuments[doc.key] && cloudDocuments[doc.key].content) {
-                        const filePath = path.join(kiroSpecsPath, doc.filename);
-                        fs.writeFileSync(filePath, cloudDocuments[doc.key].content);
-                        console.log(`Updated local ${doc.filename} from cloud`);
-                    }
-                }
-                vscode.window.showInformationMessage(`✅ Cloud changes synced to local files`);
-                // Update sync status
-                this.syncStatus.set(projectId, {
-                    lastSync: new Date(),
-                    status: 'synced',
-                    message: 'Cloud changes synced to local files'
-                });
-            }
-            return hasChanges;
+            return false;
         }
         catch (error) {
             console.error('Error checking cloud changes:', error);
-            this.syncStatus.set(projectId, {
-                lastSync: new Date(),
-                status: 'error',
-                message: error instanceof Error ? error.message : 'Unknown error'
-            });
-            throw error;
+            return false;
         }
     }
     /**
-     * Create backup of local documents
+     * Create backup of local files
      */
     async createBackup(kiroSpecsPath) {
         try {
-            const backupDir = path.join(kiroSpecsPath, 'backups');
-            if (!fs.existsSync(backupDir)) {
-                fs.mkdirSync(backupDir, { recursive: true });
-            }
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            const backupPath = path.join(backupDir, `backup-${timestamp}`);
+            const backupPath = path.join(kiroSpecsPath, 'backup');
             if (!fs.existsSync(backupPath)) {
                 fs.mkdirSync(backupPath, { recursive: true });
             }
-            const documentFiles = ['requirements.md', 'design.md', 'tasks.md'];
-            for (const filename of documentFiles) {
-                const sourcePath = path.join(kiroSpecsPath, filename);
-                const backupFilePath = path.join(backupPath, filename);
+            const files = ['requirements.md', 'design.md', 'tasks.md'];
+            for (const file of files) {
+                const sourcePath = path.join(kiroSpecsPath, file);
+                const backupFilePath = path.join(backupPath, `${file}.backup.${Date.now()}`);
                 if (fs.existsSync(sourcePath)) {
                     fs.copyFileSync(sourcePath, backupFilePath);
-                }
-            }
-            console.log(`Created backup at: ${backupPath}`);
-            // Keep only last 5 backups
-            const backups = fs.readdirSync(backupDir)
-                .filter(dir => dir.startsWith('backup-'))
-                .sort()
-                .reverse();
-            if (backups.length > 5) {
-                for (const oldBackup of backups.slice(5)) {
-                    const oldBackupPath = path.join(backupDir, oldBackup);
-                    fs.rmSync(oldBackupPath, { recursive: true, force: true });
-                    console.log(`Removed old backup: ${oldBackup}`);
                 }
             }
         }
         catch (error) {
             console.error('Error creating backup:', error);
-            // Don't throw error for backup failures
         }
     }
     /**
      * Get sync status for a project
      */
     getSyncStatus(projectId) {
-        return this.syncStatus.get(projectId);
+        return this.syncStatus.get(projectId) || {
+            status: 'unknown',
+            lastSync: null,
+            message: 'No sync status available'
+        };
     }
     /**
      * Force sync for a project
@@ -317,27 +245,38 @@ class SyncService {
     async forceSync(projectId, localPath) {
         try {
             console.log(`Force syncing project ${projectId}`);
-            this.syncStatus.set(projectId, {
-                lastSync: new Date(),
-                status: 'syncing',
-                message: 'Force syncing...'
-            });
-            // Download from cloud first
-            await this.downloadCloudDocuments(projectId, localPath);
-            // Then upload local changes
             await this.uploadLocalDocuments(projectId, localPath);
-            vscode.window.showInformationMessage(`✅ Force sync completed for project ${projectId}`);
+            await this.downloadCloudDocuments(projectId, localPath);
         }
         catch (error) {
-            console.error('Error during force sync:', error);
-            vscode.window.showErrorMessage(`❌ Force sync failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            console.error('Error force syncing:', error);
             throw error;
         }
     }
     /**
-     * Cleanup resources
+     * Check if there are cloud changes
+     */
+    async hasCloudChanges(projectId) {
+        try {
+            const config = vscode.workspace.getConfiguration('aiProjectManager');
+            const dashboardUrl = config.get('dashboardUrl', 'http://localhost:3000');
+            const response = await this.authService.makeAuthenticatedRequest(`${dashboardUrl}/api/vscode/projects/${projectId}/sync/status`);
+            if (!response.ok) {
+                return false;
+            }
+            const status = await response.json();
+            return status.hasChanges || false;
+        }
+        catch (error) {
+            console.error('Error checking cloud changes:', error);
+            return false;
+        }
+    }
+    /**
+     * Dispose all resources
      */
     dispose() {
+        // Stop all file watchers
         for (const [projectId, watcher] of this.fileWatchers) {
             watcher.dispose();
         }
