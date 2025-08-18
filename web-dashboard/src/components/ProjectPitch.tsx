@@ -35,6 +35,7 @@ import {
   Code,
   Users,
   Settings,
+  Share2
 
 } from 'lucide-react';
 
@@ -78,8 +79,6 @@ export function ProjectPitch({ projectId }: ProjectPitchProps) {
     technicalHighlights: false,
     businessModel: false
   });
-
-
 
   const handleGeneratePitch = async () => {
     try {

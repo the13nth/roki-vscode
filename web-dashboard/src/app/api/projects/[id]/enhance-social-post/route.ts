@@ -36,6 +36,7 @@ interface EnhanceSocialPostRequest {
   tone?: 'professional' | 'casual' | 'enthusiastic' | 'technical';
   includeHashtags?: boolean;
   includeEmojis?: boolean;
+  postBackground?: string;
 }
 
 interface EnhanceSocialPostResult {

@@ -543,6 +543,8 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
     }
   };
 
+
+
   const getAnalysisTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
       technical: 'Technical Analysis',
@@ -1006,9 +1008,35 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                       </Card>
                     )}
 
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Clock className="w-4 h-4 mr-2" />
-                      Analysis completed at {new Date(analysisResults.technical.timestamp).toLocaleString()}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Clock className="w-4 h-4 mr-2" />
+                        Analysis completed at {new Date(analysisResults.technical.timestamp).toLocaleString()}
+                      </div>
+                      <Button
+                        onClick={() => saveAnalysis('technical')}
+                        disabled={savingAnalyses.technical || savedAnalyses.technical}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center"
+                      >
+                        {savingAnalyses.technical ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Saving...
+                          </>
+                        ) : savedAnalyses.technical ? (
+                          <>
+                            <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                            Saved
+                          </>
+                        ) : (
+                          <>
+                            <Brain className="w-4 h-4 mr-2" />
+                            Save for Social Posts
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </TabsContent>
                 )}
@@ -1033,9 +1061,35 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                       </CardContent>
                     </Card>
 
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Clock className="w-4 h-4 mr-2" />
-                      Analysis completed at {new Date(analysisResults.market.timestamp).toLocaleString()}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Clock className="w-4 h-4 mr-2" />
+                        Analysis completed at {new Date(analysisResults.market.timestamp).toLocaleString()}
+                      </div>
+                      <Button
+                        onClick={() => saveAnalysis('market')}
+                        disabled={savingAnalyses.market || savedAnalyses.market}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center"
+                      >
+                        {savingAnalyses.market ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Saving...
+                          </>
+                        ) : savedAnalyses.market ? (
+                          <>
+                            <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                            Saved
+                          </>
+                        ) : (
+                          <>
+                            <Brain className="w-4 h-4 mr-2" />
+                            Save for Social Posts
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </TabsContent>
                 )}
@@ -1060,9 +1114,35 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                       </CardContent>
                     </Card>
 
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Clock className="w-4 h-4 mr-2" />
-                      Analysis completed at {new Date(analysisResults.differentiation.timestamp).toLocaleString()}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Clock className="w-4 h-4 mr-2" />
+                        Analysis completed at {new Date(analysisResults.differentiation.timestamp).toLocaleString()}
+                      </div>
+                      <Button
+                        onClick={() => saveAnalysis('differentiation')}
+                        disabled={savingAnalyses.differentiation || savedAnalyses.differentiation}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center"
+                      >
+                        {savingAnalyses.differentiation ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Saving...
+                          </>
+                        ) : savedAnalyses.differentiation ? (
+                          <>
+                            <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                            Saved
+                          </>
+                        ) : (
+                          <>
+                            <Brain className="w-4 h-4 mr-2" />
+                            Save for Social Posts
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </TabsContent>
                 )}
@@ -1087,9 +1167,35 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                       </CardContent>
                     </Card>
 
-                    <div className="flex items-center text-sm text-muted-foreground">
-                      <Clock className="w-4 h-4 mr-2" />
-                      Analysis completed at {new Date(analysisResults.financial.timestamp).toLocaleString()}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center text-sm text-muted-foreground">
+                        <Clock className="w-4 h-4 mr-2" />
+                        Analysis completed at {new Date(analysisResults.financial.timestamp).toLocaleString()}
+                      </div>
+                      <Button
+                        onClick={() => saveAnalysis('financial')}
+                        disabled={savingAnalyses.financial || savedAnalyses.financial}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center"
+                      >
+                        {savingAnalyses.financial ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Saving...
+                          </>
+                        ) : savedAnalyses.financial ? (
+                          <>
+                            <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                            Saved
+                          </>
+                        ) : (
+                          <>
+                            <Brain className="w-4 h-4 mr-2" />
+                            Save for Social Posts
+                          </>
+                        )}
+                      </Button>
                     </div>
                   </TabsContent>
                 )}
@@ -1219,9 +1325,35 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                           </div>
                         </div>
 
-                        <div className="flex items-center text-sm text-muted-foreground mt-4">
-                          <Clock className="w-4 h-4 mr-2" />
-                          Analysis completed at {new Date(analysisResults.bmc.timestamp).toLocaleString()}
+                        <div className="flex items-center justify-between mt-4">
+                          <div className="flex items-center text-sm text-muted-foreground">
+                            <Clock className="w-4 h-4 mr-2" />
+                            Analysis completed at {new Date(analysisResults.bmc.timestamp).toLocaleString()}
+                          </div>
+                          <Button
+                            onClick={() => saveAnalysis('bmc')}
+                            disabled={savingAnalyses.bmc || savedAnalyses.bmc}
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center"
+                          >
+                            {savingAnalyses.bmc ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Saving...
+                              </>
+                            ) : savedAnalyses.bmc ? (
+                              <>
+                                <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                                Saved
+                              </>
+                            ) : (
+                              <>
+                                <Brain className="w-4 h-4 mr-2" />
+                                Save for Social Posts
+                              </>
+                            )}
+                          </Button>
                         </div>
                       </div>
                     ) : (
@@ -1301,9 +1433,35 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
 
                       {/* Other roast sections would go here... */}
 
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Clock className="w-4 h-4 mr-2" />
-                        Analysis completed at {new Date(analysisResults.roast.timestamp).toLocaleString()}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center text-sm text-muted-foreground">
+                          <Clock className="w-4 h-4 mr-2" />
+                          Analysis completed at {new Date(analysisResults.roast.timestamp).toLocaleString()}
+                        </div>
+                        <Button
+                          onClick={() => saveAnalysis('roast')}
+                          disabled={savingAnalyses.roast || savedAnalyses.roast}
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center"
+                        >
+                          {savingAnalyses.roast ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Saving...
+                            </>
+                          ) : savedAnalyses.roast ? (
+                            <>
+                              <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                              Saved
+                            </>
+                          ) : (
+                            <>
+                              <Brain className="w-4 h-4 mr-2" />
+                              Save for Social Posts
+                            </>
+                          )}
+                        </Button>
                       </div>
                     </div>
                   </TabsContent>

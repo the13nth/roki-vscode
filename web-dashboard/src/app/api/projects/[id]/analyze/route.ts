@@ -551,6 +551,21 @@ For each section, provide detailed, specific content based on the project contex
 5. **Honest Advice**: Direct, honest advice about the project considering all the insights gathered
 
 Be brutally honest and critical - don't sugarcoat anything. Use the analysis results to provide specific, informed criticism.`;
+    } else if (analysisType === 'social') {
+      prompt = `Please provide a comprehensive social media analysis for this project focusing on:
+
+1. **Social Media Strategy**: Optimal social media platforms for this project, platform-specific content strategies, and audience targeting approaches
+2. **Content Themes**: Key content themes, messaging pillars, storytelling angles, and content categories that will resonate with the target audience
+3. **Audience Analysis**: Target audience demographics, behavior patterns, preferred platforms, engagement preferences, and content consumption habits
+4. **Engagement Strategies**: Community building approaches, interaction strategies, user-generated content opportunities, and engagement tactics
+5. **Content Calendar**: Suggested posting frequency, optimal timing, content mix recommendations, and seasonal considerations
+6. **Performance Metrics**: Key social media KPIs, success metrics, tracking methods, and growth targets
+7. **Influencer Opportunities**: Potential influencer partnerships, collaboration strategies, and thought leadership opportunities
+8. **Social Commerce**: Social selling opportunities, conversion strategies, and e-commerce integration on social platforms
+9. **Crisis Management**: Social media crisis management strategies, reputation protection, and response protocols
+10. **Platform-Specific Recommendations**: Tailored strategies for each relevant platform (LinkedIn, Twitter, Instagram, TikTok, Facebook, YouTube, etc.)
+
+Focus on providing actionable social media strategies that align with the project's goals and target audience. Include specific examples of content types, posting strategies, and engagement tactics.`;
     }
 
     // Call AI service
