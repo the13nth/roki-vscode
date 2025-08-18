@@ -18,6 +18,8 @@ import {
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Presentation,
   Download,
@@ -32,7 +34,8 @@ import {
   DollarSign,
   Code,
   Users,
-  Settings
+  Settings,
+
 } from 'lucide-react';
 
 interface PitchResult {
@@ -54,6 +57,8 @@ interface PitchResult {
   };
 }
 
+
+
 interface ProjectPitchProps {
   projectId: string;
 }
@@ -74,6 +79,8 @@ export function ProjectPitch({ projectId }: ProjectPitchProps) {
     businessModel: false
   });
 
+
+
   const handleGeneratePitch = async () => {
     try {
       setIsGenerating(true);
@@ -87,6 +94,12 @@ export function ProjectPitch({ projectId }: ProjectPitchProps) {
       console.log('🎯 Generating project pitch...');
       console.log(`📝 Format: ${selectedFormat}, Sections: ${sections.join(', ')}`);
 
+      // Create AbortController with timeout for pitch generation
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, 90000); // 90 seconds timeout for pitch generation
+
       const response = await fetch(`/api/projects/${projectId}/generate-pitch`, {
         method: 'POST',
         headers: {
@@ -96,7 +109,10 @@ export function ProjectPitch({ projectId }: ProjectPitchProps) {
           format: selectedFormat,
           sections
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       const result = await response.json();
 
@@ -112,11 +128,22 @@ export function ProjectPitch({ projectId }: ProjectPitchProps) {
       }
     } catch (error) {
       console.error('❌ Pitch generation error:', error);
-      setError('Error generating pitch');
+      
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          setError('Pitch generation timed out after 90 seconds. Please try again or check your internet connection.');
+        } else {
+          setError(`Error generating pitch: ${error.message}`);
+        }
+      } else {
+        setError('Error generating pitch');
+      }
     } finally {
       setIsGenerating(false);
     }
   };
+
+
 
   const handleCopyPitch = async () => {
     if (pitchResult) {
@@ -250,6 +277,8 @@ export function ProjectPitch({ projectId }: ProjectPitchProps) {
         </Alert>
       )}
 
+
+
       {/* Configuration */}
       <Card>
         <CardHeader>
@@ -339,6 +368,8 @@ export function ProjectPitch({ projectId }: ProjectPitchProps) {
         </CardContent>
       </Card>
 
+
+
       {/* Results */}
       {pitchResult && (
         <Card>
@@ -388,6 +419,8 @@ export function ProjectPitch({ projectId }: ProjectPitchProps) {
                   })}
                 </div>
               </TabsContent>
+
+
             </Tabs>
           </CardContent>
         </Card>

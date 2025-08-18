@@ -387,6 +387,12 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
       console.log('📚 Analysis will fetch documents from Pinecone cloud storage');
       console.log('🚀 Sending analysis request...');
 
+      // Create AbortController with longer timeout for analysis operations
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, 120000); // 2 minutes timeout for analysis
+
       const response = await fetch(`/api/projects/${projectId}/analyze`, {
         method: 'POST',
         headers: {
@@ -395,7 +401,10 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
         body: JSON.stringify({
           analysisType
         }),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       const result = await response.json();
 
@@ -419,7 +428,16 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
       }
     } catch (error) {
       console.error(`❌ ${analysisType} analysis error:`, error);
-      setError('Error performing analysis');
+      
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          setError(`${analysisType.charAt(0).toUpperCase() + analysisType.slice(1)} analysis timed out after 2 minutes. Please try again or check your internet connection.`);
+        } else {
+          setError(`Error performing ${analysisType} analysis: ${error.message}`);
+        }
+      } else {
+        setError(`Error performing ${analysisType} analysis`);
+      }
     } finally {
       setIsAnalyzing(false);
     }
@@ -826,7 +844,17 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
               <div className="flex items-center justify-center py-12">
                 <div className="text-center">
                   <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
-                  <p className="text-muted-foreground">Analyzing project context...</p>
+                  <p className="text-muted-foreground">Analyzing your project with AI...</p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Processing project data and generating insights. This may take 30 seconds to 2 minutes.
+                  </p>
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg max-w-md mx-auto">
+                    <p className="text-xs text-blue-600">
+                      ⏱️ <strong>Expected time:</strong> 30s - 2min<br/>
+                      🧠 <strong>AI is processing:</strong> Documents, requirements, and generating insights<br/>
+                      💡 <strong>Tip:</strong> Larger projects may take longer
+                    </p>
+                  </div>
                 </div>
               </div>
             )}

@@ -12,6 +12,7 @@ import { ProgressDashboard } from './ProgressDashboard';
 import { ContextDocumentManager } from './ContextDocumentManager';
 import { ApiConfiguration } from './ApiConfiguration';
 import { ProjectAnalysis } from './ProjectAnalysis';
+import { SocialPostsGenerator } from './SocialPostsGenerator';
 
 import SyncStatus from './SyncStatus';
 import { EmbeddingsVisualization } from './EmbeddingsVisualization';
@@ -21,7 +22,7 @@ import { RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface ProjectDashboardLayoutProps {
   projectId: string;
-  activeTab?: 'overview' | 'requirements' | 'design' | 'tasks' | 'context' | 'api' | 'analysis' | 'enhanced-analysis' | 'progress' | 'visualization';
+  activeTab?: 'overview' | 'requirements' | 'design' | 'tasks' | 'context' | 'api' | 'analysis' | 'enhanced-analysis' | 'progress' | 'visualization' | 'social';
 }
 
 export function ProjectDashboardLayout({ 
@@ -243,6 +244,21 @@ export function ProjectDashboardLayout({
                       <div style={{ border: '2px solid', padding: '10px' }}>
                         <EmbeddingsVisualization projectId={projectId} />
                       </div>
+                    </div>
+                  </div>
+                )}
+                
+                {activeTab === 'social' && (
+                  <div className="p-6">
+                    <div className="space-y-6">
+                      <div>
+                        <h1 className="text-2xl font-bold">Social Media Posts</h1>
+                        <p className="text-gray-600">
+                          Generate engaging social media content for your project using AI-powered analysis.
+                        </p>
+                      </div>
+                      
+                      <SocialPostsGenerator projectId={projectId} />
                     </div>
                   </div>
                 )}

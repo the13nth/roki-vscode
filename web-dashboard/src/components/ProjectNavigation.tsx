@@ -14,7 +14,8 @@ import {
   Settings,
   Brain,
   BarChart3,
-  Network
+  Network,
+  Share2
 } from 'lucide-react';
 
 interface ProjectNavigationProps {
@@ -95,6 +96,13 @@ export function ProjectNavigation({ projectId, activeTab, progress }: ProjectNav
       href: `/project/${projectId}/visualization`,
       description: '3D vector space visualization of project documents',
       icon: <Network className="w-5 h-5" />
+    },
+    {
+      id: 'social',
+      name: 'Social Posts',
+      href: `/project/${projectId}/social`,
+      description: 'Generate social media content for your project',
+      icon: <Share2 className="w-5 h-5" />
     }
   ];
 

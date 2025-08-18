@@ -72,7 +72,7 @@ export async function POST(
     console.log(`🎯 Generating pitch for project ${projectId}`);
     console.log(`📝 Format: ${format}, Sections: ${sections.join(', ')}`);
 
-    // Load project documents
+    // Load project documents and analysis results
     const projectPath = path.join(process.cwd(), '.ai-project', 'projects', projectId);
     
     let requirements = '';
@@ -80,6 +80,7 @@ export async function POST(
     let tasks = '';
     let progress = null;
     let config = null;
+    let analysisResults: Record<string, any> = {};
 
     try {
       // Load project documents
@@ -106,6 +107,49 @@ export async function POST(
         config = JSON.parse(configContent);
       } catch (error) {
         console.log('No config file found');
+      }
+
+      // Load project data from Pinecone for accurate metadata
+      try {
+        console.log('🗃️ Loading project data from Pinecone...');
+        const { PineconeSyncServiceInstance } = await import('@/lib/pineconeSyncService');
+        const pineconeResult = await PineconeSyncServiceInstance.downloadProject(projectId);
+        
+        if (pineconeResult.success && pineconeResult.data?.project) {
+          const projectData = pineconeResult.data.project;
+          console.log('✅ Loaded project data from Pinecone:', projectData.name);
+          
+          // Override config with actual project data
+          config = {
+            name: projectData.name || config?.name || 'Unnamed Project',
+            description: projectData.description || config?.description || 'No description available',
+            template: projectData.template || config?.template || 'Unknown',
+            ...config
+          };
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to load project data from Pinecone:', error);
+      }
+
+      // Load saved analysis results
+      try {
+        console.log('📊 Loading saved analysis results...');
+        const analysesResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/projects/${projectId}/analyses`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (analysesResponse.ok) {
+          const analysesData = await analysesResponse.json();
+          if (analysesData.success && analysesData.analyses) {
+            analysisResults = analysesData.analyses;
+            console.log(`✅ Loaded ${Object.keys(analysisResults).length} analysis results: ${Object.keys(analysisResults).join(', ')}`);
+          }
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to load analysis results:', error);
       }
 
     } catch (error) {
@@ -174,6 +218,23 @@ ${progress ? `
 - Progress: ${progress.percentage || 0}%
 - Last Updated: ${progress.lastUpdated || 'Unknown'}
 ` : 'No progress data available'}
+
+ANALYSIS RESULTS:
+${Object.keys(analysisResults).length > 0 ? Object.entries(analysisResults).map(([type, data]) => `
+${type.toUpperCase()} ANALYSIS:
+${data.summary ? `Summary: ${data.summary}` : ''}
+${data.strengths ? `Strengths: ${Array.isArray(data.strengths) ? data.strengths.join(', ') : data.strengths}` : ''}
+${data.weaknesses ? `Weaknesses: ${Array.isArray(data.weaknesses) ? data.weaknesses.join(', ') : data.weaknesses}` : ''}
+${data.opportunities ? `Opportunities: ${Array.isArray(data.opportunities) ? data.opportunities.join(', ') : data.opportunities}` : ''}
+${data.threats ? `Threats: ${Array.isArray(data.threats) ? data.threats.join(', ') : data.threats}` : ''}
+${data.marketSize ? `Market Size: ${data.marketSize}` : ''}
+${data.targetAudience ? `Target Audience: ${data.targetAudience}` : ''}
+${data.competitiveAdvantage ? `Competitive Advantage: ${data.competitiveAdvantage}` : ''}
+${data.revenueStreams ? `Revenue Streams: ${Array.isArray(data.revenueStreams) ? data.revenueStreams.join(', ') : data.revenueStreams}` : ''}
+${data.keyTechnologies ? `Key Technologies: ${Array.isArray(data.keyTechnologies) ? data.keyTechnologies.join(', ') : data.keyTechnologies}` : ''}
+${data.scalabilityConsiderations ? `Scalability: ${data.scalabilityConsiderations}` : ''}
+${data.riskAssessment ? `Risk Assessment: ${data.riskAssessment}` : ''}
+`).join('\n') : 'No analysis results available'}
 
 INSTRUCTIONS:
 Generate a professional project pitch with the following sections:
