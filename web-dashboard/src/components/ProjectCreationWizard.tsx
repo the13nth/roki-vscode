@@ -158,6 +158,83 @@ const REGULATORY_STACK_OPTIONS = [
     features: ['Card data protection', 'Network security', 'Vulnerability management', 'Access control']
   },
   {
+    id: 'rwanda-tax',
+    name: 'Rwanda Tax Regime',
+    description: 'Rwanda Revenue Authority compliance',
+    icon: '🇷🇼',
+    features: ['VAT compliance', 'Income tax reporting', 'Electronic billing system', 'Tax return filing']
+  },
+  {
+    id: 'rwanda-data-protection',
+    name: 'Rwanda Personal Data Law',
+    description: 'Rwanda Data Protection and Privacy Law',
+    icon: '🇷🇼',
+    features: ['Personal data protection', 'Data subject rights', 'Cross-border data transfer', 'Data breach notification']
+  },
+  {
+    id: 'rwanda-ict',
+    name: 'Rwanda ICT Regulation',
+    description: 'Rwanda Utilities Regulatory Authority (RURA)',
+    icon: '🇷🇼',
+    features: ['ICT service licensing', 'Telecommunications compliance', 'Digital service standards', 'Cybersecurity requirements']
+  },
+  {
+    id: 'eac-common-market',
+    name: 'EAC Common Market',
+    description: 'East African Community trade regulations',
+    icon: '🌍',
+    features: ['Regional trade compliance', 'Customs procedures', 'Standards harmonization', 'Cross-border services']
+  },
+  {
+    id: 'african-union-data',
+    name: 'AU Data Protection',
+    description: 'African Union Convention on Cyber Security',
+    icon: '🌍',
+    features: ['Continental data protection', 'Cybersecurity standards', 'Digital identity', 'Cross-border cooperation']
+  },
+  {
+    id: 'kenya-dpo',
+    name: 'Kenya Data Protection',
+    description: 'Kenya Data Protection Act 2019',
+    icon: '🇰🇪',
+    features: ['Personal data processing', 'Data subject consent', 'Data controller obligations', 'ODPC compliance']
+  },
+  {
+    id: 'nigeria-ndpr',
+    name: 'Nigeria NDPR',
+    description: 'Nigeria Data Protection Regulation',
+    icon: '🇳🇬',
+    features: ['Data protection compliance', 'Privacy impact assessment', 'Data audit', 'NITDA requirements']
+  },
+  {
+    id: 'south-africa-popia',
+    name: 'South Africa POPIA',
+    description: 'Protection of Personal Information Act',
+    icon: '🇿🇦',
+    features: ['Information protection', 'Processing conditions', 'Information officer', 'IRMA compliance']
+  },
+  {
+    id: 'ghana-dpa',
+    name: 'Ghana Data Protection',
+    description: 'Ghana Data Protection Act 2012',
+    icon: '🇬🇭',
+    features: ['Personal data protection', 'Data controller registration', 'Processing principles', 'DPC compliance']
+  },
+  {
+    id: 'morocco-data-protection',
+    name: 'Morocco Data Protection',
+    description: 'Morocco Law 09-08 on Personal Data',
+    icon: '🇲🇦',
+    features: ['Personal data processing', 'CNDP authorization', 'Data security', 'International transfers']
+  },
+  {
+    id: 'afcfta-compliance',
+    name: 'AfCFTA Compliance',
+    description: 'African Continental Free Trade Area',
+    icon: '🌍',
+    features: ['Continental trade rules', 'Digital trade provisions', 'Investment protocols', 'Dispute resolution']
+  },
+  {
     id: 'custom-reg',
     name: 'Custom Regulatory',
     description: 'Other regulatory requirements',
@@ -165,6 +242,61 @@ const REGULATORY_STACK_OPTIONS = [
     features: ['Flexible compliance', 'Custom frameworks', 'Industry specific', 'Tailored approach']
   }
 ];
+
+// Function to get project-type-specific prompts and placeholders
+const getProjectTypeContent = (template: string) => {
+  switch (template) {
+    case 'business':
+      return {
+        descriptionLabel: 'Business Description *',
+        descriptionPlaceholder: 'Describe what kind of business or business initiative you want to build, its main objectives, target market, key stakeholders, and any specific business requirements or constraints...',
+        helpText: 'Be as detailed as possible about your business goals, market strategy, and regulatory requirements to help generate better business requirements and tasks.',
+        title: 'Business Description & Regulatory Stack'
+      };
+    case 'web-app':
+      return {
+        descriptionLabel: 'Web Application Description *',
+        descriptionPlaceholder: 'Describe what kind of web application you want to build, its main features, target users, user interface requirements, and any specific technical requirements...',
+        helpText: 'Be as detailed as possible about functionality, user experience, and technical requirements to help generate better project requirements and tasks.',
+        title: 'Web Application Description & Technology Stack'
+      };
+    case 'api':
+      return {
+        descriptionLabel: 'API Description *',
+        descriptionPlaceholder: 'Describe what kind of API you want to build, its main endpoints, data models, authentication requirements, and integration needs...',
+        helpText: 'Be as detailed as possible about API functionality, data structures, and integration requirements to help generate better project requirements and tasks.',
+        title: 'API Description & Technology Stack'
+      };
+    case 'mobile':
+      return {
+        descriptionLabel: 'Mobile App Description *',
+        descriptionPlaceholder: 'Describe what kind of mobile application you want to build, its main features, target platforms, user interface requirements, and any specific mobile capabilities needed...',
+        helpText: 'Be as detailed as possible about mobile functionality, platform requirements, and user experience to help generate better project requirements and tasks.',
+        title: 'Mobile App Description & Technology Stack'
+      };
+    case 'desktop':
+      return {
+        descriptionLabel: 'Desktop Application Description *',
+        descriptionPlaceholder: 'Describe what kind of desktop application you want to build, its main features, target operating systems, user interface requirements, and system integration needs...',
+        helpText: 'Be as detailed as possible about desktop functionality, platform requirements, and system integration to help generate better project requirements and tasks.',
+        title: 'Desktop Application Description & Technology Stack'
+      };
+    case 'library':
+      return {
+        descriptionLabel: 'Library/Package Description *',
+        descriptionPlaceholder: 'Describe what kind of library or package you want to build, its main functionality, target developers, API design, and distribution requirements...',
+        helpText: 'Be as detailed as possible about library functionality, API design, and developer experience to help generate better project requirements and tasks.',
+        title: 'Library/Package Description & Technology Stack'
+      };
+    default:
+      return {
+        descriptionLabel: 'Project Description *',
+        descriptionPlaceholder: 'Describe what kind of project you want to build, its main features, target users, and any specific requirements...',
+        helpText: 'Be as detailed as possible to help generate better project requirements and tasks.',
+        title: 'Project Description & Technology Stack'
+      };
+  }
+};
 
 export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCreationWizardProps) {
   const [step, setStep] = useState(1);
@@ -596,7 +728,7 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-medium text-gray-900 mb-4">
-                  Project Description & {formData.template === 'business' ? 'Regulatory Stack' : 'Technology Stack'}
+                  {getProjectTypeContent(formData.template).title}
                 </h3>
                 
                 <div className="space-y-6">
@@ -604,7 +736,7 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                        Project Description *
+                        {getProjectTypeContent(formData.template).descriptionLabel}
                       </label>
                       <button
                         type="button"
@@ -638,11 +770,11 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
                       className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                         errors.description ? 'border-red-300' : 'border-gray-300'
                       }`}
-                      placeholder="Describe what kind of app you want to build, its main features, target users, and any specific requirements..."
+                      placeholder={getProjectTypeContent(formData.template).descriptionPlaceholder}
                     />
                     {errors.description && <p className="mt-1 text-sm text-red-600">{errors.description}</p>}
                     <p className="mt-1 text-sm text-gray-500">
-                      Be as detailed as possible to help generate better project requirements and tasks.
+                      {getProjectTypeContent(formData.template).helpText}
                       {errors.description && errors.description.includes('AI configuration not found') && (
                         <span className="block mt-2 text-blue-600">
                           💡 Tip: Click the settings icon (⚙️) in the top navigation to configure your AI provider.
@@ -661,7 +793,7 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
 
                         <p className="text-sm text-gray-600 mt-1">
                           {formData.template === 'business' 
-                            ? 'Select your regulatory and compliance requirements (optional - you can change these later)'
+                            ? 'Select your business regulatory and compliance requirements (optional - you can change these later)'
                             : 'Select your preferred technologies (optional - you can change these later)'
                           }
                         </p>

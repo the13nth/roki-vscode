@@ -63,6 +63,24 @@ export async function GET(request: NextRequest) {
         }
       };
 
+      const handleConfigChanged = (event: any) => {
+        if (event.projectId === projectId) {
+          sendEvent('configChanged', event);
+        }
+      };
+
+      const handleIntegrityWarning = (event: any) => {
+        if (event.projectId === projectId) {
+          sendEvent('integrityWarning', event);
+        }
+      };
+
+      const handleWatcherError = (event: any) => {
+        if (event.projectId === projectId) {
+          sendEvent('watcherError', event);
+        }
+      };
+
       // Register event listeners (for cloud projects, these would be triggered by API calls)
       // For now, we'll just send periodic updates since we don't have real-time file watching
 
@@ -77,7 +95,7 @@ export async function GET(request: NextRequest) {
       // Clean up when connection closes
       const cleanup = () => {
         clearInterval(heartbeatInterval);
-        globalFileWatcher.off('fileChanged', handleFileChanged);
+        // globalFileWatcher.off('fileChanged', handleFileChanged);
         globalFileWatcher.off('requirementsChanged', handleRequirementsChanged);
         globalFileWatcher.off('designChanged', handleDesignChanged);
         globalFileWatcher.off('tasksChanged', handleTasksChanged);
@@ -100,7 +118,7 @@ export async function GET(request: NextRequest) {
 
     cancel() {
       // Additional cleanup if needed
-      console.log(`SSE connection closed for project: ${projectPath}`);
+      console.log(`SSE connection closed for project: ${projectId}`);
     }
   });
 

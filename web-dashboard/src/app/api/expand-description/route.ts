@@ -464,7 +464,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       if (jsonMatch) {
         console.log('📋 Found JSON match:', jsonMatch);
         try {
-          const parsedResponse = JSON.parse(jsonMatch);
+          const parsedResponse = JSON.parse(Array.isArray(jsonMatch) ? jsonMatch[0] : jsonMatch);
           console.log('✅ Parsed JSON:', parsedResponse);
           
           // Check if it has the expected structure
@@ -478,7 +478,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           }
           
           // Remove the JSON from the description
-          const jsonStartIndex = aiResponse.content.indexOf(jsonMatch);
+          const jsonString = Array.isArray(jsonMatch) ? jsonMatch[0] : jsonMatch;
+          const jsonStartIndex = aiResponse.content.indexOf(jsonString);
           if (jsonStartIndex !== -1) {
             expandedDescription = aiResponse.content.substring(0, jsonStartIndex).trim();
           }
@@ -491,8 +492,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           
           // Try to fix malformed JSON and parse again
           try {
-            console.log('🔧 Attempting to fix malformed JSON...');
-            let fixedJson = jsonMatch;
+                      console.log('🔧 Attempting to fix malformed JSON...');
+          let fixedJson = Array.isArray(jsonMatch) ? jsonMatch[0] : jsonMatch;
             
             // Fix the specific issue: empty technologyStack object with properties at root level
             if (fixedJson.includes('"technologyStack": {}') && 
@@ -519,7 +520,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
               reasoning = 'Technology stack recommended based on project requirements.';
               
               // Remove the malformed JSON from the description
-              const jsonStartIndex = aiResponse.content.indexOf(jsonMatch);
+              const jsonString = Array.isArray(jsonMatch) ? jsonMatch[0] : jsonMatch;
+              const jsonStartIndex = aiResponse.content.indexOf(jsonString);
               if (jsonStartIndex !== -1) {
                 expandedDescription = aiResponse.content.substring(0, jsonStartIndex).trim();
               }

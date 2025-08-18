@@ -513,17 +513,24 @@ export class ProgressTrackerImpl implements ProgressTracker {
                 continue;
             }
 
-            // Check if this is a task line
-            const taskMatch = line.match(/^(\s*)-\s*\[([ x])\]\s*(.+)$/);
+            // Check if this is a task line using the same regex as web dashboard
+            const taskMatch = line.match(/^[\s]*-[\s]*\[([x\s])\]/);
             if (taskMatch) {
-                const [, indent, status, taskText] = taskMatch;
+                const status = taskMatch[1];
+                const isCompleted = status.toLowerCase() === 'x';
+                
+                // Calculate indentation level (count leading spaces/tabs)
+                const leadingWhitespace = line.match(/^(\s*)/)?.[1] || '';
+                const level = leadingWhitespace.length;
+                
+                // Extract task text after the checkbox
+                const taskText = line.replace(/^[\s]*-[\s]*\[[x\s]\][\s]*/, '').trim();
                 
                 // Extract task ID and title from the task text
                 const taskIdMatch = taskText.match(/^(\d+(?:\.\d+)?)\s+(.+)$/);
                 const taskId = taskIdMatch ? taskIdMatch[1] : `task-${taskCounter + 1}`;
                 const title = taskIdMatch ? taskIdMatch[2] : taskText;
-                const level = Math.floor(indent.length / 2);
-                const isCompleted = status.toLowerCase() === 'x';
+                
                 taskCounter++;
 
                 const trimmedTaskId = taskId.trim();

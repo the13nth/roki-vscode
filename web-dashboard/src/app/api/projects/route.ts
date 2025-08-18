@@ -39,8 +39,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, description, template, aiModel, technologyStack } = body;
-    console.log('Received project creation request:', { name, description, template, aiModel, technologyStack });
+    const { name, description, template, aiModel, technologyStack, regulatoryCompliance } = body;
+    console.log('Received project creation request:', { name, description, template, aiModel, technologyStack, regulatoryCompliance });
 
     // Validate required fields
     if (!name || !description || !template) {
@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
       template,
       aiModel: aiModel || 'gpt-4',
       technologyStack,
+      regulatoryCompliance,
       contextPreferences: {
         maxContextSize: 8000,
         prioritizeRecent: true,

@@ -156,13 +156,13 @@ export async function PUT(
 
     switch (type) {
       case 'requirements':
-        updateData.requirements = content;
+        (updateData as any).requirements = content;
         break;
       case 'design':
-        updateData.design = content;
+        (updateData as any).design = content;
         break;
       case 'tasks':
-        updateData.tasks = content;
+        (updateData as any).tasks = content;
         
         // Parse tasks to update progress data
         const taskStats = parseTasksFromMarkdown(content);
@@ -173,16 +173,16 @@ export async function PUT(
         });
         
         // Update progress data with accurate task counts
-        if (project.progress) {
-          updateData.progress = {
-            ...project.progress,
+        if ((project as any).progress) {
+          (updateData as any).progress = {
+            ...(project as any).progress,
             totalTasks: taskStats.totalTasks,
             completedTasks: taskStats.completedTasks,
             percentage: taskStats.percentage,
             lastUpdated: new Date().toISOString()
           };
         } else {
-          updateData.progress = {
+          (updateData as any).progress = {
             totalTasks: taskStats.totalTasks,
             completedTasks: taskStats.completedTasks,
             percentage: taskStats.percentage,
@@ -217,13 +217,13 @@ export async function PUT(
         
         switch (type) {
           case 'requirements':
-            minimalUpdate.requirements = content;
+            (minimalUpdate as any).requirements = content;
             break;
           case 'design':
-            minimalUpdate.design = content;
+            (minimalUpdate as any).design = content;
             break;
           case 'tasks':
-            minimalUpdate.tasks = content;
+            (minimalUpdate as any).tasks = content;
             // Don't update progress here to avoid the embedding issue
             break;
         }
@@ -237,7 +237,7 @@ export async function PUT(
              if (type === 'tasks') {
                try {
                  const taskStats = parseTasksFromMarkdown(content);
-                 const progressUpdate = {
+                 const progressUpdate: any = {
                    progress: {
                      totalTasks: taskStats.totalTasks,
                      completedTasks: taskStats.completedTasks,

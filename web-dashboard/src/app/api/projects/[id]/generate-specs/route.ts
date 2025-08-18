@@ -60,7 +60,8 @@ async function callGoogleAI(config: ApiConfiguration, prompt: string): Promise<{
 }
 
 function generateSpecsPrompt(projectData: any): string {
-  const { name, description, template, technologyStack } = projectData;
+  const { name, description, template, technologyStack, regulatoryCompliance } = projectData;
+  const isBusinessTemplate = template === 'business';
   
   const techStackText = technologyStack ? `
 Technology Stack:
@@ -71,12 +72,27 @@ Technology Stack:
 - Hosting: ${technologyStack.hosting || 'Not specified'}
 ` : '';
 
-  return `You are an expert software architect and project manager. Generate comprehensive project specifications for the following project:
+  const regulatoryText = regulatoryCompliance && regulatoryCompliance.length > 0 ? `
+Regulatory Compliance Requirements:
+${regulatoryCompliance.map((reg: string) => `- ${reg}`).join('\n')}
+
+${isBusinessTemplate ? `
+## Special Considerations for African/Rwanda Regulations:
+- If Rwanda Tax Regime is selected: Include VAT compliance requirements, electronic billing system integration, and RRA reporting mechanisms
+- If Rwanda Personal Data Law is selected: Include data subject consent mechanisms, data breach notification procedures, and cross-border data transfer controls
+- If Rwanda ICT Regulation is selected: Include RURA licensing requirements, telecommunications compliance standards, and cybersecurity protocols
+- If EAC Common Market is selected: Include regional trade compliance, customs integration, and standards harmonization
+- If African Union data protection is selected: Include continental data protection standards and cross-border cooperation mechanisms
+- If other African country regulations are selected: Include specific local compliance requirements and integration with local regulatory bodies
+` : ''}
+` : '';
+
+  return `You are an expert ${isBusinessTemplate ? 'business analyst and regulatory consultant' : 'software architect and project manager'}. Generate comprehensive project specifications for the following project:
 
 Project Name: ${name}
 Template: ${template}
 Description: ${description}
-${techStackText}
+${techStackText}${regulatoryText}
 
 Please generate three separate markdown documents following these EXACT formats:
 

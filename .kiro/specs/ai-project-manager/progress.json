@@ -1,8 +1,21 @@
 {
-  "totalTasks": 7,
+  "totalTasks": 30,
   "completedTasks": 0,
   "percentage": 0,
-  "lastUpdated": "2025-08-18T10:54:57.328Z",
-  "recentActivity": [],
+  "lastUpdated": "2025-08-18T12:04:57.495Z",
+  "recentActivity": [
+    {
+      "taskId": "task-1",
+      "title": "1. Backend Development",
+      "completedAt": "2025-08-18T10:59:57.439Z",
+      "completedBy": "auto-detection"
+    },
+    {
+      "taskId": "1.1",
+      "title": "Design and implement API endpoints for Business Model Canvas (Requirements: 1.1)",
+      "completedAt": "2025-08-18T10:59:57.439Z",
+      "completedBy": "auto-detection"
+    }
+  ],
   "milestones": []
 }
