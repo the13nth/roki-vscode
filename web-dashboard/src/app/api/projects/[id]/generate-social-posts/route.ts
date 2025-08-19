@@ -268,7 +268,7 @@ export async function POST(
     // Generate platform-specific character limits and guidelines
     const platformLimits = {
       twitter: { limit: 280, style: 'Concise and engaging, use trending hashtags' },
-      linkedin: { limit: 3000, style: 'Professional and detailed, focus on business value' },
+      linkedin: { limit: 5000, style: 'Professional and detailed, focus on business value' },
       facebook: { limit: 2000, style: 'Engaging and community-focused' },
       instagram: { limit: 2200, style: 'Visual-first, use relevant hashtags' },
       tiktok: { limit: 150, style: 'Catchy and trend-aware' },

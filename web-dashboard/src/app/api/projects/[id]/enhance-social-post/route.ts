@@ -31,7 +31,8 @@ function getGlobalConfigPath(): string {
 interface EnhanceSocialPostRequest {
   originalContent: string;
   platform: string;
-  enhanceAdditions: string;
+  improvementDetails: string; // Updated to match component usage
+  enhanceAdditions?: string; // Keep for backward compatibility
   postType?: 'promotional' | 'story' | 'educational' | 'announcement' | 'behind-the-scenes' | 'testimonial' | 'question' | 'inspirational';
   tone?: 'professional' | 'casual' | 'enthusiastic' | 'technical';
   includeHashtags?: boolean;
@@ -42,6 +43,7 @@ interface EnhanceSocialPostRequest {
 interface EnhanceSocialPostResult {
   success: boolean;
   enhancedContent: string;
+  improvedContent: string; // Add alias for component compatibility
   tokenUsage: {
     totalTokens: number;
     cost: number;
@@ -69,7 +71,8 @@ export async function POST(
     const { 
       originalContent,
       platform,
-      enhanceAdditions,
+      improvementDetails,
+      enhanceAdditions, // Keep for backward compatibility
       postType = 'promotional',
       tone = 'professional',
       includeHashtags = true,
@@ -77,14 +80,17 @@ export async function POST(
       postBackground = ''
     } = body;
 
-    if (!originalContent || !platform || !enhanceAdditions?.trim()) {
+    // Use improvementDetails if provided, otherwise fall back to enhanceAdditions
+    const enhancementText = improvementDetails || enhanceAdditions;
+
+    if (!originalContent || !platform || !enhancementText?.trim()) {
       console.error('❌ Missing required fields:', { 
         hasOriginalContent: !!originalContent, 
         hasPlatform: !!platform, 
-        hasEnhanceAdditions: !!enhanceAdditions?.trim()
+        hasEnhancementText: !!enhancementText?.trim()
       });
       return NextResponse.json(
-        { success: false, error: 'Missing required fields: originalContent, platform, and enhanceAdditions are required' },
+        { success: false, error: 'Missing required fields: originalContent, platform, and improvementDetails are required' },
         { status: 400 }
       );
     }
@@ -238,7 +244,7 @@ POST TYPE: ${postType}
 TONE: ${tone}
 
 ENHANCEMENT INSTRUCTIONS:
-${enhanceAdditions}
+${enhancementText}
 
 REQUIREMENTS:
 - Maintain the core message and authenticity of the original post
@@ -314,6 +320,7 @@ Enhanced post:`;
     const result: EnhanceSocialPostResult = {
       success: true,
       enhancedContent: enhancedContent.trim(),
+      improvedContent: enhancedContent.trim(), // Add alias for component compatibility
       tokenUsage
     };
 

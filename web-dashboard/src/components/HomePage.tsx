@@ -707,7 +707,7 @@ export function HomePage() {
             <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
               Join the AI Project Manager 
               <span className="text-black"> Waitlist</span>
-            </h2>
+          </h2>
             
             <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
               Be among the first to experience the next generation of AI-powered project management. 
@@ -782,7 +782,7 @@ export function HomePage() {
                           Join Waitlist
                         </>
                       )}
-                    </Button>
+                </Button>
                   </div>
                   
                   {waitlistStatus === 'success' && (
@@ -905,9 +905,9 @@ export function HomePage() {
             <p className="text-gray-400 text-sm">
               © {new Date().getFullYear()} AI Project Manager. All rights reserved. 
               <span className="ml-2">Built with intelligence, designed for success.</span>
-            </p>
-          </div>
+          </p>
         </div>
+      </div>
       </footer>
     </div>
   );
