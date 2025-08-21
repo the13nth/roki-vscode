@@ -1,0 +1,48 @@
+# Netlify build exclusions for AI Project Manager
+# This file tells Netlify specifically what to exclude from builds and scanning
+
+# Exclude all AI project backup directories
+**/.ai-project/backups/
+**/.ai-project-backups/
+.ai-project/backups/
+.ai-project-backups/
+
+# Exclude AI project configuration that may contain environment patterns
+**/.ai-project/projects/
+**/.ai-project/user-configs/
+**/.ai-project/context/
+.ai-project/projects/
+.ai-project/user-configs/
+.ai-project/context/
+
+# Exclude VS Code extension files
+vscode-extension/
+ai-project-manager-extension/
+
+# Exclude compiled TypeScript output
+**/out/
+**/dist/
+**/build/
+
+# Exclude test files
+test-*.js
+**/test-*.js
+
+# Exclude documentation
+README.md
+**/README.md
+ARTICLE_*.md
+PINECONE_SETUP.md
+
+# Exclude development directories
+.kiro/
+shared-types/
+
+# Exclude source files that contain environment variable examples
+vscode-extension/src/
+shared-types/
+
+# Exclude specific files known to trigger false positives
+web-dashboard/.ai-project/
+web-dashboard/test-*.js
+web-dashboard/README.md

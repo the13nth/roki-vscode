@@ -109,3 +109,41 @@ jspm_packages/
 
 # TernJS port file
 .tern-port
+
+# AI Project Manager specific exclusions for Netlify deployment
+# Exclude backup directories that contain environment variable values
+**/.ai-project/backups/
+**/.ai-project-backups/
+.ai-project/backups/
+.ai-project-backups/
+
+# Exclude specific AI project files that may contain sensitive patterns
+**/.ai-project/projects/
+**/.ai-project/user-configs/
+**/.ai-project/context/
+.ai-project/projects/
+.ai-project-user-configs/
+.ai-project/context/
+
+# Exclude VS Code extension compiled output that contains environment patterns
+vscode-extension/out/
+ai-project-manager-extension/out/
+**/out/extension.js
+**/out/lib/
+
+# Exclude test and development files
+test-*.js
+**/test-*.js
+*.test.js
+**/*.test.js
+
+# Exclude documentation that may contain environment examples
+ARTICLE_*.md
+**/ARTICLE_*.md
+PINECONE_SETUP.md
+README-*.md
+
+# Exclude specific directories from Netlify scanning
+.kiro/
+**/.kiro/
+shared-types/

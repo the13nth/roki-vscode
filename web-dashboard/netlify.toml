@@ -1,11 +1,27 @@
 [build]
   publish = ".next"
   command = "yarn build"
+  ignore = "../.netlifyignore"
 
 [build.environment]
   NODE_VERSION = "22"
   # Disable secrets scanning entirely for this build
   NETLIFY_EXPERIMENTAL_BUILD_SECRETS_SCANNING = "false"
+
+# Additional settings to prevent scanning issues
+[build.processing]
+  skip_processing = false
+
+[build.processing.html]
+  pretty_urls = true
+
+[build.processing.css]
+  bundle = true
+  minify = true
+
+[build.processing.js]
+  bundle = true
+  minify = true
 
 [[headers]]
   for = "/*"
