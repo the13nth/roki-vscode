@@ -1155,7 +1155,7 @@ function getTasksTemplate(projectName, template) {
 - [ ] 1. Set up project structure
   - Create project directories and files
   - Initialize version control
-  - Set up development environment
+  - Set up development setup
   - Configure build tools and dependencies
 
 ${templateTasks}
@@ -1294,7 +1294,7 @@ Important configuration details...
 ## Development Notes
 
 ### Getting Started
-Steps to set up the development environment...
+Steps to set up the development setup...
 
 ### Common Tasks
 Frequently used commands and procedures...
