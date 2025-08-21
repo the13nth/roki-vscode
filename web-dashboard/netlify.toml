@@ -1,6 +1,7 @@
 [build]
   publish = ".next"
   command = "yarn build"
+  base = "web-dashboard"
   ignore = "../.netlifyignore"
 
 [build.environment]
