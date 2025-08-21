@@ -6,12 +6,20 @@ export function getPineconeClient(): Pinecone {
   if (!pinecone) {
     const apiKey = process.env.NEXT_PUBLIC_PINECONE_API_KEY || process.env.PINECONE_API_KEY;
     if (!apiKey) {
-      throw new Error('NEXT_PUBLIC_PINECONE_API_KEY or PINECONE_API_KEY environment variable is required');
+      // During build time, use a dummy client to prevent build failures
+      if (process.env.NODE_ENV !== 'production' && typeof window === 'undefined') {
+        console.warn('Pinecone API key not found during build - using dummy client');
+        pinecone = new Pinecone({
+          apiKey: 'build-time-dummy-key',
+        });
+      } else {
+        throw new Error('NEXT_PUBLIC_PINECONE_API_KEY or PINECONE_API_KEY environment variable is required');
+      }
+    } else {
+      pinecone = new Pinecone({
+        apiKey: apiKey,
+      });
     }
-    
-    pinecone = new Pinecone({
-      apiKey: apiKey,
-    });
   }
   
   return pinecone;

@@ -55,6 +55,16 @@ class SecureConfigManager {
     const encryptionSalt = process.env.ENCRYPTION_SALT;
     const isProduction = process.env.NODE_ENV === 'production';
 
+    // Allow missing encryption config during build time
+    if ((!encryptionKey || !encryptionSalt) && process.env.NODE_ENV !== 'production') {
+      this.logAudit('LOAD_SECURITY_CONFIG', false, 'Missing encryption configuration - using defaults for build');
+      return {
+        encryptionKey: 'build-time-fallback-key-32-chars!!',
+        encryptionSalt: 'build-time-fallback-salt-16-chars!!',
+        isProduction: false
+      };
+    }
+
     if (!encryptionKey || !encryptionSalt) {
       this.logAudit('LOAD_SECURITY_CONFIG', false, 'Missing encryption configuration');
       throw new Error('Missing encryption configuration. Please set ENCRYPTION_KEY and ENCRYPTION_SALT environment variables.');
