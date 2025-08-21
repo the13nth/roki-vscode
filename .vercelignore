@@ -1,0 +1,44 @@
+# Vercel deployment exclusions for monorepo
+# Include only web-dashboard and necessary config
+
+# Exclude VS Code extension entirely
+vscode-extension/
+ai-project-manager-extension/
+
+# Exclude development directories  
+.kiro/
+shared-types/
+
+# Exclude documentation
+README.md
+*.md
+!web-dashboard/README.md
+
+# Exclude Netlify files
+netlify.toml
+web-dashboard/netlify.toml
+web-dashboard/build.sh
+.netlifyignore
+web-dashboard/.netlifyignore
+
+# Exclude backup and temp files
+*.backup
+*.bak
+*.tmp
+**/.ai-project/
+
+# Standard exclusions
+.env.local
+.env.development
+.env.test
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Let Vercel handle these
+node_modules/
+.next/
+out/
+dist/

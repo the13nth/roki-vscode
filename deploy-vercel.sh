@@ -14,12 +14,9 @@ if ! command -v vercel &> /dev/null; then
     npm i -g vercel
 fi
 
-# Navigate to web-dashboard
-cd web-dashboard
+echo "🔧 Setting up Vercel project for monorepo..."
 
-echo "🔧 Setting up Vercel project..."
-
-# Deploy to Vercel
+# Deploy to Vercel from root (monorepo setup)
 echo "🚀 Deploying to Vercel..."
 vercel --prod
 

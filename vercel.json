@@ -1,12 +1,23 @@
 {
-  "buildCommand": "yarn build",
-  "outputDirectory": ".next",
-  "installCommand": "yarn install",
-  "devCommand": "yarn dev",
-  "framework": "nextjs",
-  "regions": ["iad1"],
+  "name": "ai-project-manager",
+  "version": 2,
+  "builds": [
+    {
+      "src": "web-dashboard/package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "web-dashboard/$1"
+    }
+  ],
   "functions": {
-    "app/api/**": {
+    "web-dashboard/src/app/api/**/*.ts": {
       "maxDuration": 30
     }
   },
@@ -31,13 +42,6 @@
           "value": "strict-origin-when-cross-origin"
         }
       ]
-    }
-  ],
-  "redirects": [
-    {
-      "source": "/dashboard",
-      "destination": "/projects",
-      "permanent": false
     }
   ]
 }
