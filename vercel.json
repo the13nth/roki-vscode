@@ -6,7 +6,7 @@
   "devCommand": "cd web-dashboard && yarn dev",
   "framework": "nextjs",
   "functions": {
-    "web-dashboard/src/app/api/**/*.ts": {
+    "app/api/**": {
       "maxDuration": 30
     }
   },
