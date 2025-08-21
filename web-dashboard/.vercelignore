@@ -1,0 +1,46 @@
+# Vercel deployment exclusions
+# Only include what's necessary for the web dashboard
+
+# Development files
+.env.local
+.env.development
+.env.test
+*.log
+
+# Build outputs (Vercel will build fresh)
+.next/
+out/
+dist/
+build/
+
+# Dependencies (Vercel will install fresh)
+node_modules/
+
+# IDE files
+.vscode/
+.idea/
+
+# Test files
+test-*.js
+*.test.js
+**/*.test.js
+
+# Documentation
+README.md
+*.md
+
+# Backup files
+*.backup
+*.bak
+
+# Local AI project data
+.ai-project/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Netlify files (not needed for Vercel)
+netlify.toml
+build.sh
+.netlifyignore
