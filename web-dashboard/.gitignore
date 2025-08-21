@@ -42,7 +42,12 @@ yarn-error.log*
 .ai-project/**/config.json
 .ai-project/backups/
 .ai-project/projects/
+.ai-project-backups/
 **/*.deleted.*
+**/*.backup.*
+
+# User config files
+.ai-project/user-configs/
 
 # Backup files
 *.backup

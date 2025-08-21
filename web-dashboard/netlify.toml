@@ -1,34 +1,40 @@
 [build]
-  publish = ".next"
-  command = "yarn build"
+  publish = "web-dashboard"
 
 [build.environment]
-  # Disable secrets scanning for public environment variables
-  NETLIFY_EXPERIMENTAL_BUILD_SECRETS_SCANNING = "false"
+  NODE_VERSION = "22"
 
-# Alternative approach: Configure secrets scanning to ignore specific patterns
-[context.production]
-  [context.production.build]
-    # Ignore common public environment variables
-    ignore_secrets = [
-      "NEXT_PUBLIC_*",
-      "NODE_ENV",
-      "GOOGLE_AI_MODEL"
-    ]
+# Secrets scanning configuration
+[secrets_scanning]
+  enabled = true
+  
+  # Exclude paths that contain false positives
+  omit_paths = [
+    "**/.ai-project/backups/**",
+    "**/.ai-project-backups/**", 
+    "**/.ai-project/projects/**",
+    "**/.ai-project/user-configs/**",
+    "**/out/**",
+    "**/node_modules/**",
+    "**/*.backup.*",
+    "**/*.deleted.*",
+    ".ai-project/context/**",
+    "ARTICLE_Getting_Started_Guide.md",
+    ".kiro/**"
+  ]
+  
+  # Exclude specific secret keys that are false positives
+  omit_keys = [
+    "NODE_ENV",
+    "NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL", 
+    "NEXT_PUBLIC_CLERK_SIGN_IN_URL",
+    "GOOGLE_AI_MODEL"
+  ]
 
-[context.deploy-preview]
-  [context.deploy-preview.build]
-    ignore_secrets = [
-      "NEXT_PUBLIC_*", 
-      "NODE_ENV",
-      "GOOGLE_AI_MODEL"
-    ]
-
-[context.branch-deploy]
-  [context.branch-deploy.build]
-    ignore_secrets = [
-      "NEXT_PUBLIC_*",
-      "NODE_ENV", 
-      "GOOGLE_AI_MODEL"
-    ]
-
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
