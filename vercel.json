@@ -1,36 +1,19 @@
 {
   "name": "ai-project-manager",
-  "buildCommand": "cd web-dashboard && yarn build",
-  "outputDirectory": "web-dashboard/.next",
-  "installCommand": "cd web-dashboard && yarn install",
-  "devCommand": "cd web-dashboard && yarn dev",
-  "framework": "nextjs",
-  "functions": {
-    "app/api/**": {
-      "maxDuration": 30
-    }
-  },
-  "headers": [
+  "version": 2,
+  "builds": [
     {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        },
-        {
-          "key": "X-XSS-Protection", 
-          "value": "1; mode=block"
-        },
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
-        }
-      ]
+      "src": "web-dashboard/package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "routes": [
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "web-dashboard/$1"
     }
   ]
 }
