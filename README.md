@@ -111,7 +111,7 @@ NEXT_PUBLIC_GOOGLE_AI_API_KEY=your_gemini_api_key
 
 # Vector Database
 NEXT_PUBLIC_PINECONE_API_KEY=your_pinecone_api_key
-NEXT_PUBLIC_PINECONE_INDEX_NAME=ai-project-manager
+NEXT_PUBLIC_PINECONE_INDEX_NAME=your_pinecone_index_name
 
 # Application
 NEXT_PUBLIC_APP_URL=http://localhost:3000

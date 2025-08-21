@@ -1,98 +1,116 @@
 # Design Document
 
 ## Overview
-This project enhances an existing AI-powered project management web application with business development features. The technology stack includes Node.js (Express.js) for the backend, React with Material-UI for the frontend, JWT for authentication, and AWS for hosting.  The existing AI capabilities will be enhanced to provide business intelligence.
+
+Thomas is a pet food delivery web application built using Node.js (Express.js) for the backend, React with Material-UI for the frontend, Firebase Authentication for user authentication, and Google Cloud for hosting.  The application connects pet owners with local meat suppliers to provide customized, fresh pet food delivery services.
 
 ## Architecture
 
 ### System Components
+
 ```mermaid
 graph LR
-    A[Frontend (React)] --> B(API Gateway);
-    B --> C[Backend (Node.js)];
-    C --> D{Database};
-    C --> E[AI Engine];
-    A --> F[Market Research APIs];
-    F --> B;
-    A --> G[Third-Party Services];
-    G --> B;
+    A[Pet Owner] --> B(Frontend); 
+    B --> C{API Gateway};
+    C --> D[Backend (Node.js)];
+    D --> E[Database (e.g., MongoDB)];
+    D --> F[Payment Gateway];
+    D --> G[Delivery Service API];
+    D --> H[Supplier Management System];
+    H --> I[Meat Supplier];
 ```
 
 ### Data Flow
-1. The user interacts with the React frontend.
-2. User requests are sent to the API Gateway.
-3. The API Gateway routes requests to the appropriate backend services.
-4. The backend interacts with the database for data persistence.
-5. The AI engine processes data and provides insights.
-6. Data from external APIs and services are integrated.
-7. Responses are sent back to the frontend for display.
+
+1. Pet owner creates a pet profile on the frontend.
+2. Frontend sends profile data to the backend via the API Gateway.
+3. Backend validates and stores the data in the database.
+4. Pet owner selects or customizes a meal plan on the frontend.
+5. Frontend sends order details to the backend via the API Gateway.
+6. Backend processes the order, integrates with the payment gateway, and updates the order status.
+7. Backend communicates with the delivery service API to schedule delivery.
+8. Backend notifies the meat supplier about the order.
+9. Supplier fulfills the order and updates the order status.
+10. Backend updates the order status on the frontend.
+11. Pet owner receives real-time order tracking updates.
 
 ## Components and Interfaces
 
-### Business Model Canvas Component
+### Pet Profile Component
+
 **Key Components:**
+
 ```typescript
-interface BusinessModelCanvas {
-  valuePropositions: string[];
-  customerSegments: string[];
-  customerRelationships: string[];
-  channels: string[];
-  revenueStreams: string[];
-  keyActivities: string[];
-  keyResources: string[];
-  keyPartnerships: string[];
-  costStructure: string[];
+interface PetProfile {
+  petId: string;
+  ownerId: string;
+  petName: string;
+  breed: string;
+  age: number;
+  weight: number;
+  allergies: string[];
+  healthConditions: string[];
 }
 ```
 
-### Market Research Component
-**Key Components:**
-```typescript
-interface MarketResearchData {
-  marketSize: number;
-  growthRate: number;
-  competitors: Competitor[];
-}
+### Order Component
 
-interface Competitor {
-  name: string;
-  marketShare: number;
-  strengths: string[];
-  weaknesses: string[];
+**Key Components:**
+
+```typescript
+interface Order {
+  orderId: string;
+  petId: string;
+  mealPlanId: string;
+  orderDate: Date;
+  deliveryAddress: string;
+  status: string; // e.g., 'pending', 'processing', 'delivered'
+  totalPrice: number;
 }
 ```
 
 ## Data Models
 
 ```typescript
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
+interface Pet {
+  "petId": string,
+  "ownerId": string,
+  "petName": "string",
+  "breed": "string",
+  "age": number,
+  "weight": number,
+  "allergies": ["string"],
+  "healthConditions": ["string"]
 }
 
-interface Project {
-  id: string;
-  name: string;
-  description: string;
-  businessModelCanvas: BusinessModelCanvas | null;
-  marketResearch: MarketResearchData | null;
-  // ... other project details
+// Example JSON (escaped for markdown):
+// {\"petId\": \"pet123\", \"ownerId\": \"user456\", \"petName\": \"Buddy\", \"breed\": \"Golden Retriever\", \"age\": 3, \"weight\": 25, \"allergies\": [\"beef\"], \"healthConditions\": []}
+
+
+interface MealPlan {
+  "mealPlanId": string,
+  "name": "string",
+  "ingredients": ["string"],
+  "price": number,
+  "portionSize": number
 }
+
+// Example JSON (escaped for markdown):
+// {\"mealPlanId\": \"plan789\", \"name\": \"Chicken & Rice\", \"ingredients\": [\"chicken\", \"rice\", \"vegetables\"], \"price\": 10, \"portionSize\": 250}
+
 ```
 
-Example JSON for Project:
-{"id": "123", "name": "Roki Project", "description": "AI-powered project management", "businessModelCanvas": {"valuePropositions": ["\"Improve project success rates\""], "customerSegments": ["\"Entrepreneurs\"", "\"Product Managers\""], "customerRelationships": ["\"Self-service\""], "channels": ["\"Web Application\""], "revenueStreams": ["\"Subscription fees\""], "keyActivities": ["\"Software Development\""], "keyResources": ["\"AI algorithms\""], "keyPartnerships": ["\"AWS\""], "costStructure": ["\"Development costs\""]}, "marketResearch": {"marketSize": 1000000, "growthRate": 0.1, "competitors": [{"name": "\"Competitor A\"", "marketShare": 0.2, "strengths": ["\"Brand recognition\""], "weaknesses": ["\"High pricing\""]}]}
-
 ## Error Handling
-- **Authentication Errors:** JWT token invalid, expired, or missing.
-- **Database Errors:** Connection errors, data integrity violations.
-- **API Errors:**  External API request failures, rate limits exceeded.
-- **Business Logic Errors:** Invalid input data, conflicting requirements.
+
+- **Authentication Errors:**  Handle invalid credentials, unauthorized access.
+- **Database Errors:** Handle connection errors, data validation errors.
+- **Payment Gateway Errors:** Handle declined payments, transaction failures.
+- **Delivery Service Errors:** Handle delivery failures, address validation errors.
+- **API Errors:** Handle unexpected responses from external APIs.
 
 ## Testing Strategy
-### Unit Testing:  Testing individual components and functions using Jest and appropriate mocking.
-### Integration Testing: Testing the interaction between different components and services.
-### End-to-End Testing: Testing the entire application flow from user interaction to database persistence.
-### Manual Testing: User acceptance testing to ensure usability and functionality.
+
+### Unit Testing:  Test individual components and functions using Jest and appropriate mocking.
+### Integration Testing: Test the interaction between different components and services.
+### End-to-End Testing: Test the entire application flow from user interaction to database updates.
+### Manual Testing: Perform user acceptance testing to ensure the application meets user requirements.

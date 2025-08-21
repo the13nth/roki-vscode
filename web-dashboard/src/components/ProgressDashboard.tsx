@@ -47,7 +47,7 @@ export function ProgressDashboard({ projectId }: ProgressDashboardProps) {
         data.progress.lastUpdated = new Date(data.progress.lastUpdated);
         data.progress.recentActivity = data.progress.recentActivity.map((activity: any) => ({
           ...activity,
-          completedAt: new Date(activity.completedAt)
+          completedAt: activity.completedAt ? new Date(activity.completedAt) : new Date()
         }));
         
         if (data.estimatedCompletion) {
@@ -111,7 +111,7 @@ export function ProgressDashboard({ projectId }: ProgressDashboardProps) {
               lastUpdated: new Date(result.data.lastUpdated),
               recentActivity: result.data.recentActivity.map((activity: any) => ({
                 ...activity,
-                completedAt: new Date(activity.completedAt)
+                completedAt: activity.completedAt ? new Date(activity.completedAt) : new Date()
               }))
             },
             tasks: prev.tasks.map(task => 

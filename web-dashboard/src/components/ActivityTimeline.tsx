@@ -101,9 +101,13 @@ export function ActivityTimeline({ activities, maxItems = 10 }: ActivityTimeline
                     </p>
                   </div>
                   <div className="text-right text-xs text-gray-500 whitespace-nowrap">
-                    <time dateTime={activity.completedAt.toISOString()}>
-                      {formatTimeAgo(activity.completedAt)}
-                    </time>
+                    {activity.completedAt && activity.completedAt instanceof Date && !isNaN(activity.completedAt.getTime()) ? (
+                      <time dateTime={activity.completedAt.toISOString()}>
+                        {formatTimeAgo(activity.completedAt)}
+                      </time>
+                    ) : (
+                      <span>Unknown time</span>
+                    )}
                   </div>
                 </div>
               </div>

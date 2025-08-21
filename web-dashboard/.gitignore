@@ -30,8 +30,23 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files - NEVER commit environment files with secrets
 .env*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Config files that may contain secrets
+.ai-project/**/.vscode-connections.json
+.ai-project/**/config.json
+.ai-project/backups/
+.ai-project/projects/
+**/*.deleted.*
+
+# Backup files
+*.backup
+*.bak
 
 # vercel
 .vercel

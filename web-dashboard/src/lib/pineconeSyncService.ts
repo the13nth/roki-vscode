@@ -459,8 +459,47 @@ class PineconeSyncService {
 
   // New method to embed a single context document
   async embedSingleContextDocument(projectId: string, document: any): Promise<{ success: boolean; message: string }> {
-    // Temporarily do nothing to avoid build errors
-    return { success: true, message: 'Embedding service temporarily disabled' };
+    try {
+      console.log('🔄 Embedding context document:', document.title);
+
+      const pinecone = getPineconeClient();
+      const index = pinecone.index(process.env.NEXT_PUBLIC_PINECONE_INDEX_NAME || 'roki');
+
+      // Create embedding for the document content using Gemini
+      const textToEmbed = `${document.title}\n\n${document.content}`;
+      console.log('📝 Generating embedding with Gemini for text length:', textToEmbed.length);
+      
+      const embedding = await generateEmbedding(textToEmbed);
+      console.log('✅ Generated embedding with dimensions:', embedding.length);
+
+      // Prepare metadata
+      const metadata = {
+        projectId: projectId,
+        type: 'context',
+        title: document.title,
+        content: document.content,
+        filename: document.filename,
+        tags: Array.isArray(document.tags) ? document.tags.join(',') : '',
+        category: document.category || 'other',
+        lastModified: new Date().toISOString(),
+        url: document.url || undefined
+      };
+
+      // Store in Pinecone
+      console.log('💾 Storing document in Pinecone with ID:', document.id);
+      await index.upsert([{
+        id: document.id,
+        values: embedding,
+        metadata: metadata
+      }]);
+
+      console.log('✅ Successfully embedded context document:', document.title);
+      return { success: true, message: `Successfully embedded context document: ${document.title}` };
+
+    } catch (error) {
+      console.error('❌ Failed to embed context document:', error);
+      return { success: false, message: `Failed to embed context document: ${error}` };
+    }
   }
 
   // New method to embed a single main document (requirements, design, tasks)

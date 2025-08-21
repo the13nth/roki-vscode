@@ -84,6 +84,38 @@ export async function POST(
       console.log(`📄 Final documents array:`, documents);
       
       contextDocuments = data.contextDocuments;
+      
+      // Also fetch context documents using the new context API to ensure we get the latest
+      try {
+        console.log('📚 Fetching additional context documents from new context API...');
+        const contextResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/projects/${id}/context`, {
+          headers: {
+            'Authorization': request.headers.get('Authorization') || '',
+            'Cookie': request.headers.get('Cookie') || ''
+          }
+        });
+        
+        if (contextResponse.ok) {
+          const contextData = await contextResponse.json();
+          const newContextDocs = contextData.contextDocs || [];
+          
+          console.log(`📄 Found ${newContextDocs.length} additional context documents from new API`);
+          
+          // Merge with existing context documents, avoiding duplicates
+          if (newContextDocs.length > 0) {
+            const existingIds = new Set(contextDocuments?.map((doc: any) => doc.id) || []);
+            const uniqueNewDocs = newContextDocs.filter((doc: any) => !existingIds.has(doc.id));
+            
+            contextDocuments = [...(contextDocuments || []), ...uniqueNewDocs];
+            console.log(`📚 Total context documents after merge: ${contextDocuments.length}`);
+          }
+        } else {
+          console.warn('⚠️ Failed to fetch from new context API:', contextResponse.status);
+        }
+      } catch (error) {
+        console.warn('⚠️ Failed to fetch context documents from new API:', error);
+      }
+      
       console.log('✅ Successfully fetched documents from Pinecone');
     } else {
       console.warn('⚠️ Failed to fetch from Pinecone, falling back to file system:', pineconeResult.message);
@@ -104,8 +136,13 @@ export async function POST(
           progress: projectData.progress
         };
 
-        // Get context documents from file system
-        const contextResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/projects/${id}/context/full`);
+        // Get context documents from new context API
+        const contextResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/projects/${id}/context`, {
+          headers: {
+            'Authorization': request.headers.get('Authorization') || '',
+            'Cookie': request.headers.get('Cookie') || ''
+          }
+        });
         if (contextResponse.ok) {
           const contextData = await contextResponse.json();
           contextDocuments = contextData.contextDocs || [];

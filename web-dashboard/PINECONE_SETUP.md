@@ -40,7 +40,7 @@ This guide will help you set up Pinecone for vector storage and similarity searc
 
 ```env
 NEXT_PUBLIC_PINECONE_API_KEY=your-api-key-here
-NEXT_PUBLIC_PINECONE_INDEX_NAME=roki
+NEXT_PUBLIC_PINECONE_INDEX_NAME=your_index_name
 ```
 
 Replace the values with your actual Pinecone API key and index name.

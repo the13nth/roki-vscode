@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Sphere } from '@react-three/drei';
+import { OrbitControls, Sphere, Text, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,10 +27,14 @@ interface EmbeddingsVisualizationProps {
 // 3D Scene Component
 function VisualizationScene({ 
   points, 
-  isLoading 
+  isLoading,
+  showLabels,
+  onHover 
 }: { 
   points: EmbeddingPoint[];
   isLoading: boolean;
+  showLabels: boolean;
+  onHover: (point: EmbeddingPoint | null) => void;
 }) {
   const groupRef = useRef<THREE.Group>(null);
 
@@ -50,13 +54,13 @@ function VisualizationScene({
       return [0, 0, 0];
     }
     
-    // Use more components for better distribution
-    const x = (vector[0] || 0) * 8;
-    const y = (vector[1] || 0) * 8;
-    const z = (vector[2] || 0) * 8;
+    // Increase spacing by using larger multipliers
+    const x = (vector[0] || 0) * 15; // Increased from 8 to 15
+    const y = (vector[1] || 0) * 15; // Increased from 8 to 15
+    const z = (vector[2] || 0) * 15; // Increased from 8 to 15
     
-    // Add variation based on other vector components
-    const variation = vector.length > 3 ? (vector[3] || 0) * 3 : 0;
+    // Add more variation for better distribution
+    const variation = vector.length > 3 ? (vector[3] || 0) * 6 : 0; // Increased from 3 to 6
     
     return [x + variation, y + variation, z + variation];
   };
@@ -103,9 +107,24 @@ function VisualizationScene({
               vectorSample: point.vector.slice(0, 5)
             });
             
+                         // Create much better label spacing using a circular pattern around each sphere
+             const labelRadius = 1.2; // Distance from sphere center
+             const angleOffset = (index * 137.5) % 360; // Golden angle for better distribution
+             const heightVariation = Math.sin(index * 0.5) * 0.8; // Vertical variation
+             
+             const labelOffset = {
+               x: Math.cos(angleOffset * Math.PI / 180) * labelRadius,
+               y: 1.5 + heightVariation + (index % 4) * 0.4, // Much more vertical spacing
+               z: Math.sin(angleOffset * Math.PI / 180) * labelRadius
+             };
+
             return (
               <group key={point.id} position={[x, y, z]}>
-                <Sphere args={[0.3, 16, 16]}>
+                <Sphere 
+                  args={[0.3, 16, 16]}
+                  onPointerOver={() => onHover(point)}
+                  onPointerOut={() => onHover(null)}
+                >
                   <meshStandardMaterial 
                     color={color} 
                     emissive={color}
@@ -114,6 +133,32 @@ function VisualizationScene({
                     roughness={0.3}
                   />
                 </Sphere>
+                                 {showLabels && (
+                   <Html
+                     position={[labelOffset.x, labelOffset.y, labelOffset.z]}
+                     center
+                     distanceFactor={15}
+                     occlude={false}
+                     transform={false}
+                     sprite={true}
+                   >
+                     <div 
+                       className="px-3 py-2 bg-black bg-opacity-90 text-white text-sm rounded-lg whitespace-nowrap pointer-events-none border border-gray-400 shadow-lg"
+                       style={{
+                         fontSize: '12px',
+                         maxWidth: '180px',
+                         textAlign: 'center',
+                         textShadow: '0 0 3px black',
+                         backdropFilter: 'blur(3px)',
+                         minWidth: '80px'
+                       }}
+                     >
+                       {point.metadata.title.length > 20 
+                         ? `${point.metadata.title.substring(0, 17)}...` 
+                         : point.metadata.title}
+                     </div>
+                   </Html>
+                 )}
               </group>
             );
           })}
@@ -128,6 +173,7 @@ export function EmbeddingsVisualization({ projectId }: EmbeddingsVisualizationPr
   const [error, setError] = useState<string | null>(null);
   const [showLabels, setShowLabels] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [hoveredPoint, setHoveredPoint] = useState<EmbeddingPoint | null>(null);
   const [stats, setStats] = useState({
     total: 0,
     requirements: 0,
@@ -305,12 +351,13 @@ export function EmbeddingsVisualization({ projectId }: EmbeddingsVisualizationPr
           </Button>
         </div>
         
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-4 flex-wrap gap-2">
           <Badge variant="outline">Total: {stats.total}</Badge>
           <Badge variant="outline">Requirements: {stats.requirements}</Badge>
           <Badge variant="outline">Design: {stats.design}</Badge>
           <Badge variant="outline">Tasks: {stats.tasks}</Badge>
           <Badge variant="outline">Progress: {stats.progress}</Badge>
+          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Context: {stats.context}</Badge>
         </div>
       </div>
 
@@ -353,11 +400,40 @@ export function EmbeddingsVisualization({ projectId }: EmbeddingsVisualizationPr
                 </Button>
               </div>
             ) : (
-              <Canvas camera={{ position: [0, 0, 10], fov: 75 }}>
-                <VisualizationScene points={points} isLoading={isLoading} />
-              </Canvas>
+                             <Canvas camera={{ position: [0, 0, 25], fov: 75 }}>
+                 <VisualizationScene 
+                   points={points} 
+                   isLoading={isLoading} 
+                   showLabels={showLabels} 
+                   onHover={setHoveredPoint}
+                 />
+               </Canvas>
             )}
           </div>
+          
+          {/* Hover Information Panel */}
+          {hoveredPoint && (
+            <div className="mt-4 p-4 bg-gray-50 rounded-lg border">
+              <div className="flex items-start space-x-3">
+                <Badge variant="outline" className="capitalize">
+                  {hoveredPoint.metadata.type}
+                </Badge>
+                <div className="flex-1">
+                  <h4 className="font-medium text-gray-900 mb-1">
+                    {hoveredPoint.metadata.title}
+                  </h4>
+                  {hoveredPoint.metadata.content && (
+                    <p className="text-sm text-gray-600 line-clamp-3">
+                      {hoveredPoint.metadata.content}
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-500 mt-2">
+                    Vector dimensions: {hoveredPoint.vector.length}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
