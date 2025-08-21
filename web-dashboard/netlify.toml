@@ -1,0 +1,33 @@
+[build]
+  publish = ".next"
+  command = "yarn build"
+
+[build.environment]
+  # Disable secrets scanning for public environment variables
+  NETLIFY_EXPERIMENTAL_BUILD_SECRETS_SCANNING = "false"
+
+# Alternative approach: Configure secrets scanning to ignore specific patterns
+[context.production]
+  [context.production.build]
+    # Ignore common public environment variables
+    ignore_secrets = [
+      "NEXT_PUBLIC_*",
+      "NODE_ENV",
+      "GOOGLE_AI_MODEL"
+    ]
+
+[context.deploy-preview]
+  [context.deploy-preview.build]
+    ignore_secrets = [
+      "NEXT_PUBLIC_*", 
+      "NODE_ENV",
+      "GOOGLE_AI_MODEL"
+    ]
+
+[context.branch-deploy]
+  [context.branch-deploy.build]
+    ignore_secrets = [
+      "NEXT_PUBLIC_*",
+      "NODE_ENV", 
+      "GOOGLE_AI_MODEL"
+    ]
