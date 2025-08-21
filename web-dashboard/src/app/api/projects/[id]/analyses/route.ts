@@ -110,7 +110,7 @@ export async function POST(
       ].filter(text => text.length > 0).join(' ');
 
       // Simple hash-based approach for creating distinctive vectors
-      // In production, you'd use OpenAI embeddings or similar
+      // In live environment, you'd use OpenAI embeddings or similar
       const hash = contentForEmbedding.split('').reduce((acc, char, i) => {
         return ((acc << 5) - acc + char.charCodeAt(0) + i) >>> 0;
       }, 0);

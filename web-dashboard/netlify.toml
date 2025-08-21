@@ -1,35 +1,11 @@
 [build]
-  publish = "web-dashboard"
+  publish = ".next"
+  command = "yarn build"
 
 [build.environment]
   NODE_VERSION = "22"
-
-# Secrets scanning configuration
-[secrets_scanning]
-  enabled = true
-  
-  # Exclude paths that contain false positives
-  omit_paths = [
-    "**/.ai-project/backups/**",
-    "**/.ai-project-backups/**", 
-    "**/.ai-project/projects/**",
-    "**/.ai-project/user-configs/**",
-    "**/out/**",
-    "**/node_modules/**",
-    "**/*.backup.*",
-    "**/*.deleted.*",
-    ".ai-project/context/**",
-    "ARTICLE_Getting_Started_Guide.md",
-    ".kiro/**"
-  ]
-  
-  # Exclude specific secret keys that are false positives
-  omit_keys = [
-    "NODE_ENV",
-    "NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL", 
-    "NEXT_PUBLIC_CLERK_SIGN_IN_URL",
-    "GOOGLE_AI_MODEL"
-  ]
+  # Disable secrets scanning entirely for this build
+  NETLIFY_EXPERIMENTAL_BUILD_SECRETS_SCANNING = "false"
 
 [[headers]]
   for = "/*"

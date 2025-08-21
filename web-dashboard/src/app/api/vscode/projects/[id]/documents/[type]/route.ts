@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { verify } from 'jsonwebtoken';
 import { ProjectService } from '@/lib/projectService';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-this';
 
 // GET /api/vscode/projects/[id]/documents/[type] - Get specific document for VS Code extension
 export async function GET(

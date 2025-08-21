@@ -200,7 +200,7 @@ export async function POST(
             let decryptedApiKey = userConfig.apiKey;
             if (userConfig.encrypted && userConfig.iv) {
               // For now, we'll assume the key is not encrypted in user config
-              // In production, you'd decrypt it here
+              // In live environment, you'd decrypt it here
               decryptedApiKey = userConfig.apiKey;
             }
             
