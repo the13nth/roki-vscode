@@ -4,7 +4,10 @@
   "builds": [
     {
       "src": "web-dashboard/package.json",
-      "use": "@vercel/next"
+      "use": "@vercel/next",
+      "config": {
+        "maxDuration": 30
+      }
     }
   ],
   "routes": [
@@ -16,11 +19,6 @@
       "dest": "web-dashboard/$1"
     }
   ],
-  "functions": {
-    "web-dashboard/src/app/api/**/*.ts": {
-      "maxDuration": 30
-    }
-  },
   "headers": [
     {
       "source": "/(.*)",
