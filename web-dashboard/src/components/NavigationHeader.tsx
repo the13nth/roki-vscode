@@ -1,6 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { UnifiedNavigation } from './UnifiedNavigation';
@@ -21,6 +22,7 @@ import {
 export function NavigationHeader() {
   const pathname = usePathname();
   const router = useRouter();
+  const [projectName, setProjectName] = useState<string>('');
   
   // Don't show navigation on the homepage (UnifiedNavigation handles this)
   if (pathname === '/') {
@@ -32,8 +34,21 @@ export function NavigationHeader() {
   const isProjectPage = !!projectMatch;
   const projectId = projectMatch ? projectMatch[1] : undefined;
   
-  // Extract project name from the URL or set a default
-  const projectName = projectId;
+  // Fetch project name when on a project page
+  useEffect(() => {
+    if (isProjectPage && projectId) {
+      fetch(`/api/projects/${projectId}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.name) {
+            setProjectName(data.name);
+          }
+        })
+        .catch(error => {
+          console.error('Failed to fetch project name:', error);
+        });
+    }
+  }, [isProjectPage, projectId]);
 
   // Create simplified mobile project navigation
   const createMobileProjectNavigation = () => {
