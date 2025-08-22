@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@clerk/nextjs/server';
 import { getGoogleAIConfig, validateSecureConfig } from '@/lib/secureConfig';
 import fs from 'fs/promises';
 import path from 'path';
@@ -208,6 +209,7 @@ async function callCustomProvider(config: ApiConfiguration, prompt: string): Pro
 
 async function trackTokenUsage(projectId: string, tokenUsage: any, operation: string = 'improve_document') {
   try {
+    const { userId } = await auth();
     const { TokenTrackingService } = await import('@/lib/tokenTrackingService');
     const tokenTrackingService = TokenTrackingService.getInstance();
     
@@ -229,7 +231,7 @@ async function trackTokenUsage(projectId: string, tokenUsage: any, operation: st
       outputTokens = tokenUsage.completion_tokens || 0;
     }
 
-    await tokenTrackingService.trackTokenUsage(projectId, inputTokens, outputTokens, operation);
+    await tokenTrackingService.trackTokenUsage(projectId, inputTokens, outputTokens, operation, userId);
   } catch (error) {
     console.error('Failed to track token usage:', error);
   }

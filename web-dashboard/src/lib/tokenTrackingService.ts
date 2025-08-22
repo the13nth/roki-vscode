@@ -61,6 +61,7 @@ export interface TokenUsage {
   cost: number;
   timestamp: string;
   projectId: string;
+  userId?: string;
   analysisType: string;
   sessionId: string;
 }
@@ -113,7 +114,8 @@ export class TokenTrackingService {
     projectId: string,
     inputTokens: number,
     outputTokens: number,
-    analysisType: string
+    analysisType: string,
+    userId?: string
   ): Promise<void> {
     try {
       const cost = this.calculateCost(inputTokens, outputTokens);
@@ -126,6 +128,7 @@ export class TokenTrackingService {
         cost,
         timestamp,
         projectId,
+        userId,
         analysisType,
         sessionId: this.sessionId
       };
@@ -156,6 +159,7 @@ export class TokenTrackingService {
         metadata: {
           type: 'token_usage',
           projectId: tokenUsage.projectId,
+          userId: tokenUsage.userId,
           sessionId: tokenUsage.sessionId,
           analysisType: tokenUsage.analysisType,
           inputTokens: tokenUsage.inputTokens,

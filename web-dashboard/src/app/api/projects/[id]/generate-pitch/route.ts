@@ -323,7 +323,7 @@ If project data is limited, focus on potential and vision while being honest abo
     };
 
     // Track token usage
-    await tokenTrackingService.trackTokenUsage(projectId, inputTokens, outputTokens, 'pitch-generation');
+    await tokenTrackingService.trackTokenUsage(projectId, inputTokens, outputTokens, 'pitch-generation', userId);
 
     // Parse sections from the generated content
     const parsedSections = {

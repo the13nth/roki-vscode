@@ -238,7 +238,7 @@ export async function POST(
       const inputTokens = aiResponse.tokenUsage?.promptTokenCount || aiResponse.tokenUsage?.prompt_tokens || 0;
       const outputTokens = aiResponse.tokenUsage?.candidatesTokenCount || aiResponse.tokenUsage?.completion_tokens || 0;
       
-      await tokenTrackingService.trackTokenUsage(projectId, inputTokens, outputTokens, 'project-specs-generation');
+      await tokenTrackingService.trackTokenUsage(projectId, inputTokens, outputTokens, 'project-specs-generation', userId);
       console.log('✅ Token usage tracked:', { inputTokens, outputTokens });
     } catch (error) {
       console.warn('⚠️ Failed to track token usage for spec generation (continuing anyway):', error);

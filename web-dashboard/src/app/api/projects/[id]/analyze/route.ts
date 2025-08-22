@@ -855,7 +855,7 @@ Focus on providing actionable social media strategies that align with the projec
         const outputTokens = Math.ceil(content.length / 4);
 
         // Track token usage
-        await tokenTrackingService.trackTokenUsage(id, inputTokens, outputTokens, `${analysisType}-analysis`);
+        await tokenTrackingService.trackTokenUsage(id, inputTokens, outputTokens, `${analysisType}-analysis`, userId);
 
         analysisResult = {
           summary,

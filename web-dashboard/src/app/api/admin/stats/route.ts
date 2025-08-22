@@ -5,7 +5,7 @@ import { getPineconeClient, PINECONE_INDEX_NAME } from '@/lib/pinecone';
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     // Check authentication
-    const { userId } = await auth();
+    const { userId, sessionClaims } = await auth();
     if (!userId) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -13,21 +13,83 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Check if user is admin (part of binghi_admins organization)
-    const user = await currentUser();
-    const isAdmin = user?.organizationMemberships?.some((membership: any) => 
-      membership.organization?.slug === 'binghi_admins' || 
-      membership.organization?.name === 'binghi_admins'
-    );
+    console.log('🔐 Admin stats request from user:', userId);
+    console.log('🔐 Session claims:', JSON.stringify(sessionClaims, null, 2));
+
+    // Check if user is admin using session claims
+    const isAdmin = sessionClaims?.org_slug === 'binghi_admins' || 
+                   sessionClaims?.org_name === 'binghi_admins' ||
+                   sessionClaims?.org_id?.includes('binghi_admins');
+
+    console.log('🔐 Is admin check:', {
+      org_slug: sessionClaims?.org_slug,
+      org_name: sessionClaims?.org_name,
+      org_id: sessionClaims?.org_id,
+      isAdmin
+    });
 
     if (!isAdmin) {
-      return NextResponse.json(
-        { error: 'Admin access required' },
-        { status: 403 }
-      );
+      // Use Clerk API to directly check user's organization memberships
+      try {
+        const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY;
+        if (!CLERK_SECRET_KEY) {
+          throw new Error('CLERK_SECRET_KEY not found');
+        }
+
+        const userResponse = await fetch(`https://api.clerk.com/v1/users/${userId}/organization_memberships`, {
+          headers: {
+            'Authorization': `Bearer ${CLERK_SECRET_KEY}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (userResponse.ok) {
+          const response = await userResponse.json();
+          const memberships = response.data || response || [];
+          
+          console.log('🔐 Raw API response:', response);
+          
+          const isAdminMember = Array.isArray(memberships) && memberships.some((membership: any) => 
+            membership.organization?.slug === 'binghi_admins' || 
+            membership.organization?.name === 'binghi_admins' ||
+            membership.organization?.slug?.includes('binghi_admins')
+          );
+
+          console.log('🔐 Direct API admin check:', {
+            memberships: Array.isArray(memberships) ? memberships.map((m: any) => ({ 
+              orgName: m.organization?.name, 
+              orgSlug: m.organization?.slug,
+              role: m.role 
+            })) : [],
+            isAdminMember
+          });
+
+          if (isAdminMember) {
+            console.log('✅ Admin access granted via direct API check');
+          } else {
+            console.log('❌ Admin access denied for user:', userId);
+            return NextResponse.json(
+              { error: 'Admin access required' },
+              { status: 403 }
+            );
+          }
+        } else {
+          console.log('❌ Failed to fetch user memberships:', userResponse.status);
+          return NextResponse.json(
+            { error: 'Failed to verify admin status' },
+            { status: 500 }
+          );
+        }
+      } catch (error) {
+        console.error('❌ Error checking admin status:', error);
+        return NextResponse.json(
+          { error: 'Failed to verify admin status' },
+          { status: 500 }
+        );
+      }
     }
 
-    console.log('🔐 Admin stats request from user:', userId);
+    console.log('✅ Admin access granted for user:', userId);
 
     // Get statistics from Pinecone
     const stats = await getAdminStats();
@@ -46,6 +108,8 @@ async function getAdminStats() {
   const pinecone = getPineconeClient();
   const index = pinecone.index(PINECONE_INDEX_NAME);
 
+  console.log('🔍 Fetching admin statistics from Pinecone...');
+
   // Get all projects
   const projectsResponse = await index.namespace('projects').query({
     vector: new Array(1024).fill(0.1),
@@ -53,8 +117,18 @@ async function getAdminStats() {
     includeMetadata: true
   });
 
-  // Get all token usage records
-  const tokenUsageResponse = await index.namespace('token-usage').query({
+  // Get all token usage records (saved to main index, not namespace)
+  const tokenUsageResponse = await index.query({
+    vector: new Array(1024).fill(0.1),
+    filter: {
+      type: { $eq: 'token_usage' }
+    },
+    topK: 1000,
+    includeMetadata: true
+  });
+
+  // Get all analyses
+  const analysesResponse = await index.namespace('analyses').query({
     vector: new Array(1024).fill(0.1),
     topK: 1000,
     includeMetadata: true
@@ -67,23 +141,79 @@ async function getAdminStats() {
     includeMetadata: true
   });
 
+  // Get user details from Clerk API
+  const userDetails: Record<string, { email: string; name: string; createdAt: string }> = {};
+  
+  try {
+    const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY;
+    if (CLERK_SECRET_KEY) {
+      // Get all users from Clerk
+      const usersResponse = await fetch('https://api.clerk.com/v1/users', {
+        headers: {
+          'Authorization': `Bearer ${CLERK_SECRET_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (usersResponse.ok) {
+        const usersData = await usersResponse.json();
+        const users = usersData.data || usersData || [];
+        
+        users.forEach((user: any) => {
+          const primaryEmail = user.email_addresses?.find((email: any) => email.id === user.primary_email_address_id);
+          userDetails[user.id] = {
+            email: primaryEmail?.email_address || 'No email',
+            name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username || 'Unknown',
+            createdAt: new Date(user.created_at).toLocaleDateString()
+          };
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Failed to fetch user details from Clerk:', error);
+  }
+
+  console.log('📊 Raw data counts:', {
+    projects: projectsResponse.matches?.length || 0,
+    tokenUsage: tokenUsageResponse.matches?.length || 0,
+    analyses: analysesResponse.matches?.length || 0,
+    userConfigs: userConfigsResponse.matches?.length || 0
+  });
+
   // Process projects data
   const projects = projectsResponse.matches || [];
   const uniqueUsers = new Set<string>();
   const projectsByStatus: Record<string, number> = {};
   const projectsByUser: Record<string, number> = {};
+  const userNames: Record<string, string> = {};
 
   projects.forEach((match: any) => {
     const metadata = match.metadata;
     if (metadata) {
-      uniqueUsers.add(metadata.userId);
-      
-      // Count projects by status
-      const status = metadata.progress?.status || 'unknown';
-      projectsByStatus[status] = (projectsByStatus[status] || 0) + 1;
-      
-      // Count projects by user
-      projectsByUser[metadata.userId] = (projectsByUser[metadata.userId] || 0) + 1;
+      const userId = metadata.userId;
+      if (userId) {
+        uniqueUsers.add(userId);
+        
+        // Count projects by status
+        const status = metadata.progress?.status || metadata.status || 'active';
+        projectsByStatus[status] = (projectsByStatus[status] || 0) + 1;
+        
+        // Count projects by user
+        projectsByUser[userId] = (projectsByUser[userId] || 0) + 1;
+        
+        // Get user name from project metadata
+        if (metadata.name && !userNames[userId]) {
+          // Try to extract name from project data
+          try {
+            const projectData = metadata.projectData ? JSON.parse(metadata.projectData) : null;
+            if (projectData?.userName) {
+              userNames[userId] = projectData.userName;
+            }
+          } catch (e) {
+            // Ignore parsing errors
+          }
+        }
+      }
     }
   });
 
@@ -91,23 +221,65 @@ async function getAdminStats() {
   const tokenUsage = tokenUsageResponse.matches || [];
   const totalTokens = tokenUsage.reduce((sum: number, match: any) => {
     const metadata = match.metadata;
-    return sum + (metadata?.tokensUsed || 0);
+    return sum + (metadata?.totalTokens || metadata?.tokensUsed || 0);
   }, 0);
 
   const tokenUsageByUser: Record<string, number> = {};
+  const analysisTypes: Record<string, number> = {};
+
+  // Only count analysis types from token usage records (more accurate)
   tokenUsage.forEach((match: any) => {
     const metadata = match.metadata;
-    if (metadata?.userId) {
-      tokenUsageByUser[metadata.userId] = (tokenUsageByUser[metadata.userId] || 0) + (metadata.tokensUsed || 0);
+    if (metadata) {
+      const userId = metadata.userId;
+      const totalTokens = metadata.totalTokens || metadata.tokensUsed || 0;
+      const analysisType = metadata.analysisType || 'unknown';
+      
+      if (userId) {
+        tokenUsageByUser[userId] = (tokenUsageByUser[userId] || 0) + totalTokens;
+      }
+      
+      // Normalize analysis type names
+      const normalizedType = normalizeAnalysisType(analysisType);
+      analysisTypes[normalizedType] = (analysisTypes[normalizedType] || 0) + 1;
     }
   });
 
-  // Get user names for display
-  const userNames: Record<string, string> = {};
-  projects.forEach((match: any) => {
+  // Helper function to normalize analysis type names
+  function normalizeAnalysisType(type: string): string {
+    const typeMap: Record<string, string> = {
+      'pitch-generation': 'Pitch Generation',
+      'differentiation-analysis': 'Differentiation Analysis',
+      'bmc-analysis': 'Business Model Canvas',
+      'project-specs-generation': 'Project Specifications',
+      'technical-analysis': 'Technical Analysis',
+      'financial-analysis': 'Financial Analysis',
+      'roast-analysis': 'Roast Analysis',
+      'market-analysis': 'Market Analysis',
+      'social-posts-generation': 'Social Posts Generation',
+      'social-post-enhancement': 'Social Post Enhancement',
+      'social-analysis': 'Social Analysis',
+      'description-expansion': 'Description Expansion',
+      'improve_document': 'Document Improvement',
+      'context-injection': 'Context Injection',
+      'pitch': 'Pitch Generation',
+      'differentiation': 'Differentiation Analysis',
+      'bmc': 'Business Model Canvas',
+      'technical': 'Technical Analysis',
+      'financial': 'Financial Analysis',
+      'roast': 'Roast Analysis',
+      'market': 'Market Analysis'
+    };
+    
+    return typeMap[type.toLowerCase()] || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  }
+
+  // Get user names from user configs as fallback
+  userConfigsResponse.matches?.forEach((match: any) => {
     const metadata = match.metadata;
-    if (metadata?.userId && metadata?.userName) {
-      userNames[metadata.userId] = metadata.userName;
+    if (metadata?.userId && !userNames[metadata.userId]) {
+      // Try to get user info from Clerk or use a placeholder
+      userNames[metadata.userId] = `User ${metadata.userId.slice(-6)}`;
     }
   });
 
@@ -115,7 +287,8 @@ async function getAdminStats() {
   const tokenUsageByUserArray = Object.entries(tokenUsageByUser)
     .map(([userId, tokens]) => ({
       userId,
-      userName: userNames[userId] || 'Unknown User',
+      userName: userDetails[userId]?.name || userNames[userId] || `User ${userId.slice(-6)}`,
+      email: userDetails[userId]?.email || 'No email',
       tokens
     }))
     .sort((a, b) => b.tokens - a.tokens);
@@ -123,45 +296,161 @@ async function getAdminStats() {
   const projectsByUserArray = Object.entries(projectsByUser)
     .map(([userId, count]) => ({
       userId,
-      userName: userNames[userId] || 'Unknown User',
+      userName: userDetails[userId]?.name || userNames[userId] || `User ${userId.slice(-6)}`,
+      email: userDetails[userId]?.email || 'No email',
       projectCount: count
     }))
     .sort((a, b) => b.projectCount - a.projectCount);
 
-  // Count analyses (this would need to be tracked separately)
-  // For now, we'll estimate based on token usage
-  const totalAnalyses = Math.ceil(totalTokens / 1000); // Rough estimate
+  // Calculate costs using Google's actual pricing
+  const calculateCost = (inputTokens: number, outputTokens: number): number => {
+    // Google Gemini 1.5 Flash pricing (as of 2024)
+    // Input: $0.075 per 1M tokens (≤128k context) or $0.15 per 1M tokens (>128k context)
+    // Output: $0.30 per 1M tokens (≤128k context) or $0.60 per 1M tokens (>128k context)
+    
+    const inputCostPerMillion = 0.075; // Using the lower tier for most usage
+    const outputCostPerMillion = 0.30;
+    
+    const inputCost = (inputTokens / 1000000) * inputCostPerMillion;
+    const outputCost = (outputTokens / 1000000) * outputCostPerMillion;
+    
+    return inputCost + outputCost;
+  };
 
-  // Generate recent activity (this would need to be tracked separately)
-  const recentActivity = projects.slice(0, 10).map((match: any) => {
-    const metadata = match.metadata;
+  // Calculate cost breakdown by user
+  const userCosts = Object.entries(tokenUsageByUser).map(([userId, tokens]) => {
+    const userInputTokens = tokens * 0.6;
+    const userOutputTokens = tokens * 0.4;
+    const userCost = calculateCost(userInputTokens, userOutputTokens);
+    
     return {
-      type: 'project_updated',
-      user: userNames[metadata?.userId] || 'Unknown User',
-      project: metadata?.name || 'Unknown Project',
-      timestamp: metadata?.updatedAt || new Date().toISOString()
+      userId,
+      userName: userNames[userId] || `User ${userId.slice(-6)}`,
+      tokens,
+      cost: userCost
     };
+  }).sort((a, b) => b.cost - a.cost);
+
+  // Create comprehensive user list with all details
+  const allUsers = Array.from(uniqueUsers).map(userId => ({
+    userId,
+    userName: userDetails[userId]?.name || userNames[userId] || `User ${userId.slice(-6)}`,
+    email: userDetails[userId]?.email || 'No email',
+    createdAt: userDetails[userId]?.createdAt || 'Unknown',
+    projectCount: projectsByUser[userId] || 0,
+    tokenUsage: tokenUsageByUser[userId] || 0,
+    cost: userCosts.find(u => u.userId === userId)?.cost || 0
+  })).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  // Generate recent activity from projects and analyses
+  const recentActivity: { type: string; user: string; project: any; timestamp: any; }[] = [];
+  
+  // Add recent project activities
+  projects.slice(0, 5).forEach((match: any) => {
+    const metadata = match.metadata;
+    if (metadata) {
+      recentActivity.push({
+        type: 'project_created',
+        user: userNames[metadata.userId] || `User ${metadata.userId?.slice(-6)}`,
+        project: metadata.name || 'Unknown Project',
+        timestamp: metadata.createdAt || metadata.lastModified || new Date().toISOString()
+      });
+    }
   });
 
-  // Analysis types (this would need to be tracked separately)
-  const analysesByType = {
-    'comprehensive': Math.ceil(totalAnalyses * 0.4),
-    'market_analysis': Math.ceil(totalAnalyses * 0.2),
-    'technical_review': Math.ceil(totalAnalyses * 0.2),
-    'risk_assessment': Math.ceil(totalAnalyses * 0.1),
-    'financial_analysis': Math.ceil(totalAnalyses * 0.1)
+  // Add recent analysis activities from token usage records
+  tokenUsage.slice(0, 5).forEach((match: any) => {
+    const metadata = match.metadata;
+    if (metadata) {
+      recentActivity.push({
+        type: `${metadata.analysisType || 'analysis'}_completed`,
+        user: userNames[metadata.userId] || `User ${metadata.userId?.slice(-6)}`,
+        project: metadata.projectId || 'Unknown Project',
+        timestamp: metadata.timestamp || new Date().toISOString()
+      });
+    }
+  });
+
+  // Sort by timestamp and take top 10
+  recentActivity.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  const topRecentActivity = recentActivity.slice(0, 10);
+
+  // Calculate total analyses from token usage records
+  const totalAnalyses = Object.values(analysisTypes).reduce((sum, count) => sum + count, 0);
+
+  // Calculate total cost
+  const totalCost = calculateCost(totalTokens * 0.6, totalTokens * 0.4); // Assuming 60% input, 40% output ratio
+
+  // Calculate cost per user
+  const costPerUser = totalCost / Math.max(uniqueUsers.size, 1);
+
+  // Calculate average tokens per analysis
+  const avgTokensPerAnalysis = totalAnalyses > 0 ? totalTokens / totalAnalyses : 0;
+
+  // Suggested pricing tiers based on usage patterns
+  const pricingTiers = {
+    free: {
+      name: 'Free Tier',
+      price: 0,
+      tokens: 10000, // 10k tokens per month
+      analyses: 5,
+      projects: 1,
+      features: ['Basic Analysis', 'Project Creation', 'Limited Context']
+    },
+    starter: {
+      name: 'Starter',
+      price: 9.99,
+      tokens: 100000, // 100k tokens per month
+      analyses: 50,
+      projects: 3,
+      features: ['All Analysis Types', 'Social Posts', 'Enhanced Context']
+    },
+    professional: {
+      name: 'Professional',
+      price: 29.99,
+      tokens: 500000, // 500k tokens per month
+      analyses: 250,
+      projects: 10,
+      features: ['Priority Support', 'Advanced Analytics', 'Team Collaboration']
+    },
+    enterprise: {
+      name: 'Enterprise',
+      price: 99.99,
+      tokens: 2000000, // 2M tokens per month
+      analyses: 1000,
+      projects: 50,
+      features: ['Custom Integrations', 'Dedicated Support', 'Advanced Security']
+    }
   };
+
+  console.log('📈 Processed statistics:', {
+    totalUsers: uniqueUsers.size,
+    totalProjects: projects.length,
+    totalAnalyses,
+    totalTokens,
+    totalCost: totalCost.toFixed(2),
+    costPerUser: costPerUser.toFixed(2),
+    avgTokensPerAnalysis: avgTokensPerAnalysis.toFixed(0),
+    projectsByStatus,
+    analysisTypes
+  });
 
   return {
     totalUsers: uniqueUsers.size,
     totalProjects: projects.length,
     totalAnalyses,
     totalTokens,
+    totalCost: parseFloat(totalCost.toFixed(2)),
+    costPerUser: parseFloat(costPerUser.toFixed(2)),
+    avgTokensPerAnalysis: parseFloat(avgTokensPerAnalysis.toFixed(0)),
     activeUsers: Math.ceil(uniqueUsers.size * 0.7), // Estimate active users
     projectsByStatus,
-    analysesByType,
+    analysesByType: analysisTypes,
     tokenUsageByUser: tokenUsageByUserArray,
-    recentActivity,
-    projectsByUser: projectsByUserArray
+    userCosts,
+    pricingTiers,
+    recentActivity: topRecentActivity,
+    projectsByUser: projectsByUserArray,
+    allUsers
   };
 }

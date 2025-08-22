@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AdminCharts } from './AdminCharts';
 import { 
   Users, 
   FolderOpen, 
@@ -24,12 +25,26 @@ interface AdminStats {
   totalProjects: number;
   totalAnalyses: number;
   totalTokens: number;
+  totalCost?: number;
+  costPerUser?: number;
+  avgTokensPerAnalysis?: number;
   activeUsers: number;
   projectsByStatus: Record<string, number>;
   analysesByType: Record<string, number>;
-  tokenUsageByUser: Array<{ userId: string; userName: string; tokens: number }>;
+  tokenUsageByUser: Array<{ userId: string; userName: string; email: string; tokens: number }>;
+  userCosts?: Array<{ userId: string; userName: string; tokens: number; cost: number }>;
+  pricingTiers?: Record<string, any>;
   recentActivity: Array<{ type: string; user: string; project: string; timestamp: string }>;
-  projectsByUser: Array<{ userId: string; userName: string; projectCount: number }>;
+  projectsByUser: Array<{ userId: string; userName: string; email: string; projectCount: number }>;
+  allUsers?: Array<{ 
+    userId: string; 
+    userName: string; 
+    email: string; 
+    createdAt: string; 
+    projectCount: number; 
+    tokenUsage: number; 
+    cost: number 
+  }>;
 }
 
 export function AdminDashboard() {
@@ -129,13 +144,13 @@ export function AdminDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tokens Used</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
             <Zap className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalTokens.toLocaleString()}</div>
+            <div className="text-2xl font-bold">${stats.totalCost?.toFixed(2) || '0.00'}</div>
             <p className="text-xs text-muted-foreground">
-              AI API consumption
+              ${stats.costPerUser?.toFixed(2) || '0.00'} per user
             </p>
           </CardContent>
         </Card>
@@ -148,6 +163,8 @@ export function AdminDashboard() {
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="projects">Projects</TabsTrigger>
           <TabsTrigger value="analyses">Analyses</TabsTrigger>
+          <TabsTrigger value="charts">Charts</TabsTrigger>
+          <TabsTrigger value="pricing">Pricing & Costs</TabsTrigger>
           <TabsTrigger value="activity">Recent Activity</TabsTrigger>
         </TabsList>
 
@@ -194,39 +211,140 @@ export function AdminDashboard() {
         </TabsContent>
 
         <TabsContent value="users" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                Token Usage by User
-              </CardTitle>
-              <CardDescription>
-                Top users by AI token consumption
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {stats.tokenUsageByUser.slice(0, 10).map((user, index) => (
-                  <div key={user.userId} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                        <span className="text-sm font-medium text-purple-600">
-                          {index + 1}
-                        </span>
+          <div className="grid grid-cols-1 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  User Management
+                </CardTitle>
+                <CardDescription>
+                  Complete list of users with email addresses and activity details
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-3 font-medium">User</th>
+                        <th className="text-left p-3 font-medium">Email</th>
+                        <th className="text-left p-3 font-medium">Joined</th>
+                        <th className="text-left p-3 font-medium">Projects</th>
+                        <th className="text-left p-3 font-medium">Token Usage</th>
+                        <th className="text-left p-3 font-medium">Cost</th>
+                        <th className="text-left p-3 font-medium">User ID</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stats.allUsers?.map((user, index) => (
+                        <tr key={user.userId} className="border-b hover:bg-gray-50">
+                          <td className="p-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                                <span className="text-sm font-medium text-purple-600">
+                                  {index + 1}
+                                </span>
+                              </div>
+                              <div>
+                                <p className="font-medium">{user.userName}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-3">
+                            <span className="text-sm text-gray-600">{user.email}</span>
+                          </td>
+                          <td className="p-3">
+                            <span className="text-sm text-gray-600">{user.createdAt}</span>
+                          </td>
+                          <td className="p-3">
+                            <Badge variant="outline">{user.projectCount}</Badge>
+                          </td>
+                          <td className="p-3">
+                            <span className="text-sm">{user.tokenUsage.toLocaleString()}</span>
+                          </td>
+                          <td className="p-3">
+                            <span className="text-sm font-medium">${user.cost.toFixed(2)}</span>
+                          </td>
+                          <td className="p-3">
+                            <span className="text-xs text-gray-500 font-mono">{user.userId.slice(-8)}</span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Token Usage by User
+                </CardTitle>
+                <CardDescription>
+                  Top users by AI token consumption
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {stats.tokenUsageByUser.slice(0, 10).map((user, index) => (
+                    <div key={user.userId} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                          <span className="text-sm font-medium text-purple-600">
+                            {index + 1}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="font-medium">{user.userName}</p>
+                          <p className="text-sm text-muted-foreground">{user.email}</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium">{user.userName}</p>
-                        <p className="text-sm text-muted-foreground">User ID: {user.userId}</p>
-                      </div>
+                      <Badge variant="secondary">
+                        {user.tokens.toLocaleString()} tokens
+                      </Badge>
                     </div>
-                    <Badge variant="secondary">
-                      {user.tokens.toLocaleString()} tokens
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FolderOpen className="h-5 w-5" />
+                  Projects by User
+                </CardTitle>
+                <CardDescription>
+                  Users with the most projects
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {stats.projectsByUser.slice(0, 10).map((user, index) => (
+                    <div key={user.userId} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <span className="text-sm font-medium text-blue-600">
+                            {index + 1}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="font-medium">{user.userName}</p>
+                          <p className="text-sm text-muted-foreground">ID: {user.userId.slice(-8)}</p>
+                        </div>
+                      </div>
+                      <Badge variant="outline">
+                        {user.projectCount} projects
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="projects" className="space-y-4">
@@ -234,32 +352,44 @@ export function AdminDashboard() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FolderOpen className="h-5 w-5" />
-                Projects by User
+                Project Statistics
               </CardTitle>
               <CardDescription>
-                Users with the most projects
+                Overview of project distribution and status
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {stats.projectsByUser.slice(0, 10).map((user, index) => (
-                  <div key={user.userId} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                        <span className="text-sm font-medium text-blue-600">
-                          {index + 1}
-                        </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-medium mb-3">Project Status Distribution</h4>
+                  <div className="space-y-2">
+                    {Object.entries(stats.projectsByStatus).map(([status, count]) => (
+                      <div key={status} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        <span className="capitalize text-sm">{status}</span>
+                        <span className="font-medium">{count}</span>
                       </div>
-                      <div>
-                        <p className="font-medium">{user.userName}</p>
-                        <p className="text-sm text-muted-foreground">User ID: {user.userId}</p>
-                      </div>
-                    </div>
-                    <Badge variant="outline">
-                      {user.projectCount} projects
-                    </Badge>
+                    ))}
                   </div>
-                ))}
+                </div>
+                <div>
+                  <h4 className="font-medium mb-3">Quick Stats</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <span className="text-sm">Total Projects</span>
+                      <span className="font-medium">{stats.totalProjects}</span>
+                    </div>
+                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <span className="text-sm">Active Users</span>
+                      <span className="font-medium">{stats.activeUsers}</span>
+                    </div>
+                    <div className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <span className="text-sm">Avg Projects per User</span>
+                      <span className="font-medium">
+                        {stats.totalUsers > 0 ? (stats.totalProjects / stats.totalUsers).toFixed(1) : 0}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -303,6 +433,114 @@ export function AdminDashboard() {
                       </span>
                     </div>
                   </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="charts" className="space-y-4">
+          <AdminCharts stats={stats} />
+        </TabsContent>
+
+        <TabsContent value="pricing" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Zap className="h-5 w-5" />
+                  Cost Breakdown by User
+                </CardTitle>
+                <CardDescription>
+                  Individual user costs based on token consumption
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {stats.userCosts?.slice(0, 10).map((user, index) => (
+                    <div key={user.userId} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                          <span className="text-sm font-medium text-green-600">
+                            {index + 1}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="font-medium">{user.userName}</p>
+                          <p className="text-sm text-muted-foreground">{user.tokens.toLocaleString()} tokens</p>
+                        </div>
+                      </div>
+                      <Badge variant="secondary">
+                        ${user.cost.toFixed(2)}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5" />
+                  Suggested Pricing Tiers
+                </CardTitle>
+                <CardDescription>
+                  Based on current usage patterns
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {stats.pricingTiers && Object.entries(stats.pricingTiers).map(([key, tier]: [string, any]) => (
+                    <div key={key} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-semibold">{tier.name}</h4>
+                        <span className="text-lg font-bold">${tier.price}</span>
+                      </div>
+                      <div className="text-sm text-muted-foreground space-y-1">
+                        <p>• {tier.tokens.toLocaleString()} tokens/month</p>
+                        <p>• {tier.analyses} analyses/month</p>
+                        <p>• {tier.projects} projects</p>
+                        {tier.features.map((feature: string, index: number) => (
+                          <p key={index}>• {feature}</p>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Cost Analysis Summary
+              </CardTitle>
+              <CardDescription>
+                Key metrics for pricing decisions
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">
+                    ${stats.totalCost?.toFixed(2) || '0.00'}
+                  </div>
+                  <p className="text-sm text-muted-foreground">Total Cost</p>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">
+                    ${stats.costPerUser?.toFixed(2) || '0.00'}
+                  </div>
+                  <p className="text-sm text-muted-foreground">Cost per User</p>
+                </div>
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-purple-600">
+                    {stats.avgTokensPerAnalysis?.toLocaleString() || '0'}
+                  </div>
+                  <p className="text-sm text-muted-foreground">Avg Tokens per Analysis</p>
                 </div>
               </div>
             </CardContent>
