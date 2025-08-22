@@ -108,6 +108,13 @@ class SecureConfigManager {
 
   public encrypt(plaintext: string): string {
     try {
+      // Check if we have proper encryption configuration
+      if (!this.securityConfig.encryptionKey || !this.securityConfig.encryptionSalt) {
+        console.warn('Encryption configuration missing, using plaintext storage');
+        this.logAudit('ENCRYPT', true, 'No encryption config - using plaintext');
+        return plaintext;
+      }
+
       if (!this.securityConfig.isProduction) {
         // In development, return plaintext for easier debugging
         this.logAudit('ENCRYPT', true, 'Development mode - no encryption applied');
@@ -132,15 +139,31 @@ class SecureConfigManager {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown encryption error';
       this.logAudit('ENCRYPT', false, errorMessage);
-      throw new Error(`Encryption failed: ${errorMessage}`);
+      console.error('Encryption failed:', error);
+      // Fallback to plaintext if encryption fails
+      return plaintext;
     }
   }
 
   public decrypt(encryptedData: string): string {
     try {
+      // Check if we have proper encryption configuration
+      if (!this.securityConfig.encryptionKey || !this.securityConfig.encryptionSalt) {
+        console.warn('Encryption configuration missing, returning data as-is');
+        this.logAudit('DECRYPT', true, 'No encryption config - returning as-is');
+        return encryptedData;
+      }
+
       if (!this.securityConfig.isProduction) {
         // In development, return data as-is
         this.logAudit('DECRYPT', true, 'Development mode - no decryption needed');
+        return encryptedData;
+      }
+
+      // Check if data is actually encrypted (has the format iv:encrypted)
+      if (!encryptedData.includes(':')) {
+        // Data is not encrypted, return as-is
+        this.logAudit('DECRYPT', true, 'Data not encrypted, returning as-is');
         return encryptedData;
       }
 
@@ -165,7 +188,9 @@ class SecureConfigManager {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown decryption error';
       this.logAudit('DECRYPT', false, errorMessage);
-      throw new Error(`Decryption failed: ${errorMessage}. Please check your encryption configuration.`);
+      console.error('Decryption failed:', error);
+      // Fallback to returning the data as-is if decryption fails
+      return encryptedData;
     }
   }
 

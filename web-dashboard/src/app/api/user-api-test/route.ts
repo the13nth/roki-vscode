@@ -13,16 +13,29 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
     const { userId } = await auth();
     if (!userId) {
+      console.error('POST /api/user-api-test: No userId found');
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
       );
     }
 
+    console.log('POST /api/user-api-test: Testing config for user:', userId);
     const config: ApiConfiguration = await request.json();
+    console.log('POST /api/user-api-test: Testing config:', { 
+      provider: config.provider, 
+      model: config.model, 
+      hasApiKey: !!config.apiKey,
+      baseUrl: config.baseUrl 
+    });
 
     // Validate required fields
     if (!config.provider || !config.apiKey || !config.model) {
+      console.error('POST /api/user-api-test: Missing required fields:', { 
+        hasProvider: !!config.provider, 
+        hasApiKey: !!config.apiKey, 
+        hasModel: !!config.model 
+      });
       return NextResponse.json(
         { error: 'Provider, API key, and model are required' },
         { status: 400 }
@@ -46,11 +59,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         testResult = await testCustomProvider(config);
         break;
       default:
+        console.error('POST /api/user-api-test: Unsupported provider:', config.provider);
         return NextResponse.json(
           { error: 'Unsupported provider' },
           { status: 400 }
         );
     }
+
+    console.log('POST /api/user-api-test: Test result:', testResult);
 
     if (testResult.success) {
       return NextResponse.json({
@@ -64,7 +80,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
   } catch (error) {
-    console.error('Failed to test user API configuration:', error);
+    console.error('POST /api/user-api-test: Failed to test user API configuration:', error);
     return NextResponse.json(
       { error: 'Failed to test API configuration' },
       { status: 500 }

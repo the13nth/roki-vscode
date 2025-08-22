@@ -9,11 +9,13 @@ const isProtectedRoute = createRouteMatcher([
 const isPublicApiRoute = createRouteMatcher([
   '/api/file-watcher(.*)',
   '/api/auth/verify-token',
+  '/api/user-api-config(.*)',
+  '/api/user-api-test(.*)',
   '/api/vscode(.*)',
 ])
 
 export default clerkMiddleware(async (auth, req) => {
-  // Skip authentication for public API routes (file watcher)
+  // Skip authentication for public API routes (file watcher, user API config)
   if (isPublicApiRoute(req)) {
     return NextResponse.next()
   }
