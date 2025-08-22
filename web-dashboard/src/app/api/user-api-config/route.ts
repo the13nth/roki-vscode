@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { getPineconeClient, PINECONE_INDEX_NAME } from '@/lib/pinecone';
 import { encryptApiKey, decryptApiKey } from '@/lib/secureConfig';
 
 interface UserApiConfiguration {
@@ -10,19 +9,6 @@ interface UserApiConfiguration {
   model: string;
   baseUrl?: string;
   encryptedApiKey?: string;
-}
-
-function getUserConfigPath(userId: string): string {
-  return path.join(process.cwd(), '.ai-project', 'user-configs', `${userId}-api-config.json`);
-}
-
-async function fileExists(filePath: string): Promise<boolean> {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 // GET /api/user-api-config - Get user's API configuration
@@ -38,10 +24,58 @@ export async function GET(): Promise<NextResponse> {
     }
 
     console.log('GET /api/user-api-config: Loading config for user:', userId);
-    const configPath = getUserConfigPath(userId);
     
-    if (!await fileExists(configPath)) {
-      console.log('GET /api/user-api-config: No existing config found, returning empty config');
+    try {
+      const pinecone = getPineconeClient();
+      const index = pinecone.index(PINECONE_INDEX_NAME);
+      
+      // Try to fetch existing configuration from Pinecone
+      const queryResponse = await index.namespace('user-api-configs').query({
+        vector: new Array(1024).fill(0), // Dummy vector for metadata-only query
+        topK: 1,
+        filter: { userId: { $eq: userId } },
+        includeMetadata: true
+      });
+
+      if (queryResponse.matches && queryResponse.matches.length > 0) {
+        const configData = queryResponse.matches[0].metadata as UserApiConfiguration;
+        
+        // Decrypt API key if it's encrypted
+        let decryptedApiKey = '';
+        try {
+          if (configData.encryptedApiKey) {
+            decryptedApiKey = decryptApiKey(configData.encryptedApiKey);
+          } else if (configData.apiKey) {
+            // Legacy support for unencrypted keys
+            decryptedApiKey = configData.apiKey;
+          }
+        } catch (error) {
+          console.error('GET /api/user-api-config: Failed to decrypt user API key:', error);
+          return NextResponse.json(
+            { error: 'Failed to decrypt API key. Please re-enter your API key.' },
+            { status: 500 }
+          );
+        }
+
+        console.log('GET /api/user-api-config: Successfully loaded config for user:', userId);
+        return NextResponse.json({
+          provider: configData.provider,
+          apiKey: decryptedApiKey,
+          model: configData.model,
+          baseUrl: configData.baseUrl
+        });
+      } else {
+        console.log('GET /api/user-api-config: No existing config found, returning empty config');
+        return NextResponse.json({
+          provider: '',
+          apiKey: '',
+          model: '',
+          baseUrl: ''
+        });
+      }
+    } catch (error) {
+      console.error('GET /api/user-api-config: Pinecone error:', error);
+      // Fallback to empty config if Pinecone is not available
       return NextResponse.json({
         provider: '',
         apiKey: '',
@@ -49,34 +83,6 @@ export async function GET(): Promise<NextResponse> {
         baseUrl: ''
       });
     }
-
-    const configData = await fs.readFile(configPath, 'utf8');
-    const config: UserApiConfiguration = JSON.parse(configData);
-
-    // Decrypt API key if it's encrypted
-    let decryptedApiKey = '';
-    try {
-      if (config.encryptedApiKey) {
-        decryptedApiKey = decryptApiKey(config.encryptedApiKey);
-      } else if (config.apiKey) {
-        // Legacy support for unencrypted keys
-        decryptedApiKey = config.apiKey;
-      }
-    } catch (error) {
-      console.error('GET /api/user-api-config: Failed to decrypt user API key:', error);
-      return NextResponse.json(
-        { error: 'Failed to decrypt API key. Please re-enter your API key.' },
-        { status: 500 }
-      );
-    }
-
-    console.log('GET /api/user-api-config: Successfully loaded config for user:', userId);
-    return NextResponse.json({
-      provider: config.provider,
-      apiKey: decryptedApiKey,
-      model: config.model,
-      baseUrl: config.baseUrl
-    });
   } catch (error) {
     console.error('GET /api/user-api-config: Failed to load user API configuration:', error);
     return NextResponse.json(
@@ -148,25 +154,38 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       baseUrl: config.baseUrl
     };
 
-    // Ensure directory exists
-    const configDir = path.dirname(getUserConfigPath(userId));
-    console.log('POST /api/user-api-config: Creating config directory:', configDir);
-    await fs.mkdir(configDir, { recursive: true });
+    try {
+      // Save to Pinecone
+      const pinecone = getPineconeClient();
+      const index = pinecone.index(PINECONE_INDEX_NAME);
+      
+      // Create a dummy vector (1024 dimensions to match Pinecone index)
+      const dummyVector = new Array(1024).fill(0);
+      
+      await index.namespace('user-api-configs').upsert([
+        {
+          id: `user-config-${userId}`,
+          values: dummyVector,
+          metadata: {
+            userId,
+            ...configToSave,
+            timestamp: new Date().toISOString()
+          }
+        }
+      ]);
 
-    // Save configuration
-    const configPath = getUserConfigPath(userId);
-    console.log('POST /api/user-api-config: Saving config to:', configPath);
-    await fs.writeFile(
-      configPath,
-      JSON.stringify(configToSave, null, 2),
-      'utf-8'
-    );
-
-    console.log('POST /api/user-api-config: Successfully saved config for user:', userId);
-    return NextResponse.json({ 
-      success: true, 
-      message: 'User API configuration saved successfully' 
-    });
+      console.log('POST /api/user-api-config: Successfully saved config to Pinecone for user:', userId);
+      return NextResponse.json({ 
+        success: true, 
+        message: 'User API configuration saved successfully' 
+      });
+    } catch (error) {
+      console.error('POST /api/user-api-config: Failed to save to Pinecone:', error);
+      return NextResponse.json(
+        { error: 'Failed to save user API configuration to database' },
+        { status: 500 }
+      );
+    }
   } catch (error) {
     console.error('POST /api/user-api-config: Failed to save user API configuration:', error);
     return NextResponse.json(
@@ -189,13 +208,18 @@ export async function DELETE(): Promise<NextResponse> {
     }
 
     console.log('DELETE /api/user-api-config: Deleting config for user:', userId);
-    const configPath = getUserConfigPath(userId);
     
-    if (await fileExists(configPath)) {
-      await fs.unlink(configPath);
+    try {
+      const pinecone = getPineconeClient();
+      const index = pinecone.index(PINECONE_INDEX_NAME);
+      
+      // Delete the configuration from Pinecone
+      await index.namespace('user-api-configs').deleteOne(`user-config-${userId}`);
+      
       console.log('DELETE /api/user-api-config: Successfully deleted config for user:', userId);
-    } else {
-      console.log('DELETE /api/user-api-config: No config file found for user:', userId);
+    } catch (error) {
+      console.error('DELETE /api/user-api-config: Failed to delete from Pinecone:', error);
+      // Continue even if deletion fails (config might not exist)
     }
 
     return NextResponse.json({ 
