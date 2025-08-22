@@ -220,6 +220,32 @@ class SecureConfigManager {
     }
   }
 
+  public getGoogleAIConfigWithFallback(): ApiConfiguration | null {
+    try {
+      const apiKey = process.env.GOOGLE_AI_API_KEY;
+      const model = process.env.GOOGLE_AI_MODEL || 'gemini-1.5-pro';
+      
+      if (!apiKey) {
+        this.logAudit('GET_GOOGLE_AI_CONFIG_FALLBACK', false, 'Missing Google AI API key - returning null for fallback');
+        return null;
+      }
+
+      const config: ApiConfiguration = {
+        provider: 'google',
+        apiKey: this.securityConfig.isProduction ? this.decrypt(apiKey) : apiKey,
+        model,
+        baseUrl: 'https://generativelanguage.googleapis.com'
+      };
+
+      this.logAudit('GET_GOOGLE_AI_CONFIG_FALLBACK', true, 'Google AI configuration retrieved with fallback');
+      return config;
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown configuration error';
+      this.logAudit('GET_GOOGLE_AI_CONFIG_FALLBACK', false, errorMessage);
+      return null;
+    }
+  }
+
   public validateConfiguration(): { isValid: boolean; errors: string[] } {
     const errors: string[] = [];
 
@@ -302,5 +328,6 @@ export const secureConfig = SecureConfigManager.getInstance();
 export const encryptApiKey = (apiKey: string): string => secureConfig.encrypt(apiKey);
 export const decryptApiKey = (encryptedApiKey: string): string => secureConfig.decrypt(encryptedApiKey);
 export const getGoogleAIConfig = (): ApiConfiguration => secureConfig.getGoogleAIConfig();
+export const getGoogleAIConfigWithFallback = (): ApiConfiguration | null => secureConfig.getGoogleAIConfigWithFallback();
 export const validateSecureConfig = () => secureConfig.validateConfiguration();
 export const getSecurityAuditLog = () => secureConfig.getAuditLog();
