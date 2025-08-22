@@ -111,8 +111,8 @@ export function ProjectDashboardLayout({
 
       {/* Main Content Area */}
       <div className="flex-1 p-2 relative">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+        <div className="w-full">
+          <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 w-full">
             {/* Sidebar */}
             <div className="xl:col-span-1 space-y-2 hidden xl:block">
               {/* Navigation */}
@@ -130,9 +130,9 @@ export function ProjectDashboardLayout({
             </div>
 
             {/* Main Content */}
-            <div className="xl:col-span-4">
-              <Card className="min-h-[600px] rounded-none">
-                <CardContent className="p-0">
+            <div className="xl:col-span-4 w-full">
+              <Card className="min-h-[600px] rounded-none w-full">
+                <CardContent className="p-0 w-full">
                   {activeTab === 'overview' && (
                     <ProjectOverviewTab 
                       project={project}

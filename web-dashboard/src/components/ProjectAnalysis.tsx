@@ -134,6 +134,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
   const [showPitchModal, setShowPitchModal] = useState(false);
   const [savedAnalyses, setSavedAnalyses] = useState<Record<string, boolean>>({});
   const [savingAnalyses, setSavingAnalyses] = useState<Record<string, boolean>>({});
+  const [isAnalysisOptionsCollapsed, setIsAnalysisOptionsCollapsed] = useState(false);
 
 
 
@@ -165,14 +166,14 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
   }) => (
     <Dialog>
       <DialogTrigger asChild>
-        <div className={`${colorClass} ${borderClass} rounded-lg p-4 min-h-[120px] cursor-pointer hover:shadow-md transition-all duration-200 group`}>
+        <div className={`${colorClass} ${borderClass} rounded-lg p-3 sm:p-4 min-h-[100px] sm:min-h-[120px] cursor-pointer hover:shadow-md transition-all duration-200 group`}>
           <div className="flex items-center justify-between mb-2">
-            <h4 className={`text-sm font-bold ${textClass} group-hover:text-opacity-80`}>
+            <h4 className={`text-xs sm:text-sm font-bold ${textClass} group-hover:text-opacity-80`}>
               {title}
             </h4>
             <Eye className={`w-4 h-4 ${textClass} opacity-50 group-hover:opacity-100 transition-opacity`} />
           </div>
-          <div className={`text-xs ${textClass} opacity-70`}>
+          <div className={`text-xs ${textClass} opacity-70 leading-tight`}>
             {content ? 'Click to view details' : 'No content available'}
           </div>
         </div>
@@ -570,9 +571,9 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col w-full">
       {/* Header */}
-      <div className="flex-shrink-0 p-4 sm:p-6 border-b bg-white">
+      <div className="flex-shrink-0 p-4 sm:p-6 border-b bg-white w-full">
         <h1 className="text-xl sm:text-2xl font-bold mb-2">Project Analysis</h1>
         <p className="text-sm sm:text-base text-muted-foreground">
           {projectTemplate === 'business'
@@ -583,9 +584,9 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col lg:flex-row min-h-0">
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0 w-full">
         {/* Context Input - Left Panel */}
-        <div className="w-full lg:w-1/4 border-r lg:border-r border-b lg:border-b-0 bg-gray-50 flex flex-col">
+        <div className="w-full lg:w-1/3 border-r lg:border-r border-b lg:border-b-0 bg-gray-50 flex flex-col">
           <div className="flex-shrink-0 p-3 sm:p-4 border-b bg-white">
             <h2 className="font-semibold flex items-center text-sm sm:text-base">
               <FileText className="w-4 h-4 mr-2" />
@@ -597,98 +598,105 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
           <div className="space-y-2 lg:space-y-3">
               {/* Analysis Options */}
               <div>
-                <Label className="text-sm font-medium mb-3 block">
-                  Choose Analysis Type
-                </Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => setIsAnalysisOptionsCollapsed(!isAnalysisOptionsCollapsed)}
+                  className="w-full justify-between p-3 text-base font-medium border-b border-gray-200 hover:bg-gray-50"
+                >
+                  <span className="flex items-center">
+                    <FileText className="w-4 h-4 mr-2" />
+                    Choose Analysis Type
+                  </span>
+                  {isAnalysisOptionsCollapsed ? (
+                    <ChevronRight className="w-4 h-4" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4" />
+                  )}
+                </Button>
+                {!isAnalysisOptionsCollapsed && (
+                <div className="space-y-2 mt-3">
                   <Button
                     variant="outline"
-                    size="sm"
                     onClick={() => handleAnalyze('technical')}
                     disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
-                    className="justify-start rounded-none border-gray-300 hover:border-blue-300 hover:bg-blue-50 text-xs sm:text-sm"
+                    className="justify-start rounded-none border-gray-300 hover:border-blue-300 hover:bg-blue-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
                   >
-                    <Lightbulb className="w-4 h-4 mr-2" />
-                    Technical Analysis
-                    {analysisResults.technical && <CheckCircle className="w-3 h-3 ml-auto text-green-600" />}
+                    <Lightbulb className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <span className="flex-1 text-left break-words leading-tight">Technical Analysis</span>
+                    {analysisResults.technical && <CheckCircle className="w-4 h-4 ml-2 text-green-600 flex-shrink-0" />}
                   </Button>
                   <Button
                     variant="outline"
-                    size="sm"
                     onClick={() => handleAnalyze('market')}
                     disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
-                    className="justify-start rounded-none border-gray-300 hover:border-purple-300 hover:bg-purple-50 text-xs sm:text-sm"
+                    className="justify-start rounded-none border-gray-300 hover:border-purple-300 hover:bg-purple-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
                   >
-                    <TrendingUp className="w-4 h-4 mr-2" />
-                    Market Analysis
-                    {analysisResults.market && <CheckCircle className="w-3 h-3 ml-auto text-green-600" />}
+                    <TrendingUp className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <span className="flex-1 text-left break-words leading-tight">Market Analysis</span>
+                    {analysisResults.market && <CheckCircle className="w-4 h-4 ml-2 text-green-600 flex-shrink-0" />}
                   </Button>
                   <Button
                     variant="outline"
-                    size="sm"
                     onClick={() => handleAnalyze('differentiation')}
                     disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
-                    className="justify-start rounded-none border-gray-300 hover:border-indigo-300 hover:bg-indigo-50 text-xs sm:text-sm"
+                    className="justify-start rounded-none border-gray-300 hover:border-indigo-300 hover:bg-indigo-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
                   >
-                    <Zap className="w-4 h-4 mr-2" />
-                    Competitive Differentiation
-                    {analysisResults.differentiation && <CheckCircle className="w-3 h-3 ml-auto text-green-600" />}
+                    <Zap className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <span className="flex-1 text-left break-words leading-tight">Competitive Differentiation</span>
+                    {analysisResults.differentiation && <CheckCircle className="w-4 h-4 ml-2 text-green-600 flex-shrink-0" />}
                   </Button>
                   <Button
                     variant="outline"
-                    size="sm"
                     onClick={() => handleAnalyze('financial')}
                     disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
-                    className="justify-start rounded-none border-gray-300 hover:border-yellow-300 hover:bg-yellow-50 text-xs sm:text-sm"
+                    className="justify-start rounded-none border-gray-300 hover:border-yellow-300 hover:bg-yellow-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
                   >
-                    <DollarSign className="w-4 h-4 mr-2" />
-                    Cost & Revenue Analysis
-                    {analysisResults.financial && <CheckCircle className="w-3 h-3 ml-auto text-green-600" />}
+                    <DollarSign className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <span className="flex-1 text-left break-words leading-tight">Cost & Revenue Analysis</span>
+                    {analysisResults.financial && <CheckCircle className="w-4 h-4 ml-2 text-green-600 flex-shrink-0" />}
                   </Button>
                   <Button
                     variant="outline"
-                    size="sm"
                     onClick={() => handleAnalyze('bmc')}
                     disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
-                    className="justify-start rounded-none border-blue-200 text-blue-700 hover:bg-blue-50 text-xs sm:text-sm"
+                    className="justify-start rounded-none border-blue-200 text-blue-700 hover:bg-blue-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
                   >
-                    <Grid3X3 className="w-4 h-4 mr-2" />
-                    Business Model Canvas
-                    {analysisResults.bmc && <CheckCircle className="w-3 h-3 ml-auto text-green-600" />}
+                    <Grid3X3 className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <span className="flex-1 text-left break-words leading-tight">Business Model Canvas</span>
+                    {analysisResults.bmc && <CheckCircle className="w-4 h-4 ml-2 text-green-600 flex-shrink-0" />}
                   </Button>
                   <Button
                     variant="outline"
-                    size="sm"
                     onClick={() => handleRoastClick()}
                     disabled={isAnalyzing || !roastAnalysesComplete}
-                    className="justify-start rounded-none border-red-200 text-red-700 hover:bg-red-50 text-xs sm:text-sm"
+                    className="justify-start rounded-none border-red-200 text-red-700 hover:bg-red-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
                   >
-                    <Flame className="w-4 h-4 mr-2" />
-                    Roast My Idea
-                    {analysisResults.roast && <CheckCircle className="w-3 h-3 ml-auto text-green-600" />}
+                    <Flame className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <span className="flex-1 text-left break-words leading-tight">Roast My Idea</span>
+                    {analysisResults.roast && <CheckCircle className="w-4 h-4 ml-2 text-green-600 flex-shrink-0" />}
                     {!roastAnalysesComplete && (
-                      <Badge variant="secondary" className="ml-auto text-xs">
+                      <Badge variant="secondary" className="ml-2 text-xs flex-shrink-0">
                         {remainingForRoast.length}
                       </Badge>
                     )}
                   </Button>
                   <Button
                     variant="outline"
-                    size="sm"
                     onClick={() => setShowPitchModal(true)}
                     disabled={isAnalyzing || !allAnalysesComplete}
-                    className="justify-start rounded-none border-purple-200 text-purple-700 hover:bg-purple-50"
+                    className="justify-start rounded-none border-purple-200 text-purple-700 hover:bg-purple-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
                   >
-                    <Presentation className="w-4 h-4 mr-2" />
-                    Generate Pitch
-                    {allAnalysesComplete && <CheckCircle className="w-3 h-3 ml-auto text-green-600" />}
+                    <Presentation className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <span className="flex-1 text-left break-words leading-tight">Generate Pitch</span>
+                    {allAnalysesComplete && <CheckCircle className="w-4 h-4 ml-2 text-green-600 flex-shrink-0" />}
                     {!allAnalysesComplete && (
-                      <Badge variant="secondary" className="ml-auto text-xs">
+                      <Badge variant="secondary" className="ml-2 text-xs flex-shrink-0">
                         {remainingAnalyses.length}
                       </Badge>
                     )}
                   </Button>
                 </div>
+                )}
               </div>
             </div>
             <div>
@@ -819,7 +827,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
         </div>
 
         {/* Analysis Results - Right Panel */}
-        <div className="flex-1 flex flex-col min-h-0 min-h-[400px] lg:min-h-0">
+        <div className="flex-1 flex flex-col min-h-0 min-h-[400px] lg:min-h-0 w-full">
           <div className="flex-shrink-0 p-3 sm:p-4 border-b bg-white">
             <h2 className="font-semibold flex items-center text-sm sm:text-base">
               <Brain className="w-4 h-4 mr-2" />
@@ -862,45 +870,45 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
             )}
 
             {(Object.keys(analysisResults).length > 0 || true) && (
-              <Tabs value={activeAnalysisTab} onValueChange={setActiveAnalysisTab} className="w-full">
+              <Tabs value={activeAnalysisTab} onValueChange={setActiveAnalysisTab} className="w-full h-full">
                 <div className="overflow-x-auto">
-                  <TabsList className="flex gap-1 p-1 min-w-max w-full grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:flex lg:w-auto">
+                  <TabsList className="flex gap-1 p-1 min-w-max">
                     {Object.keys(analysisResults).length > 0 && (
                       <TabsTrigger value="overview" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Overview</TabsTrigger>
                     )}
                     {analysisResults.technical && (
                       <TabsTrigger value="technical" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
-                        <Lightbulb className="w-3 h-3 mr-1 hidden sm:inline" />
+                        <Lightbulb className="w-3 h-3 mr-1" />
                         Technical
                       </TabsTrigger>
                     )}
                     {analysisResults.market && (
                       <TabsTrigger value="market" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
-                        <TrendingUp className="w-3 h-3 mr-1 hidden sm:inline" />
+                        <TrendingUp className="w-3 h-3 mr-1" />
                         Market
                       </TabsTrigger>
                     )}
                     {analysisResults.differentiation && (
                       <TabsTrigger value="differentiation" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
-                        <Zap className="w-3 h-3 mr-1 hidden sm:inline" />
+                        <Zap className="w-3 h-3 mr-1" />
                         Differentiation
                       </TabsTrigger>
                     )}
                     {analysisResults.financial && (
                       <TabsTrigger value="financial" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
-                        <DollarSign className="w-3 h-3 mr-1 hidden sm:inline" />
+                        <DollarSign className="w-3 h-3 mr-1" />
                         Financial
                       </TabsTrigger>
                     )}
                     {analysisResults.bmc && (
                       <TabsTrigger value="bmc" className="text-xs sm:text-sm whitespace-nowrap text-blue-700 px-2 sm:px-3">
-                        <Grid3X3 className="w-3 h-3 mr-1 hidden sm:inline" />
+                        <Grid3X3 className="w-3 h-3 mr-1" />
                         BMC
                       </TabsTrigger>
                     )}
                     {analysisResults.roast && (
                       <TabsTrigger value="roast" className="text-xs sm:text-sm whitespace-nowrap text-red-700 px-2 sm:px-3">
-                        <Flame className="w-3 h-3 mr-1 hidden sm:inline" />
+                        <Flame className="w-3 h-3 mr-1" />
                         Roast
                       </TabsTrigger>
                     )}
@@ -914,7 +922,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                         }
                       }}
                     >
-                      <Presentation className="w-3 h-3 mr-1 hidden sm:inline" />
+                      <Presentation className="w-3 h-3 mr-1" />
                       Pitch
                       {!allAnalysesComplete && (
                         <Badge variant="secondary" className="ml-2 text-xs">
@@ -926,14 +934,14 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                 </div>
 
                 {Object.keys(analysisResults).length > 0 && (
-                  <TabsContent value="overview" className="space-y-4">
+                  <TabsContent value="overview" className="space-y-4 w-full">
                     <div className="text-center py-8">
                       <Brain className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
                       <h3 className="text-xl font-semibold mb-2">Project Analysis Dashboard</h3>
                       <p className="text-muted-foreground mb-6">
                         Run different types of analysis to get specialized insights about your project.
                       </p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 max-w-2xl mx-auto">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 w-full">
                         {Object.entries(analysisResults).map(([type, result]) => (
                           <Card key={type} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveAnalysisTab(type)}>
                             <CardContent className="p-3 sm:p-4 text-center">
@@ -1220,10 +1228,10 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                           </div>
                         </div>
 
-                        {/* BMC Grid - Compact Layout with Modal Expansion */}
-                        <div className="w-full bg-white border-2 border-gray-200 rounded-lg p-6">
+                        {/* BMC Grid - Responsive Layout with Modal Expansion */}
+                        <div className="w-full bg-white border-2 border-gray-200 rounded-lg p-3 sm:p-6">
                           {/* Top Row */}
-                          <div className="grid grid-cols-5 gap-4 mb-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 mb-4">
                             <BMCCard
                               title="Key Partnerships"
                               content={analysisResults.bmc.businessModelCanvas.keyPartnerships || ''}
@@ -1262,7 +1270,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                           </div>
 
                           {/* Middle Row */}
-                          <div className="grid grid-cols-5 gap-4 mb-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4 mb-4">
                             <BMCCard
                               title="Key Resources"
                               content={analysisResults.bmc.businessModelCanvas.keyResources || ''}
@@ -1271,8 +1279,8 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                               textClass="text-orange-800"
                             />
                             {/* Empty space for visual balance */}
-                            <div className="col-span-2"></div>
-                            <div className="col-span-2">
+                            <div className="hidden lg:block lg:col-span-2"></div>
+                            <div className="col-span-1 sm:col-span-2 lg:col-span-2">
                               <BMCCard
                                 title="Channels"
                                 content={analysisResults.bmc.businessModelCanvas.channels || ''}
@@ -1284,7 +1292,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                           </div>
 
                           {/* Bottom Row */}
-                          <div className="grid grid-cols-2 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
                             <BMCCard
                               title="Cost Structure"
                               content={analysisResults.bmc.businessModelCanvas.costStructure || ''}
@@ -1303,9 +1311,9 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                         </div>
 
                         {/* Legend */}
-                        <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
-                          <h4 className="text-sm font-semibold text-gray-800 mb-3">Business Model Canvas Legend</h4>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                        <div className="mt-4 sm:mt-6 bg-gray-50 border border-gray-200 rounded-lg p-3 sm:p-4">
+                          <h4 className="text-xs sm:text-sm font-semibold text-gray-800 mb-2 sm:mb-3">Business Model Canvas Legend</h4>
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 text-xs">
                             <div className="flex items-center">
                               <div className="w-4 h-4 bg-orange-200 border border-orange-300 rounded mr-2"></div>
                               <span className="text-gray-700">Infrastructure</span>
