@@ -3,12 +3,23 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Brain, FolderOpen, User } from 'lucide-react';
+import { Brain, FolderOpen, User, Shield } from 'lucide-react';
 import { GlobalApiSettings } from './GlobalApiSettings';
-import { SignedIn, SignedOut, UserButton, SignInButton } from '@clerk/nextjs';
+import { SignedIn, SignedOut, UserButton, SignInButton, useUser, useOrganization } from '@clerk/nextjs';
+import { Badge } from '@/components/ui/badge';
 
 export function NavigationHeader() {
   const pathname = usePathname();
+  const { user } = useUser();
+  const { organization } = useOrganization();
+  
+  // Check if user is part of binghi_admins organization
+  const isAdmin = organization?.slug === 'binghi_admins' || 
+                 organization?.name === 'binghi_admins' ||
+                 (user?.organizationMemberships?.some((membership: any) => 
+                   membership.organization?.slug === 'binghi_admins' || 
+                   membership.organization?.name === 'binghi_admins'
+                 ));
   
   // Don't show navigation on the homepage
   if (pathname === '/') {
@@ -60,13 +71,21 @@ export function NavigationHeader() {
                 </SignInButton>
               </SignedOut>
               <SignedIn>
-                <UserButton 
-                  appearance={{
-                    elements: {
-                      avatarBox: "w-8 h-8"
-                    }
-                  }}
-                />
+                <div className="flex items-center space-x-2">
+                  {isAdmin && (
+                    <Badge variant="secondary" className="flex items-center gap-1 bg-purple-100 text-purple-800 border-purple-200">
+                      <Shield className="h-3 w-3" />
+                      Admin
+                    </Badge>
+                  )}
+                  <UserButton 
+                    appearance={{
+                      elements: {
+                        avatarBox: "w-8 h-8"
+                      }
+                    }}
+                  />
+                </div>
               </SignedIn>
             </div>
           </nav>
