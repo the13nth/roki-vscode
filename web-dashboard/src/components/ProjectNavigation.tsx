@@ -23,6 +23,7 @@ interface ProjectNavigationProps {
   projectId: string;
   activeTab: string;
   progress: ProgressData;
+  onNavigate?: () => void;
 }
 
 interface NavItem {
@@ -33,7 +34,7 @@ interface NavItem {
   description: string;
 }
 
-export function ProjectNavigation({ projectId, activeTab, progress }: ProjectNavigationProps) {
+export function ProjectNavigation({ projectId, activeTab, progress, onNavigate }: ProjectNavigationProps) {
   const navItems: NavItem[] = [
     {
       id: 'overview',
@@ -130,6 +131,7 @@ export function ProjectNavigation({ projectId, activeTab, progress }: ProjectNav
                 <li key={item.id}>
                   <Link
                     href={item.href}
+                    onClick={onNavigate}
                     className={`group flex items-center px-4 py-3 text-sm font-medium rounded-none transition-all duration-200 ${
                       isActive
                         ? 'bg-primary text-primary-foreground shadow-sm'

@@ -1,19 +1,19 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { TypewriterEffect } from '@/components/ui/typewriter-effect';
 import { SlidingText } from '@/components/ui/sliding-text';
-import { SignedIn, SignedOut, SignInButton, SignUpButton } from '@clerk/nextjs';
+import { SignedIn, SignedOut, SignUpButton } from '@clerk/nextjs';
+import { UnifiedNavigation } from './UnifiedNavigation';
 import { 
   Rocket, 
   Brain, 
   Target, 
   Shield, 
-  Globe, 
   Play,
   Check,
   Users,
@@ -26,9 +26,6 @@ import {
   MessageSquare,
   Clock,
   Award,
-  LogIn,
-  UserPlus,
-  FolderOpen,
   Building2,
   Code,
   Download,
@@ -260,60 +257,7 @@ export function HomePage() {
       <MeasurementLines className="bottom-20 right-10 text-gray-300" />
       
       {/* Navigation */}
-      <header className="border-b bg-white/60 relative z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-2">
-              <div className="bg-black p-2 border-2 border-gray-800">
-                <Brain className="h-5 w-5 text-white" />
-              </div>
-              <span className="font-semibold text-lg text-black">
-                AI Project Manager
-              </span>
-            </Link>
-            
-            <nav className="hidden md:flex items-center space-x-6">
-              <Link href="#features" className="text-gray-600 hover:text-gray-900">
-                Features
-              </Link>
-              <Link href="#pricing" className="text-gray-600 hover:text-gray-900">
-                Pricing
-              </Link>
-              <Link href="/projects" className="flex items-center text-gray-600 hover:text-gray-900">
-                <FolderOpen className="mr-1 h-4 w-4" />
-                Projects
-              </Link>
-            </nav>
-
-            <div className="flex items-center space-x-2 md:space-x-3">
-              <SignedOut>
-                <SignInButton>
-                  <Button variant="outline" size="sm" className="border-2 border-gray-800 text-black hover:bg-gray-100 text-xs md:text-sm">
-                    <LogIn className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
-                    <span className="hidden sm:inline">Sign In</span>
-                    <span className="sm:hidden">In</span>
-                  </Button>
-                </SignInButton>
-                <SignUpButton>
-                  <Button size="sm" className="bg-black hover:bg-gray-800 text-white border-2 border-gray-800 text-xs md:text-sm">
-                    <UserPlus className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
-                    <span className="hidden sm:inline">Sign Up</span>
-                    <span className="sm:hidden">Up</span>
-                  </Button>
-                </SignUpButton>
-              </SignedOut>
-              <SignedIn>
-                <Link href="/projects">
-                  <Button size="sm" className="bg-black hover:bg-gray-800 text-white border-2 border-gray-800">
-                    <FolderOpen className="mr-2 h-4 w-4" />
-                    My Projects
-                  </Button>
-                </Link>
-              </SignedIn>
-            </div>
-          </div>
-        </div>
-      </header>
+      <UnifiedNavigation variant="homepage" />
 
       {/* Hero Section */}
       <div className="bg-white/40 border-b-2 border-gray-800 relative">
