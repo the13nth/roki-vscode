@@ -55,19 +55,21 @@ class SecureConfigManager {
     const encryptionSalt = process.env.ENCRYPTION_SALT;
     const isProduction = process.env.NODE_ENV === 'production';
 
-    // Allow missing encryption config during build time
-    if ((!encryptionKey || !encryptionSalt) && process.env.NODE_ENV !== 'production') {
-      this.logAudit('LOAD_SECURITY_CONFIG', false, 'Missing encryption configuration - using defaults for build');
-      return {
-        encryptionKey: 'build-time-fallback-key-32-chars!!',
-        encryptionSalt: 'build-time-fallback-salt-16-chars!!',
-        isProduction: false
-      };
-    }
-
+    // Allow missing encryption config during build time or non-production
     if (!encryptionKey || !encryptionSalt) {
-      this.logAudit('LOAD_SECURITY_CONFIG', false, 'Missing encryption configuration');
-      throw new Error('Missing encryption configuration. Please set ENCRYPTION_KEY and ENCRYPTION_SALT environment variables.');
+      if (!isProduction) {
+        // Use fallback values for build time or development
+        console.warn('Using fallback encryption configuration for build/development');
+        return {
+          encryptionKey: 'build-time-fallback-key-32-chars!!',
+          encryptionSalt: 'build-time-fallback-salt-16-chars!!',
+          isProduction: false
+        };
+      } else {
+        // Only throw in production
+        this.logAudit('LOAD_SECURITY_CONFIG', false, 'Missing encryption configuration');
+        throw new Error('Missing encryption configuration. Please set ENCRYPTION_KEY and ENCRYPTION_SALT environment variables.');
+      }
     }
 
     if (encryptionKey.length < 32) {
