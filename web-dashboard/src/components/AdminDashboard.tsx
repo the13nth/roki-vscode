@@ -102,55 +102,55 @@ export function AdminDashboard() {
   return (
     <div className="space-y-6">
       {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs md:text-sm font-medium">Users</CardTitle>
+            <Users className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalUsers}</div>
+            <div className="text-lg md:text-2xl font-bold">{stats.totalUsers}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.activeUsers} active this month
+              {stats.activeUsers} active
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Projects</CardTitle>
-            <FolderOpen className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs md:text-sm font-medium">Projects</CardTitle>
+            <FolderOpen className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalProjects}</div>
+            <div className="text-lg md:text-2xl font-bold">{stats.totalProjects}</div>
             <p className="text-xs text-muted-foreground">
-              Across all users
+              All users
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Analyses</CardTitle>
-            <Brain className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs md:text-sm font-medium">Analyses</CardTitle>
+            <Brain className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalAnalyses}</div>
+            <div className="text-lg md:text-2xl font-bold">{stats.totalAnalyses}</div>
             <p className="text-xs text-muted-foreground">
-              AI-powered insights
+              AI insights
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
-            <Zap className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-xs md:text-sm font-medium">Cost</CardTitle>
+            <Zap className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${stats.totalCost?.toFixed(2) || '0.00'}</div>
+            <div className="text-lg md:text-2xl font-bold">${stats.totalCost?.toFixed(2) || '0.00'}</div>
             <p className="text-xs text-muted-foreground">
-              ${stats.costPerUser?.toFixed(2) || '0.00'} per user
+              ${stats.costPerUser?.toFixed(2) || '0.00'}/user
             </p>
           </CardContent>
         </Card>
@@ -158,14 +158,14 @@ export function AdminDashboard() {
 
       {/* Detailed Analytics */}
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="users">Users</TabsTrigger>
-          <TabsTrigger value="projects">Projects</TabsTrigger>
-          <TabsTrigger value="analyses">Analyses</TabsTrigger>
-          <TabsTrigger value="charts">Charts</TabsTrigger>
-          <TabsTrigger value="pricing">Pricing & Costs</TabsTrigger>
-          <TabsTrigger value="activity">Recent Activity</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 md:grid-cols-7 h-auto">
+          <TabsTrigger value="overview" className="text-xs md:text-sm">Overview</TabsTrigger>
+          <TabsTrigger value="users" className="text-xs md:text-sm">Users</TabsTrigger>
+          <TabsTrigger value="projects" className="text-xs md:text-sm">Projects</TabsTrigger>
+          <TabsTrigger value="analyses" className="text-xs md:text-sm">Analyses</TabsTrigger>
+          <TabsTrigger value="charts" className="text-xs md:text-sm">Charts</TabsTrigger>
+          <TabsTrigger value="pricing" className="text-xs md:text-sm">Pricing</TabsTrigger>
+          <TabsTrigger value="activity" className="text-xs md:text-sm">Activity</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -224,16 +224,16 @@ export function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
-                  <table className="w-full">
+                  <table className="w-full min-w-[800px]">
                     <thead>
                       <tr className="border-b">
-                        <th className="text-left p-3 font-medium">User</th>
-                        <th className="text-left p-3 font-medium">Email</th>
-                        <th className="text-left p-3 font-medium">Joined</th>
-                        <th className="text-left p-3 font-medium">Projects</th>
-                        <th className="text-left p-3 font-medium">Token Usage</th>
-                        <th className="text-left p-3 font-medium">Cost</th>
-                        <th className="text-left p-3 font-medium">User ID</th>
+                        <th className="text-left p-2 md:p-3 font-medium text-xs md:text-sm">User</th>
+                        <th className="text-left p-2 md:p-3 font-medium text-xs md:text-sm">Email</th>
+                        <th className="text-left p-2 md:p-3 font-medium text-xs md:text-sm">Joined</th>
+                        <th className="text-left p-2 md:p-3 font-medium text-xs md:text-sm">Projects</th>
+                        <th className="text-left p-2 md:p-3 font-medium text-xs md:text-sm">Tokens</th>
+                        <th className="text-left p-2 md:p-3 font-medium text-xs md:text-sm">Cost</th>
+                        <th className="text-left p-2 md:p-3 font-medium text-xs md:text-sm">ID</th>
                       </tr>
                     </thead>
                     <tbody>

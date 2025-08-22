@@ -159,7 +159,7 @@ export class TokenTrackingService {
         metadata: {
           type: 'token_usage',
           projectId: tokenUsage.projectId,
-          userId: tokenUsage.userId,
+          userId: tokenUsage.userId || '',
           sessionId: tokenUsage.sessionId,
           analysisType: tokenUsage.analysisType,
           inputTokens: tokenUsage.inputTokens,

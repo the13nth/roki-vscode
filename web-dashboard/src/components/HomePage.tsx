@@ -285,18 +285,20 @@ export function HomePage() {
               </Link>
             </nav>
 
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2 md:space-x-3">
               <SignedOut>
                 <SignInButton>
-                  <Button variant="outline" size="sm" className="border-2 border-gray-800 text-black hover:bg-gray-100">
-                    <LogIn className="mr-2 h-4 w-4" />
-                    Sign In
+                  <Button variant="outline" size="sm" className="border-2 border-gray-800 text-black hover:bg-gray-100 text-xs md:text-sm">
+                    <LogIn className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
+                    <span className="hidden sm:inline">Sign In</span>
+                    <span className="sm:hidden">In</span>
                   </Button>
                 </SignInButton>
                 <SignUpButton>
-                  <Button size="sm" className="bg-black hover:bg-gray-800 text-white border-2 border-gray-800">
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Sign Up
+                  <Button size="sm" className="bg-black hover:bg-gray-800 text-white border-2 border-gray-800 text-xs md:text-sm">
+                    <UserPlus className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
+                    <span className="hidden sm:inline">Sign Up</span>
+                    <span className="sm:hidden">Up</span>
                   </Button>
                 </SignUpButton>
               </SignedOut>
@@ -317,12 +319,12 @@ export function HomePage() {
       <div className="bg-white/40 border-b-2 border-gray-800 relative">
         <SketchArrow className="top-10 left-20 text-gray-400 rotate-12" />
         <CircuitDiagram className="top-16 right-32 text-gray-300" />
-        <div className="container mx-auto px-4 py-20 relative z-10">
-        <div className="text-center mb-16">
-            <Badge className="mb-6 bg-white/80 text-black border-2 border-gray-800">
+        <div className="container mx-auto px-4 py-12 md:py-20 relative z-10">
+        <div className="text-center mb-12 md:mb-16">
+            <Badge className="mb-4 md:mb-6 bg-white/80 text-black border-2 border-gray-800 text-xs md:text-sm">
               🔥 Now with Brutally Honest Project Roasting & AI Mitigations
             </Badge>
-            <h1 className="text-5xl md:text-7xl font-bold text-gray-900 mb-6">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold text-gray-900 mb-4 md:mb-6">
               Turn <TypewriterEffect 
                 words={[
                   'Ideas', 
@@ -343,7 +345,7 @@ export function HomePage() {
                 delayBetweenSlides={5000}
               />
             </h1>
-            <p className="text-xl md:text-2xl text-gray-600 mb-8 max-w-4xl mx-auto leading-relaxed">
+            <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 mb-6 md:mb-8 max-w-4xl mx-auto leading-relaxed px-4">
               The complete AI-powered platform for <strong>technical development</strong> and <strong>business initiatives</strong>. 
               Get comprehensive analysis, saved insights, social media content generation, and brutally honest feedback with AI-powered mitigation strategies. 
               From concept to launch, with intelligent project management that adapts to your needs.
@@ -372,7 +374,7 @@ export function HomePage() {
             </div>
             
             {/* Social Proof */}
-            <div className="flex items-center justify-center space-x-8 text-sm text-gray-500">
+            <div className="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-6 md:space-x-8 text-xs sm:text-sm text-gray-500">
               <div className="flex items-center">
                 <Star className="h-4 w-4 text-yellow-400 mr-1" />
                 <span className="font-medium">4.9/5</span> rating
@@ -389,7 +391,7 @@ export function HomePage() {
         </div>
 
           {/* Hero Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-8 max-w-4xl mx-auto">
             <Card className="text-center border-2 border-gray-800 bg-white/70 rounded-none relative">
               <MeasurementLines className="top-2 right-2 text-gray-400" />
               <CardContent className="pt-6">
@@ -432,18 +434,18 @@ export function HomePage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-20">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 mb-16 md:mb-20">
           {features.map((feature, index) => (
             <Card key={index} className="border-2 border-gray-800 hover:border-black transition-all duration-300 bg-white/60 rounded-none relative">
-              <CardContent className="p-8">
+              <CardContent className="p-4 md:p-6 lg:p-8">
                 {index % 3 === 0 && <SketchArrow className="top-2 right-2 text-gray-400 scale-75" />}
                 {index % 3 === 1 && <MeasurementLines className="top-1 left-1 text-gray-300 scale-75" />}
                 {index % 3 === 2 && <CircuitDiagram className="top-1 right-1 text-gray-400 scale-50" />}
-                <div className="text-black mb-6">
+                <div className="text-black mb-4 md:mb-6">
                   {feature.icon}
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-4">{feature.title}</h3>
-                <p className="text-gray-600 leading-relaxed">{feature.description}</p>
+                <h3 className="text-lg md:text-xl font-semibold text-gray-900 mb-3 md:mb-4">{feature.title}</h3>
+                <p className="text-sm md:text-base text-gray-600 leading-relaxed">{feature.description}</p>
               </CardContent>
             </Card>
           ))}

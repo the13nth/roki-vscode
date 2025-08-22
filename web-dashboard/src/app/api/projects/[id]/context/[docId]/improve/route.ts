@@ -231,7 +231,7 @@ async function trackTokenUsage(projectId: string, tokenUsage: any, operation: st
       outputTokens = tokenUsage.completion_tokens || 0;
     }
 
-    await tokenTrackingService.trackTokenUsage(projectId, inputTokens, outputTokens, operation, userId);
+    await tokenTrackingService.trackTokenUsage(projectId, inputTokens, outputTokens, operation, userId || undefined);
   } catch (error) {
     console.error('Failed to track token usage:', error);
   }

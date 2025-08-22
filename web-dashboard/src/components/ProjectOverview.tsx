@@ -266,24 +266,25 @@ export function ProjectOverview() {
 
   return (
     <div className="min-h-screen bg-gray-50/70">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8">
         {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
+        <div className="mb-6 md:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">AI Project Manager</h1>
-              <p className="mt-2 text-gray-600">
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">AI Project Manager</h1>
+              <p className="mt-1 md:mt-2 text-sm md:text-base text-gray-600">
                 Manage your development projects with AI-powered assistance
               </p>
             </div>
             <button
               onClick={() => setShowProjectChoice(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-none font-medium transition-colors duration-200 flex items-center gap-2"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 md:px-6 py-2 md:py-3 rounded-none font-medium transition-colors duration-200 flex items-center gap-2 text-sm md:text-base self-start sm:self-auto"
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              New Project
+              <span className="hidden sm:inline">New Project</span>
+              <span className="sm:hidden">New</span>
             </button>
           </div>
         </div>
@@ -326,7 +327,7 @@ export function ProjectOverview() {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {filteredProjects.map((project) => (
               <ProjectCard 
                 key={project.id} 
@@ -339,8 +340,8 @@ export function ProjectOverview() {
 
         {/* Project Choice Dialog */}
         {showProjectChoice && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg p-4 md:p-6 max-w-md w-full">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Add Project
               </h3>

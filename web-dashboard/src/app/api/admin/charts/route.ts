@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth, currentUser } from '@clerk/nextjs/server';
+import { auth } from '@clerk/nextjs/server';
 import { getPineconeClient, PINECONE_INDEX_NAME } from '@/lib/pinecone';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
