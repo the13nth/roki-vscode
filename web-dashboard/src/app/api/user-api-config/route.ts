@@ -38,41 +38,44 @@ export async function GET(): Promise<NextResponse> {
       });
 
       if (queryResponse.matches && queryResponse.matches.length > 0) {
-        const configData = queryResponse.matches[0].metadata as UserApiConfiguration;
-        
-        // Decrypt API key if it's encrypted
-        let decryptedApiKey = '';
-        try {
-          if (configData.encryptedApiKey) {
-            decryptedApiKey = decryptApiKey(configData.encryptedApiKey);
-          } else if (configData.apiKey) {
-            // Legacy support for unencrypted keys
-            decryptedApiKey = configData.apiKey;
+        const metadata = queryResponse.matches[0].metadata;
+        if (metadata) {
+          const configData = metadata as unknown as UserApiConfiguration;
+          
+          // Decrypt API key if it's encrypted
+          let decryptedApiKey = '';
+          try {
+            if (configData.encryptedApiKey) {
+              decryptedApiKey = decryptApiKey(configData.encryptedApiKey);
+            } else if (configData.apiKey) {
+              // Legacy support for unencrypted keys
+              decryptedApiKey = configData.apiKey;
+            }
+          } catch (error) {
+            console.error('GET /api/user-api-config: Failed to decrypt user API key:', error);
+            return NextResponse.json(
+              { error: 'Failed to decrypt API key. Please re-enter your API key.' },
+              { status: 500 }
+            );
           }
-        } catch (error) {
-          console.error('GET /api/user-api-config: Failed to decrypt user API key:', error);
-          return NextResponse.json(
-            { error: 'Failed to decrypt API key. Please re-enter your API key.' },
-            { status: 500 }
-          );
-        }
 
-        console.log('GET /api/user-api-config: Successfully loaded config for user:', userId);
-        return NextResponse.json({
-          provider: configData.provider,
-          apiKey: decryptedApiKey,
-          model: configData.model,
-          baseUrl: configData.baseUrl
-        });
-      } else {
-        console.log('GET /api/user-api-config: No existing config found, returning empty config');
-        return NextResponse.json({
-          provider: '',
-          apiKey: '',
-          model: '',
-          baseUrl: ''
-        });
+          console.log('GET /api/user-api-config: Successfully loaded config for user:', userId);
+          return NextResponse.json({
+            provider: configData.provider,
+            apiKey: decryptedApiKey,
+            model: configData.model,
+            baseUrl: configData.baseUrl
+          });
+        }
       }
+      
+      console.log('GET /api/user-api-config: No existing config found, returning empty config');
+      return NextResponse.json({
+        provider: '',
+        apiKey: '',
+        model: '',
+        baseUrl: ''
+      });
     } catch (error) {
       console.error('GET /api/user-api-config: Pinecone error:', error);
       // Fallback to empty config if Pinecone is not available
