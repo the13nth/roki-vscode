@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
 import { getGoogleAIConfig, getGoogleAIConfigWithFallback, validateSecureConfig, decryptApiKey } from '@/lib/secureConfig';
 import { PineconeSyncServiceInstance } from '@/lib/pineconeSyncService';
 import { getPineconeClient, PINECONE_INDEX_NAME } from '@/lib/pinecone';
@@ -41,6 +41,40 @@ export async function POST(
         { error: 'Unauthorized' },
         { status: 401 }
       );
+    }
+
+    // Check user's organization membership
+    const user = await currentUser();
+    if (user) {
+      console.log(`👤 User ID: ${userId}`);
+      console.log(`📧 User Email: ${user.emailAddresses[0]?.emailAddress || 'No email'}`);
+      console.log(`👤 User Name: ${user.firstName} ${user.lastName || ''}`);
+      
+      // Check organization membership using auth() function
+      try {
+        const { userId: authUserId, sessionId, sessionClaims } = await auth();
+        console.log(`🔐 Session ID: ${sessionId}`);
+        
+        // Check if user has organization claims
+        if (sessionClaims && sessionClaims.org_id) {
+          console.log(`🏢 User is in organization: ${sessionClaims.org_id}`);
+          if (sessionClaims.org_name) {
+            console.log(`🏢 Organization name: ${sessionClaims.org_name}`);
+          }
+          if (sessionClaims.org_role) {
+            console.log(`🏢 Organization role: ${sessionClaims.org_role}`);
+          }
+        } else {
+          console.log(`🏢 User does not belong to any organizations`);
+        }
+        
+        // Log additional session claims for debugging
+        console.log(`🔐 Session claims:`, JSON.stringify(sessionClaims, null, 2));
+      } catch (error) {
+        console.log(`🏢 Error checking organization membership:`, error);
+      }
+    } else {
+      console.log(`👤 User authenticated but no user data available`);
     }
 
     const { id } = await params;
