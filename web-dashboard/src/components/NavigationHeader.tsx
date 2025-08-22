@@ -38,14 +38,24 @@ export function NavigationHeader() {
   useEffect(() => {
     if (isProjectPage && projectId) {
       fetch(`/api/projects/${projectId}`)
-        .then(response => response.json())
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Failed to fetch project');
+          }
+          return response.json();
+        })
         .then(data => {
           if (data.name) {
             setProjectName(data.name);
+          } else {
+            // Fallback: show first 4 characters of project ID
+            setProjectName(projectId.substring(0, 4));
           }
         })
         .catch(error => {
           console.error('Failed to fetch project name:', error);
+          // Fallback: show first 4 characters of project ID
+          setProjectName(projectId.substring(0, 4));
         });
     }
   }, [isProjectPage, projectId]);

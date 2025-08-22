@@ -113,7 +113,7 @@ export function UnifiedNavigation({
           </Link>
           <ChevronRight className="w-4 h-4 text-muted-foreground" />
           <span className="text-sm font-medium truncate max-w-xs">
-            {projectName || projectId}
+            {projectName || (projectId ? projectId.substring(0, 4) : '')}
           </span>
         </div>
       </div>
