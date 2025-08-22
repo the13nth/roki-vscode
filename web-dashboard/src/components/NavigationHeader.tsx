@@ -58,6 +58,14 @@ export function NavigationHeader() {
                   Profile
                 </Button>
               </Link>
+              {isAdmin && (
+                <Link href="/admin">
+                  <Button variant="ghost" size="sm" className="flex items-center">
+                    <Shield className="mr-2 h-4 w-4" />
+                    Admin
+                  </Button>
+                </Link>
+              )}
               <GlobalApiSettings />
             </SignedIn>
             
