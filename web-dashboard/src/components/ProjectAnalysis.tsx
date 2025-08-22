@@ -572,9 +572,9 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex-shrink-0 p-6 border-b bg-white">
-        <h1 className="text-2xl font-bold mb-2">Project Analysis</h1>
-        <p className="text-muted-foreground">
+      <div className="flex-shrink-0 p-4 sm:p-6 border-b bg-white">
+        <h1 className="text-xl sm:text-2xl font-bold mb-2">Project Analysis</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">
           {projectTemplate === 'business'
             ? 'AI-powered business analysis to provide strategic insights, regulatory guidance, and operational recommendations.'
             : 'AI-powered analysis of your project context to provide technical insights, recommendations, and identify potential improvements.'
@@ -583,30 +583,30 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0">
         {/* Context Input - Left Panel */}
-        <div className="w-1/4 border-r bg-gray-50 flex flex-col">
-          <div className="flex-shrink-0 p-4 border-b bg-white">
-            <h2 className="font-semibold flex items-center">
+        <div className="w-full lg:w-1/4 border-r lg:border-r border-b lg:border-b-0 bg-gray-50 flex flex-col">
+          <div className="flex-shrink-0 p-3 sm:p-4 border-b bg-white">
+            <h2 className="font-semibold flex items-center text-sm sm:text-base">
               <FileText className="w-4 h-4 mr-2" />
               Project Context
             </h2>
           </div>
 
-          <div className="flex-1 p-4 space-y-4 overflow-y-auto">
-          <div className="space-y-3">
+          <div className="flex-1 p-3 lg:p-4 space-y-3 lg:space-y-4 overflow-y-auto">
+          <div className="space-y-2 lg:space-y-3">
               {/* Analysis Options */}
               <div>
                 <Label className="text-sm font-medium mb-3 block">
                   Choose Analysis Type
                 </Label>
-                <div className="grid grid-cols-1 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handleAnalyze('technical')}
                     disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
-                    className="justify-start rounded-none border-gray-300 hover:border-blue-300 hover:bg-blue-50"
+                    className="justify-start rounded-none border-gray-300 hover:border-blue-300 hover:bg-blue-50 text-xs sm:text-sm"
                   >
                     <Lightbulb className="w-4 h-4 mr-2" />
                     Technical Analysis
@@ -617,7 +617,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                     size="sm"
                     onClick={() => handleAnalyze('market')}
                     disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
-                    className="justify-start rounded-none border-gray-300 hover:border-purple-300 hover:bg-purple-50"
+                    className="justify-start rounded-none border-gray-300 hover:border-purple-300 hover:bg-purple-50 text-xs sm:text-sm"
                   >
                     <TrendingUp className="w-4 h-4 mr-2" />
                     Market Analysis
@@ -628,7 +628,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                     size="sm"
                     onClick={() => handleAnalyze('differentiation')}
                     disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
-                    className="justify-start rounded-none border-gray-300 hover:border-indigo-300 hover:bg-indigo-50"
+                    className="justify-start rounded-none border-gray-300 hover:border-indigo-300 hover:bg-indigo-50 text-xs sm:text-sm"
                   >
                     <Zap className="w-4 h-4 mr-2" />
                     Competitive Differentiation
@@ -639,7 +639,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                     size="sm"
                     onClick={() => handleAnalyze('financial')}
                     disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
-                    className="justify-start rounded-none border-gray-300 hover:border-yellow-300 hover:bg-yellow-50"
+                    className="justify-start rounded-none border-gray-300 hover:border-yellow-300 hover:bg-yellow-50 text-xs sm:text-sm"
                   >
                     <DollarSign className="w-4 h-4 mr-2" />
                     Cost & Revenue Analysis
@@ -650,7 +650,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                     size="sm"
                     onClick={() => handleAnalyze('bmc')}
                     disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
-                    className="justify-start rounded-none border-blue-200 text-blue-700 hover:bg-blue-50"
+                    className="justify-start rounded-none border-blue-200 text-blue-700 hover:bg-blue-50 text-xs sm:text-sm"
                   >
                     <Grid3X3 className="w-4 h-4 mr-2" />
                     Business Model Canvas
@@ -661,7 +661,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                     size="sm"
                     onClick={() => handleRoastClick()}
                     disabled={isAnalyzing || !roastAnalysesComplete}
-                    className="justify-start rounded-none border-red-200 text-red-700 hover:bg-red-50"
+                    className="justify-start rounded-none border-red-200 text-red-700 hover:bg-red-50 text-xs sm:text-sm"
                   >
                     <Flame className="w-4 h-4 mr-2" />
                     Roast My Idea
@@ -819,15 +819,15 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
         </div>
 
         {/* Analysis Results - Right Panel */}
-        <div className="flex-1 flex flex-col min-h-0">
-          <div className="flex-shrink-0 p-4 border-b bg-white">
-            <h2 className="font-semibold flex items-center">
+        <div className="flex-1 flex flex-col min-h-0 min-h-[400px] lg:min-h-0">
+          <div className="flex-shrink-0 p-3 sm:p-4 border-b bg-white">
+            <h2 className="font-semibold flex items-center text-sm sm:text-base">
               <Brain className="w-4 h-4 mr-2" />
               Analysis Results
             </h2>
           </div>
 
-          <div className="flex-1 p-4 overflow-y-auto">
+          <div className="flex-1 p-3 lg:p-4 overflow-y-auto">
             {error && (
               <Alert variant="destructive" className="mb-4">
                 <AlertCircle className="h-4 w-4" />
@@ -864,49 +864,49 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
             {(Object.keys(analysisResults).length > 0 || true) && (
               <Tabs value={activeAnalysisTab} onValueChange={setActiveAnalysisTab} className="w-full">
                 <div className="overflow-x-auto">
-                  <TabsList className="flex gap-1 p-1 min-w-max">
+                  <TabsList className="flex gap-1 p-1 min-w-max w-full grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:flex lg:w-auto">
                     {Object.keys(analysisResults).length > 0 && (
-                      <TabsTrigger value="overview" className="text-xs whitespace-nowrap">Overview</TabsTrigger>
+                      <TabsTrigger value="overview" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">Overview</TabsTrigger>
                     )}
                     {analysisResults.technical && (
-                      <TabsTrigger value="technical" className="text-xs whitespace-nowrap">
-                        <Lightbulb className="w-3 h-3 mr-1" />
+                      <TabsTrigger value="technical" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
+                        <Lightbulb className="w-3 h-3 mr-1 hidden sm:inline" />
                         Technical
                       </TabsTrigger>
                     )}
                     {analysisResults.market && (
-                      <TabsTrigger value="market" className="text-xs whitespace-nowrap">
-                        <TrendingUp className="w-3 h-3 mr-1" />
+                      <TabsTrigger value="market" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
+                        <TrendingUp className="w-3 h-3 mr-1 hidden sm:inline" />
                         Market
                       </TabsTrigger>
                     )}
                     {analysisResults.differentiation && (
-                      <TabsTrigger value="differentiation" className="text-xs whitespace-nowrap">
-                        <Zap className="w-3 h-3 mr-1" />
+                      <TabsTrigger value="differentiation" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
+                        <Zap className="w-3 h-3 mr-1 hidden sm:inline" />
                         Differentiation
                       </TabsTrigger>
                     )}
                     {analysisResults.financial && (
-                      <TabsTrigger value="financial" className="text-xs whitespace-nowrap">
-                        <DollarSign className="w-3 h-3 mr-1" />
+                      <TabsTrigger value="financial" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
+                        <DollarSign className="w-3 h-3 mr-1 hidden sm:inline" />
                         Financial
                       </TabsTrigger>
                     )}
                     {analysisResults.bmc && (
-                      <TabsTrigger value="bmc" className="text-xs whitespace-nowrap text-blue-700">
-                        <Grid3X3 className="w-3 h-3 mr-1" />
+                      <TabsTrigger value="bmc" className="text-xs sm:text-sm whitespace-nowrap text-blue-700 px-2 sm:px-3">
+                        <Grid3X3 className="w-3 h-3 mr-1 hidden sm:inline" />
                         BMC
                       </TabsTrigger>
                     )}
                     {analysisResults.roast && (
-                      <TabsTrigger value="roast" className="text-xs whitespace-nowrap text-red-700">
-                        <Flame className="w-3 h-3 mr-1" />
+                      <TabsTrigger value="roast" className="text-xs sm:text-sm whitespace-nowrap text-red-700 px-2 sm:px-3">
+                        <Flame className="w-3 h-3 mr-1 hidden sm:inline" />
                         Roast
                       </TabsTrigger>
                     )}
                     <TabsTrigger
                       value="pitch"
-                      className="text-xs whitespace-nowrap text-purple-700"
+                      className="text-xs sm:text-sm whitespace-nowrap text-purple-700 px-2 sm:px-3"
                       onClick={(e) => {
                         if (!allAnalysesComplete) {
                           e.preventDefault();
@@ -914,7 +914,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                         }
                       }}
                     >
-                      <Presentation className="w-3 h-3 mr-1" />
+                      <Presentation className="w-3 h-3 mr-1 hidden sm:inline" />
                       Pitch
                       {!allAnalysesComplete && (
                         <Badge variant="secondary" className="ml-2 text-xs">
@@ -933,10 +933,10 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                       <p className="text-muted-foreground mb-6">
                         Run different types of analysis to get specialized insights about your project.
                       </p>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-w-2xl mx-auto">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 max-w-2xl mx-auto">
                         {Object.entries(analysisResults).map(([type, result]) => (
                           <Card key={type} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveAnalysisTab(type)}>
-                            <CardContent className="p-4 text-center">
+                            <CardContent className="p-3 sm:p-4 text-center">
                               <div className="flex items-center justify-center mb-2">
                                 {type === 'technical' && <Lightbulb className="w-6 h-6 text-blue-600" />}
                                 {type === 'market' && <TrendingUp className="w-6 h-6 text-purple-600" />}
@@ -945,7 +945,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                                 {type === 'bmc' && <Grid3X3 className="w-6 h-6 text-blue-600" />}
                                 {type === 'roast' && <Flame className="w-6 h-6 text-red-600" />}
                               </div>
-                              <h4 className="font-medium text-sm capitalize">{type} Analysis</h4>
+                              <h4 className="font-medium text-xs sm:text-sm capitalize">{type} Analysis</h4>
                               <p className="text-xs text-muted-foreground mt-1">
                                 {new Date(result.timestamp).toLocaleDateString()}
                               </p>
