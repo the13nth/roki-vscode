@@ -31,7 +31,7 @@ export async function GET(): Promise<NextResponse> {
       
       // Try to fetch existing configuration from Pinecone
       const queryResponse = await index.namespace('user-api-configs').query({
-        vector: new Array(1024).fill(0), // Dummy vector for metadata-only query
+        vector: new Array(1024).fill(0.1), // Vector with non-zero values for metadata-only query
         topK: 1,
         filter: { userId: { $eq: userId } },
         includeMetadata: true
@@ -162,13 +162,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const pinecone = getPineconeClient();
       const index = pinecone.index(PINECONE_INDEX_NAME);
       
-      // Create a dummy vector (1024 dimensions to match Pinecone index)
-      const dummyVector = new Array(1024).fill(0);
+      // Create a vector with at least one non-zero value (Pinecone requirement)
+      const vector = new Array(1024).fill(0.1);
+      vector[0] = 1.0; // Ensure first element is non-zero
       
       await index.namespace('user-api-configs').upsert([
         {
           id: `user-config-${userId}`,
-          values: dummyVector,
+          values: vector,
           metadata: {
             userId,
             ...configToSave,
