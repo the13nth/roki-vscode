@@ -24,11 +24,6 @@ export function NavigationHeader() {
   const router = useRouter();
   const [projectName, setProjectName] = useState<string>('');
   
-  // Don't show navigation on the homepage (UnifiedNavigation handles this)
-  if (pathname === '/') {
-    return null;
-  }
-
   // Check if we're on a project page
   const projectMatch = pathname.match(/^\/project\/([^\/]+)/);
   const isProjectPage = !!projectMatch;
@@ -59,6 +54,11 @@ export function NavigationHeader() {
         });
     }
   }, [isProjectPage, projectId]);
+  
+  // Don't show navigation on the homepage (UnifiedNavigation handles this)
+  if (pathname === '/') {
+    return null;
+  }
 
   // Create simplified mobile project navigation
   const createMobileProjectNavigation = () => {
