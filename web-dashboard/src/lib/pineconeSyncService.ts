@@ -538,9 +538,164 @@ class PineconeSyncService {
     return [];
   }
 
+  async getContextDocument(projectId: string, documentId: string): Promise<{ success: boolean; message: string; document?: any }> {
+    try {
+      console.log('📄 Getting context document from Pinecone:', documentId);
+
+      const pinecone = getPineconeClient();
+      const index = pinecone.index(process.env.NEXT_PUBLIC_PINECONE_INDEX_NAME || 'roki');
+
+      // Fetch the specific document by ID
+      const fetchResponse = await index.fetch([documentId]);
+
+      if (!fetchResponse.records || !fetchResponse.records[documentId]) {
+        return { 
+          success: false, 
+          message: `Context document not found: ${documentId}` 
+        };
+      }
+
+      const record = fetchResponse.records[documentId];
+      const metadata = record.metadata;
+
+      if (!metadata) {
+        return { 
+          success: false, 
+          message: `Context document metadata not found: ${documentId}` 
+        };
+      }
+
+      // Convert metadata to ContextDocument format
+      const document = {
+        id: documentId,
+        filename: (typeof metadata.filename === 'string' ? metadata.filename : 
+                  `${metadata.title || 'untitled'}.md`),
+        title: (typeof metadata.title === 'string' ? metadata.title : 'Untitled Document'),
+        content: (typeof metadata.content === 'string' ? metadata.content : ''),
+        tags: (typeof metadata.tags === 'string' ? 
+               metadata.tags.split(',').map(t => t.trim()).filter(Boolean) : []),
+        category: (typeof metadata.category === 'string' ? metadata.category : 'other'),
+        lastModified: (typeof metadata.lastModified === 'string' ? 
+                      new Date(metadata.lastModified) : new Date()),
+        url: (typeof metadata.url === 'string' ? metadata.url : undefined)
+      };
+
+      console.log('✅ Successfully retrieved context document from Pinecone:', documentId);
+      return { 
+        success: true, 
+        message: `Successfully retrieved context document: ${documentId}`,
+        document 
+      };
+
+    } catch (error) {
+      console.error('❌ Failed to get context document from Pinecone:', error);
+      return { 
+        success: false, 
+        message: `Failed to get context document: ${error}` 
+      };
+    }
+  }
+
+  async updateContextDocument(projectId: string, documentId: string, updatedDocument: any): Promise<{ success: boolean; message: string }> {
+    try {
+      console.log('🔄 Updating context document in Pinecone:', documentId);
+
+      const pinecone = getPineconeClient();
+      const index = pinecone.index(process.env.NEXT_PUBLIC_PINECONE_INDEX_NAME || 'roki');
+
+      // Generate new embedding for the updated content
+      const textToEmbed = `${updatedDocument.title}\n\n${updatedDocument.content}`;
+      console.log('📝 Generating new embedding for updated document, text length:', textToEmbed.length);
+      
+      const embedding = await generateEmbedding(textToEmbed);
+      console.log('✅ Generated new embedding with dimensions:', embedding.length);
+
+      // Prepare updated metadata
+      const metadata = {
+        projectId: projectId,
+        type: 'context',
+        title: updatedDocument.title,
+        content: updatedDocument.content,
+        filename: updatedDocument.filename,
+        tags: Array.isArray(updatedDocument.tags) ? updatedDocument.tags.join(',') : '',
+        category: updatedDocument.category || 'other',
+        lastModified: new Date().toISOString(),
+        url: updatedDocument.url || undefined
+      };
+
+      // Update the document in Pinecone using upsert
+      await index.upsert([{
+        id: documentId,
+        values: embedding,
+        metadata: metadata
+      }]);
+
+      console.log('✅ Successfully updated context document in Pinecone:', documentId);
+      return { 
+        success: true, 
+        message: `Successfully updated context document: ${documentId}` 
+      };
+
+    } catch (error) {
+      console.error('❌ Failed to update context document in Pinecone:', error);
+      return { 
+        success: false, 
+        message: `Failed to update context document: ${error}` 
+      };
+    }
+  }
+
   async deleteContextDocument(projectId: string, documentId: string): Promise<SyncResult> {
-    // Temporarily do nothing to avoid build errors
-    return { success: true, message: 'Context document deletion service temporarily disabled' };
+    try {
+      console.log('🗑️ Deleting context document from Pinecone:', documentId);
+
+      const pinecone = getPineconeClient();
+      const index = pinecone.index(process.env.NEXT_PUBLIC_PINECONE_INDEX_NAME || 'roki');
+
+      // Delete the specific document by ID
+      await index.deleteOne(documentId);
+
+      console.log('✅ Successfully deleted context document from Pinecone:', documentId);
+      return { 
+        success: true, 
+        message: `Successfully deleted context document embedding: ${documentId}` 
+      };
+
+    } catch (error) {
+      console.error('❌ Failed to delete context document from Pinecone:', error);
+      return { 
+        success: false, 
+        message: `Failed to delete context document embedding: ${error}` 
+      };
+    }
+  }
+
+  async deleteAllContextDocuments(projectId: string): Promise<SyncResult> {
+    try {
+      console.log('🗑️ Deleting all context documents for project:', projectId);
+
+      const pinecone = getPineconeClient();
+      const index = pinecone.index(process.env.NEXT_PUBLIC_PINECONE_INDEX_NAME || 'roki');
+
+      // Delete all context documents for this project using filter
+      await index.deleteMany({
+        projectId: { $eq: projectId },
+        type: { $eq: 'context' }
+      });
+
+      console.log('✅ Successfully deleted all context documents for project:', projectId);
+      return { 
+        success: true, 
+        message: `Successfully deleted all context document embeddings for project: ${projectId}` 
+      };
+
+    } catch (error) {
+      console.error('❌ Failed to delete context documents for project:', error);
+      return { 
+        success: false, 
+        message: `Failed to delete context document embeddings for project: ${error}` 
+      };
+    }
   }
 
   async deleteProjectDocument(projectId: string, documentId: string): Promise<SyncResult> {

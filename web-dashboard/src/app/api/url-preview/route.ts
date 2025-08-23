@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import * as cheerio from 'cheerio';
+import { extract } from '@extractus/article-extractor';
+import { convert } from 'html-to-text';
+
+interface UrlPreviewRequest {
+  url: string;
+  includeMetadata?: boolean;
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const { url } = await request.json();
+    const { url, includeMetadata = true }: UrlPreviewRequest = await request.json();
 
     if (!url) {
       return NextResponse.json(
@@ -22,100 +28,112 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch the URL content
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-    
-    const response = await fetch(url, {
+    console.log(`Extracting article from: ${url}`);
+
+    // Use the professional article extractor
+    const article = await extract(url, {
+      contentLengthThreshold: 100, // Minimum content length
+      descriptionLengthThreshold: 50, // Minimum description length
+      wordsPerMinute: 300 // For reading time estimation
+    }, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; AI Project Manager URL Preview Bot)'
-      },
-      signal: controller.signal
+      }
     });
-    
-    clearTimeout(timeoutId);
 
-    if (!response.ok) {
+    if (!article) {
       return NextResponse.json(
-        { error: `Failed to fetch URL: ${response.status} ${response.statusText}` },
+        { error: 'Failed to extract article content' },
         { status: 400 }
       );
     }
 
-    const html = await response.text();
-    const $ = cheerio.load(html);
+    console.log(`Successfully extracted article:
+      - Title: ${article.title?.substring(0, 100)}...
+      - Content length: ${article.content?.length || 0}
+      - Author: ${article.author || 'Unknown'}
+      - Published: ${article.published || 'Unknown'}`);
 
-    // Extract metadata
-    const title = 
-      $('meta[property="og:title"]').attr('content') ||
-      $('meta[name="twitter:title"]').attr('content') ||
-      $('title').text() ||
-      '';
-
-    const description = 
-      $('meta[property="og:description"]').attr('content') ||
-      $('meta[name="twitter:description"]').attr('content') ||
-      $('meta[name="description"]').attr('content') ||
-      '';
-
-    const image = 
-      $('meta[property="og:image"]').attr('content') ||
-      $('meta[name="twitter:image"]').attr('content') ||
-      '';
-
-    const siteName = 
-      $('meta[property="og:site_name"]').attr('content') ||
-      '';
-
-    // Extract main content (try to get article content)
-    let content = '';
+    // Clean and format the content using professional HTML-to-text conversion
+    let content = article.content || '';
     
-    // Try common article selectors
-    const articleSelectors = [
-      'article',
-      '[role="main"]',
-      '.content',
-      '.article-content',
-      '.post-content',
-      '.entry-content',
-      'main'
+    // Convert HTML to clean text with simple, reliable formatting
+    content = convert(content, {
+      wordwrap: null, // No word wrapping
+      preserveNewlines: false,
+      selectors: [
+        // Skip unwanted elements
+        { selector: 'script', format: 'skip' },
+        { selector: 'style', format: 'skip' },
+        { selector: 'nav', format: 'skip' },
+        { selector: 'header', format: 'skip' },
+        { selector: 'footer', format: 'skip' },
+        { selector: '.advertisement', format: 'skip' },
+        { selector: '.ads', format: 'skip' },
+        { selector: '.social-share', format: 'skip' },
+        { selector: '.related-articles', format: 'skip' },
+        { selector: '.comments', format: 'skip' }
+      ]
+    });
+    
+    // Additional cleanup of extra whitespace
+    content = content
+      .replace(/\n{3,}/g, '\n\n') // Limit to max 2 consecutive line breaks
+      .replace(/[ \t]+/g, ' ') // Multiple spaces/tabs to single space
+      .trim();
+    
+    // Remove any remaining unwanted sections that might have slipped through
+    const cleanupPatterns = [
+      /latest articles?.*$/gi,
+      /related articles?.*$/gi,
+      /advertisement.*$/gi,
+      /subscribe.*newsletter.*$/gi,
+      /follow us on.*$/gi,
+      /share this.*$/gi,
+      /comments.*$/gi
     ];
+    
+    cleanupPatterns.forEach(pattern => {
+      content = content.replace(pattern, '');
+    });
+    
+    content = content.trim();
 
-    for (const selector of articleSelectors) {
-      const element = $(selector).first();
-      if (element.length) {
-        // Get text content and clean it up
-        content = element.text()
-          .replace(/\s+/g, ' ')
-          .trim()
-          .substring(0, 2000); // Limit to 2000 characters
-        break;
-      }
-    }
-
-    // If no article content found, use the description
-    if (!content) {
-      content = description;
-    }
-
-    // Format content for different types
+    // Format content based on URL type with metadata
     let formattedContent = '';
     
     if (url.includes('twitter.com') || url.includes('x.com')) {
       // Twitter/X post format
-      formattedContent = `# ${title || 'Social Media Post'}\n\n**Source:** ${siteName || 'Twitter/X'}\n**URL:** ${url}\n\n${content || description}`;
+      formattedContent = `# ${article.title || 'Social Media Post'}\n\n**Source:** ${article.source || 'Twitter/X'}\n**URL:** ${url}\n\n${content}`;
     } else {
-      // News article format
-      formattedContent = `# ${title}\n\n**Source:** ${siteName}\n**URL:** ${url}\n\n## Summary\n\n${description}\n\n## Content\n\n${content}`;
+      // News article format with metadata header
+      const metadata = [];
+      if (article.title) metadata.push(`**Title:** ${article.title}`);
+      if (article.author) metadata.push(`**Author:** ${article.author}`);
+      if (article.published) metadata.push(`**Published:** ${new Date(article.published).toLocaleDateString()}`);
+      if (article.source) metadata.push(`**Source:** ${article.source}`);
+      metadata.push(`**URL:** ${url}`);
+      if (article.ttr && article.ttr > 0) metadata.push(`**Reading Time:** ${Math.ceil(article.ttr / 60)} minutes`);
+      
+      const metadataSection = metadata.join('\n');
+      formattedContent = `${metadataSection}\n\n---\n\n${content}`;
     }
 
     return NextResponse.json({
-      title: title.trim(),
-      description: description.trim(),
+      title: article.title?.trim() || '',
+      description: article.description?.trim() || '',
       content: formattedContent,
-      image,
-      siteName,
-      url
+      fullContent: content,
+      author: article.author || '',
+      published: article.published || '',
+      source: article.source || '',
+      extractionType: 'full',
+      contentLength: formattedContent.length,
+      fullContentLength: content.length,
+      image: article.image || '',
+      siteName: article.source || '',
+      url: article.url || url,
+      ttr: article.ttr || 0 // time to read
     });
 
   } catch (error) {

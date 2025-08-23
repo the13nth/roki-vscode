@@ -35,6 +35,12 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
   const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
   const [deleteInProgress, setDeleteInProgress] = useState(false);
   
+  const [previewData, setPreviewData] = useState<any>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [suggestedTags, setSuggestedTags] = useState<string[]>([]);
+  const [isGeneratingTags, setIsGeneratingTags] = useState(false);
+  
   const [formData, setFormData] = useState<ContextDocumentFormData>({
     title: '',
     content: '',
@@ -43,10 +49,39 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
     url: ''
   });
 
+  // Close sidebar when clicking outside on mobile
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isMobile && sidebarOpen) {
+        const sidebar = document.querySelector('.sidebar-container');
+        if (sidebar && !sidebar.contains(event.target as Node)) {
+          setSidebarOpen(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isMobile, sidebarOpen]);
+
   // Load context documents
   useEffect(() => {
     loadDocuments();
   }, [projectId, searchTerm, selectedCategory, selectedTags]);
+
+  // Check if mobile
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+      if (window.innerWidth >= 768) {
+        setSidebarOpen(true);
+      }
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const loadDocuments = async () => {
     try {
@@ -173,6 +208,17 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
         throw new Error(errorData.error || 'Failed to delete document');
       }
 
+      const data = await response.json();
+      
+      // Show success message with Pinecone sync status
+      if (data.pineconeSync) {
+        if (data.pineconeSync.success) {
+          console.log('✅ Document embeddings deleted successfully from Pinecone');
+        } else {
+          console.warn('⚠️ Failed to delete embeddings from Pinecone:', data.pineconeSync.message);
+        }
+      }
+
       setDocuments(prev => prev.filter(doc => doc.id !== documentToDelete));
       
       // Clear selection if deleted document was selected
@@ -185,6 +231,10 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
       // Close modal and reset state
       setDeleteModalOpen(false);
       setDocumentToDelete(null);
+      
+      // Show brief success message
+      setError(null); // Clear any previous errors
+      
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete document');
     } finally {
@@ -213,12 +263,16 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
     setFormData({ title: '', content: '', tags: [], category: 'other', url: '' });
     setIsCreating(true);
     setSelectedDoc(null);
+    setSuggestedTags([]);
+    setPreviewData(null);
   };
 
   const cancelEditing = () => {
     setIsEditing(false);
     setIsCreating(false);
     setFormData({ title: '', content: '', tags: [], category: 'other', url: '' });
+    setSuggestedTags([]);
+    setPreviewData(null);
   };
 
   const handleImproveCurrentDocument = async () => {
@@ -254,6 +308,9 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
         content: data.improvedContent
       }));
       
+      // Generate tags for the improved content
+      handleGenerateTags(data.improvedContent, formData.title);
+      
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to improve document');
     } finally {
@@ -266,7 +323,7 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
     setFormData(prev => ({ ...prev, tags }));
   };
 
-  const handleUrlPreview = async (url: string) => {
+  const handleUrlPreview = async (url: string, previewOnly = false) => {
     if (!url || (!formData.category.includes('news-article') && !formData.category.includes('social-media-post'))) {
       return;
     }
@@ -279,7 +336,10 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ url }),
+        body: JSON.stringify({ 
+          url,
+          includeMetadata: true 
+        }),
       });
 
       if (!response.ok) {
@@ -288,18 +348,100 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
 
       const data = await response.json();
       
+      if (previewOnly) {
+        setPreviewData(data);
+      } else {
       // Auto-fill title and content from the URL preview
       setFormData(prev => ({
         ...prev,
         title: prev.title || data.title || '',
         content: data.content || data.description || ''
       }));
+        setPreviewData(null);
+      }
       
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load URL preview');
     } finally {
       setUrlLoading(false);
     }
+  };
+
+  const handleApplyPreview = () => {
+    if (previewData) {
+      setFormData(prev => ({
+        ...prev,
+        title: prev.title || previewData.title || '',
+        content: previewData.content || ''
+      }));
+      setPreviewData(null);
+      // Generate tags after applying preview content
+      handleGenerateTags(previewData.content, previewData.title);
+    }
+  };
+
+  const handleGenerateTags = async (content?: string, title?: string) => {
+    const textContent = content || formData.content;
+    const docTitle = title || formData.title;
+    
+    if (!textContent || textContent.trim().length < 50) {
+      return;
+    }
+
+    try {
+      setIsGeneratingTags(true);
+      
+      const response = await fetch('/api/generate-tags', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: textContent,
+          title: docTitle,
+          category: formData.category,
+          url: formData.url
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate tags');
+      }
+
+      const data = await response.json();
+      setSuggestedTags(data.tags || []);
+      
+    } catch (err) {
+      console.error('Tag generation error:', err);
+      setError('Failed to generate tags');
+    } finally {
+      setIsGeneratingTags(false);
+    }
+  };
+
+  const handleApplySuggestedTag = (tag: string) => {
+    if (!formData.tags.includes(tag)) {
+      setFormData(prev => ({
+        ...prev,
+        tags: [...prev.tags, tag]
+      }));
+    }
+  };
+
+  const handleApplyAllSuggestedTags = () => {
+    const newTags = suggestedTags.filter(tag => !formData.tags.includes(tag));
+    setFormData(prev => ({
+      ...prev,
+      tags: [...prev.tags, ...newTags]
+    }));
+    setSuggestedTags([]);
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setFormData(prev => ({
+      ...prev,
+      tags: prev.tags.filter(tag => tag !== tagToRemove)
+    }));
   };
 
   const handleFileUpload = async (files: FileList) => {
@@ -321,6 +463,29 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
         else if (filename.includes('research') || filename.includes('user')) category = 'research';
         else if (filename.includes('requirement')) category = 'requirements';
 
+        // Generate tags for the file content
+        let autoTags: string[] = [];
+        try {
+          const tagResponse = await fetch('/api/generate-tags', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              content,
+              title,
+              category
+            }),
+          });
+          
+          if (tagResponse.ok) {
+            const tagData = await tagResponse.json();
+            autoTags = tagData.tags || [];
+          }
+        } catch (err) {
+          console.log('Failed to generate tags for uploaded file:', err);
+        }
+
         const response = await fetch(`/api/projects/${projectId}/context`, {
           method: 'POST',
           headers: {
@@ -329,7 +494,7 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
           body: JSON.stringify({
             title,
             content,
-            tags: [],
+            tags: autoTags,
             category,
             filename: file.name
           }),
@@ -386,16 +551,74 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
   }
 
   return (
-    <div className="h-full flex">
+    <div className="h-full flex flex-col">
+      {/* Mobile Header */}
+      {isMobile && (
+        <div className="bg-white border-b border-gray-200 p-3 flex items-center justify-between">
+          <h1 className="text-lg font-semibold">Context Documents</h1>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                startCreating();
+              }}
+              className="px-3 py-1.5 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+            >
+              New
+            </button>
+            {/* <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="p-2 text-gray-600 hover:text-gray-900"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button> */}
+          </div>
+        </div>
+      )}
+
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
       {/* Sidebar */}
-      <div className="w-1/3 border-r border-gray-200 flex flex-col">
-        {/* Header */}
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">Context Documents</h2>
-            <div className="flex gap-2">
-              <label className="px-3 py-1 bg-green-600 text-white rounded-none text-sm hover:bg-green-700 cursor-pointer">
-                Upload File
+        <div className={`${
+          isMobile 
+            ? `fixed inset-y-0 left-0 z-50 w-full max-w-sm bg-white shadow-xl transform transition-transform duration-300 ${
+                sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+              }`
+            : 'w-1/3 min-w-0'
+        } border-r border-gray-200 flex flex-col`}>
+          {/* Mobile overlay */}
+          {/* {isMobile && sidebarOpen && (
+            <div 
+              className="fixed inset-0 bg-black bg-opacity-50 z-40"
+              onClick={() => setSidebarOpen(false)}
+            />
+          )} */}
+          
+          {/* Sidebar Header */}
+          <div className={`border-b border-gray-200 relative z-50 ${isMobile ? 'p-3' : 'p-4'}`}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                {!isMobile && <h2 className="text-lg font-semibold">Context Documents</h2>}
+                {isMobile && (
+                  <>
+                    <h2 className="text-lg font-semibold">Documents</h2>
+                    <button
+                      onClick={() => setSidebarOpen(false)}
+                      className="p-1 text-gray-600 hover:text-gray-900"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className={`flex gap-2 ${isMobile ? 'flex-col' : 'flex-row'}`}>
+              <label className={`px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 cursor-pointer text-center ${isMobile ? 'w-full' : 'flex-1'}`}>
+                📁 Upload File
                 <input
                   type="file"
                   multiple
@@ -405,40 +628,43 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
                 />
               </label>
               <button
-                onClick={startCreating}
-                className="px-3 py-1 bg-blue-600 text-white rounded-none text-sm hover:bg-blue-700"
+                onClick={() => {
+                  startCreating();
+                  if (isMobile) setSidebarOpen(false);
+                }}
+                className={`px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 ${isMobile ? 'w-full' : 'flex-1'}`}
               >
-                New Document
+                ✏️ New Document
               </button>
             </div>
           </div>
 
           {/* Search and Filters */}
-          <div className="space-y-2">
+          <div className={`space-y-3 ${isMobile ? 'p-3' : 'px-4'}`}>
             <input
               type="text"
-              placeholder="Search documents..."
+              placeholder="🔍 Search documents..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+              className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="">All Categories</option>
-              <option value="api">API</option>
-              <option value="design">Design</option>
-              <option value="research">Research</option>
-              <option value="requirements">Requirements</option>
-              <option value="meeting-minutes">Meeting Minutes</option>
-              <option value="news-article">News Article</option>
-              <option value="social-media-post">Social Media Post</option>
-              <option value="contract">Contract</option>
-              <option value="invoice">Invoice</option>
-              <option value="other">Other</option>
+              <option value="">📁 All Categories</option>
+              <option value="api">🔧 API</option>
+              <option value="design">🎨 Design</option>
+              <option value="research">🔬 Research</option>
+              <option value="requirements">📋 Requirements</option>
+              <option value="meeting-minutes">📝 Meeting Minutes</option>
+              <option value="news-article">📰 News Article</option>
+              <option value="social-media-post">📱 Social Media Post</option>
+              <option value="contract">📄 Contract</option>
+              <option value="invoice">🧾 Invoice</option>
+              <option value="other">📂 Other</option>
             </select>
 
             {allTags.length > 0 && (
@@ -482,8 +708,8 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
           onDragLeave={handleDragLeave}
         >
           {error && (
-            <div className="p-4 bg-red-50 border-b border-red-200">
-              <div className="text-red-800 text-sm">{error}</div>
+            <div className={`bg-red-50 border-b border-red-200 ${isMobile ? 'p-3' : 'p-4'}`}>
+              <div className="text-red-800 text-sm">❌ {error}</div>
               <button
                 onClick={() => setError(null)}
                 className="text-red-600 text-xs underline mt-1"
@@ -494,31 +720,46 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
           )}
 
           {documents.length === 0 ? (
-            <div className="p-4 text-gray-500 text-sm text-center">
-              <div className="mb-2">No context documents found.</div>
-              <div className="text-xs">
-                Create a new document or drag & drop .md, .txt, or .json files here to upload.
+            <div className={`text-gray-500 text-sm text-center ${isMobile ? 'p-6' : 'p-8'}`}>
+              <svg className={`mx-auto mb-3 text-gray-300 ${isMobile ? 'w-8 h-8' : 'w-12 h-12'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <div className="mb-2">📄 No documents found</div>
+              <div className="text-xs text-gray-400">
+                {searchTerm || selectedCategory ? 'Try adjusting filters' : 'Create a new document or upload files'}
               </div>
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
-              {documents.map((doc) => (
+              {documents.map((doc: ContextDocument) => (
                 <div
                   key={doc.id}
-                  className={`p-4 cursor-pointer hover:bg-gray-50 ${
+                  className={`cursor-pointer hover:bg-gray-50 transition-colors ${isMobile ? 'p-3' : 'p-4'} ${
                     selectedDoc?.id === doc.id ? 'bg-blue-50 border-r-2 border-blue-500' : ''
                   }`}
-                  onClick={() => setSelectedDoc(doc)}
+                  onClick={() => {
+                    setSelectedDoc(doc);
+                    setIsCreating(false);
+                    setIsEditing(false);
+                    if (isMobile) setSidebarOpen(false);
+                  }}
                 >
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-sm truncate">{doc.title}</h3>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className={`px-2 py-1 text-xs rounded ${
+                      <h3 className={`font-medium truncate ${isMobile ? 'text-sm' : 'text-base'}`}>
+                        {doc.title}
+                      </h3>
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                        <span className={`px-1.5 py-0.5 text-xs rounded whitespace-nowrap ${
                           doc.category === 'api' ? 'bg-green-100 text-green-800' :
                           doc.category === 'design' ? 'bg-purple-100 text-purple-800' :
                           doc.category === 'research' ? 'bg-yellow-100 text-yellow-800' :
                           doc.category === 'requirements' ? 'bg-blue-100 text-blue-800' :
+                          doc.category === 'meeting-minutes' ? 'bg-indigo-100 text-indigo-800' :
+                          doc.category === 'news-article' ? 'bg-red-100 text-red-800' :
+                          doc.category === 'social-media-post' ? 'bg-pink-100 text-pink-800' :
+                          doc.category === 'contract' ? 'bg-orange-100 text-orange-800' :
+                          doc.category === 'invoice' ? 'bg-emerald-100 text-emerald-800' :
                           'bg-gray-100 text-gray-800'
                         }`}>
                           {doc.category}
@@ -528,13 +769,21 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
                         </span>
                       </div>
                       {doc.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {doc.tags.map(tag => (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {doc.tags.slice(0, isMobile ? 2 : 4).map((tag: string) => (
                             <span key={tag} className="px-1 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">
                               {tag}
                             </span>
                           ))}
+                          {doc.tags.length > (isMobile ? 2 : 4) && (
+                            <span className="text-xs text-gray-500">+{doc.tags.length - (isMobile ? 2 : 4)}</span>
+                          )}
                         </div>
+                      )}
+                      {!isMobile && (
+                        <p className="text-xs text-gray-600 mt-1.5 line-clamp-1">
+                          {doc.content.substring(0, 80)}...
+                        </p>
                       )}
                     </div>
                     <button
@@ -542,9 +791,12 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
                         e.stopPropagation();
                         handleDeleteDocument(doc.id);
                       }}
-                      className="text-red-500 hover:text-red-700 text-xs ml-2"
+                      className="flex-shrink-0 p-1.5 text-gray-400 hover:text-red-600 transition-colors rounded"
+                      title="Delete document"
                     >
-                      Delete
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
                     </button>
                   </div>
                 </div>
@@ -555,138 +807,66 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        {isCreating || isEditing ? (
-          /* Edit/Create Form */
-          <div className="flex-1 flex flex-col">
-            <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">
-                  {isCreating ? 'Create New Document' : 'Edit Document'}
+      <div className="flex-1 flex flex-col min-h-0">
+        {isEditing ? (
+          /* Edit Form */
+          <div className="flex-1 flex flex-col bg-white">
+            <div className={`border-b border-gray-200 ${isMobile ? 'p-3' : 'p-4'}`}>
+              <div className={`flex items-center justify-between ${isMobile ? 'flex-col gap-3' : 'flex-row'}`}>
+                <div className="flex items-center gap-2">
+                  {isMobile && (
+                    <button
+                      onClick={() => {
+                        setSelectedDoc(null);
+                        setSidebarOpen(true);
+                      }}
+                      className="p-2 text-gray-600 hover:text-gray-900"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                  )}
+                  <h3 className={`font-semibold ${isMobile ? 'text-base' : 'text-lg'}`}>
+                    📝 Edit Document
                 </h3>
-                <div className="flex gap-2">
+                </div>
+                <div className={`flex gap-2 ${isMobile ? 'w-full' : ''}`}>
                   <button
                     onClick={cancelEditing}
-                    className="px-3 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50"
+                    className={`px-3 py-2 border border-gray-300 rounded text-sm hover:bg-gray-50 ${isMobile ? 'flex-1' : ''}`}
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={isCreating ? handleCreateDocument : handleUpdateDocument}
-                    className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                    onClick={handleUpdateDocument}
+                    className={`px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 ${isMobile ? 'flex-1' : ''}`}
                   >
-                    {isCreating ? 'Create' : 'Save'}
+                    Save
                   </button>
                 </div>
               </div>
             </div>
 
-            <div className="flex-1 p-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Title
-                </label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded"
-                  placeholder="Document title"
-                />
-              </div>
-
-              {/* URL field for news articles and social media posts */}
-              {(formData.category === 'news-article' || formData.category === 'social-media-post') && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    URL
-                  </label>
-                  <div className="flex gap-2">
-                    <input
-                      type="url"
-                      value={formData.url}
-                      onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded"
-                      placeholder={formData.category === 'news-article' ? 'News article URL' : 'Social media post URL'}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => formData.url && handleUrlPreview(formData.url)}
-                      disabled={!formData.url || urlLoading}
-                      className="px-3 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {urlLoading ? (
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      ) : (
-                        'Load Preview'
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Category
-                  </label>
-                  <select
-                    value={formData.category}
-                    onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value as any }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded"
-                  >
-                    <option value="other">Other</option>
-                    <option value="api">API</option>
-                    <option value="design">Design</option>
-                    <option value="research">Research</option>
-                    <option value="requirements">Requirements</option>
-                    <option value="meeting-minutes">Meeting Minutes</option>
-                    <option value="news-article">News Article</option>
-                    <option value="social-media-post">Social Media Post</option>
-                    <option value="contract">Contract</option>
-                    <option value="invoice">Invoice</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tags (comma-separated)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.tags.join(', ')}
-                    onChange={(e) => handleTagInput(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded"
-                    placeholder="tag1, tag2, tag3"
-                  />
-                </div>
-              </div>
-
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Content
-                </label>
-                <div className="h-96">
-                  <MarkdownEditor
-                    content={formData.content}
-                    onChange={(content) => setFormData(prev => ({ ...prev, content }))}
-                    language="markdown"
-                    onImproveWithAI={handleImproveCurrentDocument}
-                    isImprovingWithAI={improvementInProgress}
-                  />
-                </div>
+            <div className={`flex-1 flex items-center justify-center ${isMobile ? 'p-6' : 'p-8'}`}>
+              <div className="text-center text-gray-500">
+                <p className="text-lg font-medium mb-2">✏️ Edit Mode</p>
+                <p className="text-sm">The edit form will also be converted to a modal...</p>
               </div>
             </div>
           </div>
         ) : selectedDoc ? (
           /* Document Preview */
           <div className="flex-1 flex flex-col">
-            <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold">{selectedDoc.title}</h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className={`px-2 py-1 text-xs rounded ${
+            <div className={`border-b border-gray-200 ${isMobile ? 'p-3' : 'p-4'}`}>
+              <div className={`flex ${isMobile ? 'flex-col gap-3' : 'flex-col md:flex-row md:items-center'} justify-between gap-4`}>
+                <div className="flex-1 min-w-0">
+                 
+                  <h3 className={`font-semibold break-words ${isMobile ? 'text-base' : 'text-lg'}`}>
+                    📄 {selectedDoc.title}
+                  </h3>
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    <span className={`px-2 py-1 text-xs rounded whitespace-nowrap ${
                       selectedDoc.category === 'api' ? 'bg-green-100 text-green-800' :
                       selectedDoc.category === 'design' ? 'bg-purple-100 text-purple-800' :
                       selectedDoc.category === 'research' ? 'bg-yellow-100 text-yellow-800' :
@@ -700,8 +880,9 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
                     }`}>
                       {selectedDoc.category}
                     </span>
-                    <span className="text-sm text-gray-500">
-                      Last modified: {new Date(selectedDoc.lastModified).toLocaleString()}
+                    <span className="text-xs md:text-sm text-gray-500">
+                      {new Date(selectedDoc.lastModified).toLocaleDateString()}
+                      {!isMobile && ` ${new Date(selectedDoc.lastModified).toLocaleTimeString()}`}
                     </span>
                   </div>
                   {selectedDoc.tags.length > 0 && (
@@ -716,33 +897,332 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
                 </div>
                 <button
                   onClick={() => startEditing(selectedDoc)}
-                  className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700"
+                  className={`px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 whitespace-nowrap ${isMobile ? 'w-full' : ''}`}
                 >
-                  Edit
+                  ✏️ Edit
                 </button>
               </div>
             </div>
 
-            <div className="flex-1 p-4 overflow-y-auto">
+            <div className={`flex-1 overflow-y-auto ${isMobile ? 'p-3' : 'p-4'}`}>
               <div className="prose max-w-none">
-                <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">
+                <div className={`whitespace-pre-wrap font-sans leading-relaxed ${
+                  isMobile ? 'text-sm' : 'text-base'
+                }`}>
                   {selectedDoc.content}
-                </pre>
+                </div>
               </div>
             </div>
           </div>
         ) : (
           /* Empty State */
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center text-gray-500">
-              <div className="text-lg mb-2">No document selected</div>
-              <div className="text-sm">
-                Select a document from the sidebar or create a new one to get started.
+          <div className={`flex-1 flex items-center justify-center ${isMobile ? 'p-6' : 'p-8'}`}>
+            <div className="text-center text-gray-500 max-w-md">
+            
+              <svg className={`mx-auto mb-4 text-gray-300 ${isMobile ? 'w-16 h-16' : 'w-20 h-20'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <div className={`font-medium mb-2 ${isMobile ? 'text-base' : 'text-lg'}`}>
+                📄 No document selected
+              </div>
+              <div className={`text-gray-400 ${isMobile ? 'text-sm' : 'text-base'}`}>
+                {isMobile 
+                  ? 'Browse documents or create a new one'
+                  : 'Select a document from the sidebar or create a new one to get started.'
+                }
               </div>
             </div>
           </div>
         )}
       </div>
+
+      {/* Create/Edit Document Modal */}
+      {(isCreating || isEditing) && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          {/* Backdrop */}
+          <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={cancelEditing}></div>
+          
+          {/* Modal */}
+          <div className="flex min-h-full items-center justify-center p-4">
+            <div className={`relative bg-white rounded-lg shadow-xl w-full ${isMobile ? 'max-w-lg' : 'max-w-4xl'} max-h-[90vh] flex flex-col`}>
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {isCreating ? '✏️ Create New Document' : '📝 Edit Document'}
+                </h3>
+                <button
+                  onClick={cancelEditing}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                    📝 Title
+                </label>
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Document title"
+                />
+              </div>
+
+              {/* URL field for news articles and social media posts */}
+              {(formData.category === 'news-article' || formData.category === 'social-media-post') && (
+                  <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                      🔗 URL
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={formData.url}
+                      onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder={formData.category === 'news-article' ? 'News article URL' : 'Social media post URL'}
+                    />
+                    </div>
+                    
+                    {/* Preview and Load Buttons */}
+                    <div className="flex gap-2">
+                    <button
+                      type="button"
+                        onClick={() => formData.url && handleUrlPreview(formData.url, true)}
+                      disabled={!formData.url || urlLoading}
+                        className="px-3 py-2 bg-gray-600 text-white rounded text-sm hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1 md:flex-none"
+                    >
+                      {urlLoading ? (
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>
+                      ) : (
+                          '👁️ Preview'
+                      )}
+                    </button>
+                      <button
+                        type="button"
+                        onClick={() => formData.url && handleUrlPreview(formData.url, false)}
+                        disabled={!formData.url || urlLoading}
+                        className="px-3 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1 md:flex-none"
+                      >
+                        📰 Load Full Article
+                      </button>
+                  </div>
+                </div>
+              )}
+
+                <div className={`${isMobile ? 'space-y-4' : 'grid grid-cols-1 md:grid-cols-2 gap-4'}`}>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                      📁 Category
+                  </label>
+                  <select
+                    value={formData.category}
+                    onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value as any }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="other">📂 Other</option>
+                      <option value="api">🔧 API</option>
+                      <option value="design">🎨 Design</option>
+                      <option value="research">🔬 Research</option>
+                      <option value="requirements">📋 Requirements</option>
+                      <option value="meeting-minutes">📝 Meeting Minutes</option>
+                      <option value="news-article">📰 News Article</option>
+                      <option value="social-media-post">📱 Social Media Post</option>
+                      <option value="contract">📄 Contract</option>
+                      <option value="invoice">🧾 Invoice</option>
+                  </select>
+                </div>
+
+                <div>
+                    <div className={`flex items-center ${isMobile ? 'justify-between' : 'justify-between'} mb-1`}>
+                      <label className="block text-sm font-medium text-gray-700">
+                        🏷️ Tags
+                  </label>
+                      <button
+                        type="button"
+                        onClick={() => handleGenerateTags()}
+                        disabled={!formData.content || formData.content.trim().length < 50 || isGeneratingTags}
+                        className={`px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed ${isMobile ? 'text-xs' : ''}`}
+                      >
+                        {isGeneratingTags ? (
+                          <div className="flex items-center">
+                            <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin mr-1"></div>
+                            {isMobile ? 'Gen...' : 'Generating...'}
+                          </div>
+                        ) : (
+                          isMobile ? 'Generate' : 'Generate Tags'
+                        )}
+                      </button>
+                    </div>
+                    
+                    {/* Current Tags */}
+                    {formData.tags.length > 0 && (
+                      <div className="mb-2">
+                        <div className="flex flex-wrap gap-1">
+                          {formData.tags.map((tag, index) => (
+                            <span
+                              key={index}
+                              className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded"
+                            >
+                              {tag}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveTag(tag)}
+                                className="ml-1 text-blue-600 hover:text-blue-800"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Suggested Tags */}
+                    {suggestedTags.length > 0 && (
+                      <div className="mb-2 p-3 bg-green-50 border border-green-200 rounded">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium text-green-800">
+                            Suggested Tags ({suggestedTags.length})
+                            {isGeneratingTags && <span className="ml-1 text-xs">(AI-powered)</span>}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={handleApplyAllSuggestedTags}
+                            className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700"
+                          >
+                            Apply All
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {suggestedTags.map((tag, index) => (
+                            <button
+                              key={index}
+                              type="button"
+                              onClick={() => handleApplySuggestedTag(tag)}
+                              disabled={formData.tags.includes(tag)}
+                              className={`px-2 py-1 text-xs rounded border ${
+                                formData.tags.includes(tag)
+                                  ? 'bg-gray-100 text-gray-500 border-gray-300 cursor-not-allowed'
+                                  : 'bg-white text-green-700 border-green-300 hover:bg-green-100'
+                              }`}
+                            >
+                              + {tag}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Manual Tag Input */}
+                  <input
+                    type="text"
+                    value={formData.tags.join(', ')}
+                    onChange={(e) => handleTagInput(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Type tags manually (comma-separated)"
+                  />
+                </div>
+              </div>
+
+                {/* Preview Panel */}
+                {previewData && (
+                  <div className={`bg-gray-50 border border-gray-200 rounded ${isMobile ? 'p-3' : 'p-4'}`}>
+                    <div className={`flex items-center justify-between mb-3 ${isMobile ? 'flex-col gap-2' : 'flex-row'}`}>
+                      <h4 className={`font-medium text-gray-900 ${isMobile ? 'text-sm' : 'text-base'}`}>
+                        📄 Content Preview
+                      </h4>
+                      <div className={`flex gap-2 ${isMobile ? 'w-full' : ''}`}>
+                        <button
+                          onClick={handleApplyPreview}
+                          className={`px-3 py-1.5 bg-green-600 text-white rounded text-sm hover:bg-green-700 ${isMobile ? 'flex-1' : ''}`}
+                        >
+                          ✅ Apply
+                        </button>
+                        <button
+                          onClick={() => setPreviewData(null)}
+                          className={`px-3 py-1.5 bg-gray-600 text-white rounded text-sm hover:bg-gray-700 ${isMobile ? 'flex-1' : ''}`}
+                        >
+                          ❌ Cancel
+                        </button>
+                      </div>
+                    </div>
+                    <div className={`text-gray-600 mb-2 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                      <div className="flex flex-wrap gap-1">
+                        <span>📊 {previewData.contentLength} chars</span>
+                        <span>•</span>
+                        <span>📖 Full Article</span>
+                        {previewData.author && (
+                          <>
+                            <span>•</span>
+                            <span>✍️ {previewData.author}</span>
+                          </>
+                        )}
+                        {previewData.published && (
+                          <>
+                            <span>•</span>
+                            <span>📅 {new Date(previewData.published).toLocaleDateString()}</span>
+                          </>
+                        )}
+                        {previewData.ttr > 0 && (
+                          <>
+                            <span>•</span>
+                            <span>⏱️ {Math.ceil(previewData.ttr / 60)} min</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className={`overflow-y-auto ${isMobile ? 'max-h-24 text-xs' : 'max-h-32 text-sm'}`}>
+                      <pre className="whitespace-pre-wrap font-sans">
+                        {previewData.content.substring(0, isMobile ? 300 : 500)}
+                        {previewData.content.length > (isMobile ? 300 : 500) && '...'}
+                      </pre>
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                    📝 Content
+                </label>
+                  <div className={`${isMobile ? 'h-64' : 'h-80'} border border-gray-300 rounded`}>
+                  <MarkdownEditor
+                    content={formData.content}
+                    onChange={(content) => setFormData(prev => ({ ...prev, content }))}
+                    language="markdown"
+                    onImproveWithAI={handleImproveCurrentDocument}
+                    isImprovingWithAI={improvementInProgress}
+                  />
+                </div>
+              </div>
+            </div>
+
+              {/* Modal Footer */}
+              <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
+                <button
+                  onClick={cancelEditing}
+                  className="px-4 py-2 border border-gray-300 rounded text-sm hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={isCreating ? handleCreateDocument : handleUpdateDocument}
+                  className="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors"
+                >
+                  {isCreating ? '✏️ Create Document' : '💾 Save Changes'}
+                </button>
+              </div>
+              </div>
+            </div>
+          </div>
+        )}
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal
@@ -750,8 +1230,8 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
         onClose={handleCancelDelete}
         onConfirm={handleConfirmDelete}
         title="Delete Document"
-        message={`Are you sure you want to delete "${documents.find(doc => doc.id === documentToDelete)?.title || 'this document'}"? This action cannot be undone.`}
-        confirmText="Delete"
+        message={`Are you sure you want to delete "${documents.find(doc => doc.id === documentToDelete)?.title || 'this document'}"? This will permanently remove the document embeddings from the vector database. This action cannot be undone.`}
+        confirmText="Delete from Pinecone"
         cancelText="Cancel"
         isDeleting={deleteInProgress}
       />

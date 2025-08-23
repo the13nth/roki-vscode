@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { getGoogleAIConfig, validateSecureConfig } from '@/lib/secureConfig';
-import fs from 'fs/promises';
-import path from 'path';
+import { ProjectService } from '@/lib/projectService';
+import { PineconeSyncServiceInstance } from '@/lib/pineconeSyncService';
+import { getPineconeClient } from '@/lib/pinecone';
 
 interface ApiConfiguration {
   provider: 'openai' | 'anthropic' | 'google' | 'custom';
@@ -10,61 +10,6 @@ interface ApiConfiguration {
   model: string;
   baseUrl?: string;
   customHeaders?: Record<string, string>;
-}
-
-async function getApiConfigPath(projectId: string): Promise<string> {
-  const globalConfigPath = path.join(process.cwd(), '.ai-project', 'global-api-config.json');
-  const projectConfigPath = path.join(process.cwd(), '.ai-project', 'projects', projectId, 'api-config.json');
-  
-  // Check if project-specific config exists
-  try {
-    await fs.access(projectConfigPath);
-    return projectConfigPath;
-  } catch {
-    return globalConfigPath;
-  }
-}
-
-// Improved helper function to find project by ID
-async function findProjectById(projectId: string) {
-  // First check internal project directory
-  const internalProjectDir = path.join(process.cwd(), '.ai-project', 'projects', projectId);
-  const internalConfigPath = path.join(internalProjectDir, 'config.json');
-  
-  try {
-    const configData = await fs.readFile(internalConfigPath, 'utf8');
-    const config = JSON.parse(configData);
-    return {
-      projectPath: config.originalPath || internalProjectDir,
-      config
-    };
-  } catch (error) {
-    // Fallback to scanning common paths
-    const commonPaths = [
-      path.join(process.cwd(), '.ai-project'),
-      path.join(process.cwd(), 'projects', projectId),
-      `/tmp/ai-projects/${projectId}`,
-      `/home/${process.env.USER}/ai-projects/${projectId}`,
-    ];
-
-    for (const basePath of commonPaths) {
-      const configPath = path.join(basePath, 'config.json');
-      try {
-        const configData = await fs.readFile(configPath, 'utf8');
-        const config = JSON.parse(configData);
-        if (config.projectId === projectId) {
-          return {
-            projectPath: basePath,
-            config
-          };
-        }
-      } catch (error) {
-        continue;
-      }
-    }
-
-    throw new Error('Project not found');
-  }
 }
 
 async function callGoogleAI(config: ApiConfiguration, prompt: string): Promise<{ content: string; tokenUsage: any }> {
@@ -237,9 +182,8 @@ async function trackTokenUsage(projectId: string, tokenUsage: any, operation: st
   }
 }
 
-async function gatherProjectContext(projectPath: string, projectConfig: any) {
+async function gatherProjectContextFromPinecone(projectId: string) {
   const context = {
-    projectFiles: [],
     requirements: null as string | null,
     design: null as string | null,
     tasks: null as string | null,
@@ -247,68 +191,58 @@ async function gatherProjectContext(projectPath: string, projectConfig: any) {
   };
 
   try {
-    // Read main project documents
-    const aiProjectDir = path.join(projectPath, '.ai-project');
+    console.log('🔍 Gathering project context from Pinecone for project:', projectId);
     
-    // Try to read requirements
-    try {
-      const requirementsPath = path.join(aiProjectDir, 'requirements.md');
-      const requirementsContent = await fs.readFile(requirementsPath, 'utf8');
-      context.requirements = requirementsContent.substring(0, 2000); // Limit length
-    } catch (error) {
-      // Requirements file not found or not readable
-    }
-
-    // Try to read design
-    try {
-      const designPath = path.join(aiProjectDir, 'design.md');
-      const designContent = await fs.readFile(designPath, 'utf8');
-      context.design = designContent.substring(0, 2000); // Limit length
-    } catch (error) {
-      // Design file not found or not readable
-    }
-
-    // Try to read tasks
-    try {
-      const tasksPath = path.join(aiProjectDir, 'tasks.md');
-      const tasksContent = await fs.readFile(tasksPath, 'utf8');
-      context.tasks = tasksContent.substring(0, 1500); // Limit length
-    } catch (error) {
-      // Tasks file not found or not readable
-    }
-
-    // Read other context documents (limit to 3 most recent)
-    try {
-      const contextDir = path.join(aiProjectDir, 'context');
-      const contextFiles = await fs.readdir(contextDir);
-      const mdFiles = contextFiles.filter(file => file.endsWith('.md')).slice(0, 3);
+    const pinecone = getPineconeClient();
+    const index = pinecone.index(process.env.NEXT_PUBLIC_PINECONE_INDEX_NAME || 'roki');
+    
+    // Query for all documents in this project
+    const queryResponse = await index.query({
+      vector: new Array(1024).fill(0), // Match the index dimension
+      filter: {
+        projectId: { $eq: projectId }
+      },
+      topK: 50, // Get various documents
+      includeMetadata: true,
+      includeValues: false
+    });
+    
+    console.log(`📄 Found ${queryResponse.matches.length} documents for context`);
+    
+    // Separate documents by type
+    for (const match of queryResponse.matches) {
+      if (!match.metadata) continue;
       
-      for (const file of mdFiles) {
-        try {
-          const filePath = path.join(contextDir, file);
-          const content = await fs.readFile(filePath, 'utf8');
-          const preview = content.substring(0, 800); // Limit preview length
-          context.otherContextDocs.push({
-            filename: file,
-            preview: preview
-          });
-        } catch (error) {
-          // Skip files that can't be read
-        }
+      const metadata = match.metadata;
+      const docType = metadata.type as string;
+      const content = metadata.content as string || '';
+      
+      if (docType === 'requirements') {
+        context.requirements = content.substring(0, 2000); // Limit length
+      } else if (docType === 'design') {
+        context.design = content.substring(0, 2000); // Limit length
+      } else if (docType === 'tasks') {
+        context.tasks = content.substring(0, 1500); // Limit length
+      } else if (docType === 'context' && context.otherContextDocs.length < 3) {
+        // Include up to 3 context documents for additional context
+        context.otherContextDocs.push({
+          filename: metadata.filename as string || metadata.title as string || 'Untitled',
+          preview: content.substring(0, 800) // Limit preview length
+        });
       }
-    } catch (error) {
-      // Context directory not found or not readable
     }
-
+    
+    console.log('✅ Successfully gathered project context from Pinecone');
+    
   } catch (error) {
-    // Project directory structure issues
+    console.error('❌ Failed to gather project context from Pinecone:', error);
   }
 
   return context;
 }
 
-function generateImprovementPrompt(document: any, projectConfig: any, projectContext: any): string {
-  const isBusinessProject = projectConfig.template === 'business';
+function generateImprovementPrompt(document: any, project: any, projectContext: any): string {
+  const isBusinessProject = project.template === 'business';
   
   let contextInfo = '';
   if (projectContext.requirements) {
@@ -330,11 +264,9 @@ function generateImprovementPrompt(document: any, projectConfig: any, projectCon
   return `You are an expert ${isBusinessProject ? 'business analyst and consultant' : 'technical writer and project manager'} helping to improve project documentation. 
 
 ## Project Information:
-- **Type**: ${projectConfig.template || 'general'}
-- **Name**: ${projectConfig.name}
-- **Description**: ${projectConfig.description}
-${projectConfig.technologyStack ? `- **Technology Stack**: ${JSON.stringify(projectConfig.technologyStack)}` : ''}
-${projectConfig.regulatoryCompliance ? `- **Regulatory Compliance**: ${JSON.stringify(projectConfig.regulatoryCompliance)}` : ''}
+- **Type**: ${project.template || 'general'}
+- **Name**: ${project.name}
+- **Description**: ${project.description}
 
 ## Project Context:${contextInfo}
 
@@ -349,17 +281,17 @@ ${document.content}
 Using the project context above, please improve this document by:
 
 1. **Contextual Integration**: Add relevant connections to other project documents and requirements
-2. **Project-Specific Details**: Include information that aligns with the project's technology stack${isBusinessProject ? ', regulatory requirements,' : ','} and overall goals
+2. **Project-Specific Details**: Include information that aligns with the project's goals and requirements
 3. **Cross-Reference Enhancement**: Reference relevant sections from requirements, design, or tasks where appropriate
 4. **Stakeholder Alignment**: Ensure content serves the project's stakeholders and objectives
-5. **${isBusinessProject ? 'Business Integration' : 'Technical Integration'}**: ${isBusinessProject ? 'Connect to business goals, compliance needs, and ROI considerations from the project context' : 'Align with technical architecture, implementation details, and development workflow from the project context'}
+5. **${isBusinessProject ? 'Business Integration' : 'Technical Integration'}**: ${isBusinessProject ? 'Connect to business goals and requirements from the project context' : 'Align with technical architecture and implementation details from the project context'}
 
 ## Specific Enhancements:
 - Reference relevant requirements or design decisions where applicable
 - Add connections to related tasks or milestones
 - Include project-specific terminology and standards
 - Suggest actionable next steps that align with project goals
-- ${isBusinessProject ? 'Incorporate regulatory compliance considerations and business metrics' : 'Include technical specifications and implementation details'}
+- ${isBusinessProject ? 'Incorporate business considerations and metrics' : 'Include technical specifications and implementation details'}
 
 ## Format Guidelines:
 - Use markdown formatting for clear structure
@@ -376,6 +308,14 @@ export async function POST(
   { params }: { params: Promise<{ id: string; docId: string }> }
 ) {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
     const { id: projectId, docId } = await params;
 
     // Parse request body to get current document content
@@ -389,8 +329,18 @@ export async function POST(
       );
     }
 
-    // Find project
-    const { projectPath, config } = await findProjectById(projectId);
+    console.log('🔄 Improving document using Pinecone-based project context');
+
+    // Get project from Pinecone-based database
+    const projectService = ProjectService.getInstance();
+    const project = await projectService.getProject(userId, projectId);
+
+    if (!project) {
+      return NextResponse.json(
+        { error: 'Project not found' },
+        { status: 404 }
+      );
+    }
     
     // Create document metadata from the request
     const documentMetadata = {
@@ -401,57 +351,69 @@ export async function POST(
       content: content
     };
 
-    // Load API configuration
-    const configPath = await getApiConfigPath(projectId);
-    let apiConfig: ApiConfiguration;
-    
+    // Load API configuration from user's settings
     try {
-      const configData = await fs.readFile(configPath, 'utf8');
-      apiConfig = JSON.parse(configData);
-    } catch (error) {
-      return NextResponse.json(
-        { error: 'API configuration not found. Please configure an AI provider first.' },
-        { status: 400 }
-      );
-    }
+      const configResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/user-api-config`, {
+        headers: {
+          'Authorization': request.headers.get('Authorization') || '',
+          'Cookie': request.headers.get('Cookie') || ''
+        }
+      });
 
-    // Gather project context for better improvements
-    const projectContext = await gatherProjectContext(projectPath, config);
-    
-    // Generate improvement prompt with context
-    const prompt = generateImprovementPrompt(documentMetadata, config, projectContext);
-    
-    // Call the appropriate AI provider
-    let aiResponse: { content: string; tokenUsage: any };
-    switch (apiConfig.provider) {
-      case 'openai':
-        aiResponse = await callOpenAI(apiConfig, prompt);
-        break;
-      case 'anthropic':
-        aiResponse = await callAnthropic(apiConfig, prompt);
-        break;
-      case 'google':
-        aiResponse = await callGoogleAI(apiConfig, prompt);
-        break;
-      case 'custom':
-        aiResponse = await callCustomProvider(apiConfig, prompt);
-        break;
-      default:
+      if (!configResponse.ok) {
         return NextResponse.json(
-          { error: 'Unsupported AI provider' },
+          { error: 'API configuration not found. Please configure an AI provider first.' },
           { status: 400 }
         );
-    }
+      }
 
-    // Track token usage
-    await trackTokenUsage(projectId, aiResponse.tokenUsage, 'improve_document');
-    
-    return NextResponse.json({
-      success: true,
-      improvedContent: aiResponse.content,
-      tokenUsage: aiResponse.tokenUsage,
-      message: 'Document improved successfully'
-    });
+      const apiConfig: ApiConfiguration = await configResponse.json();
+
+      // Gather project context from Pinecone
+      const projectContext = await gatherProjectContextFromPinecone(projectId);
+      
+      // Generate improvement prompt with context
+      const prompt = generateImprovementPrompt(documentMetadata, project, projectContext);
+      
+      // Call the appropriate AI provider
+      let aiResponse: { content: string; tokenUsage: any };
+      switch (apiConfig.provider) {
+        case 'openai':
+          aiResponse = await callOpenAI(apiConfig, prompt);
+          break;
+        case 'anthropic':
+          aiResponse = await callAnthropic(apiConfig, prompt);
+          break;
+        case 'google':
+          aiResponse = await callGoogleAI(apiConfig, prompt);
+          break;
+        case 'custom':
+          aiResponse = await callCustomProvider(apiConfig, prompt);
+          break;
+        default:
+          return NextResponse.json(
+            { error: 'Unsupported AI provider' },
+            { status: 400 }
+          );
+      }
+
+      // Track token usage
+      await trackTokenUsage(projectId, aiResponse.tokenUsage, 'improve_document');
+      
+      return NextResponse.json({
+        success: true,
+        improvedContent: aiResponse.content,
+        tokenUsage: aiResponse.tokenUsage,
+        message: 'Document improved successfully using project context from Pinecone'
+      });
+
+    } catch (error) {
+      console.error('Error with API configuration or AI call:', error);
+      return NextResponse.json(
+        { error: 'Failed to load API configuration or call AI provider' },
+        { status: 500 }
+      );
+    }
 
   } catch (error) {
     console.error('Error improving document:', error);
