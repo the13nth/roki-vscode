@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +20,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Presentation,
   Download,
@@ -35,7 +36,10 @@ import {
   Code,
   Users,
   Settings,
-  Share2
+  Share2,
+  Brain,
+  Sparkles,
+  Clock
 
 } from 'lucide-react';
 
@@ -80,6 +84,59 @@ export function ProjectPitch({ projectId }: ProjectPitchProps) {
     businessModel: false
   });
 
+  // Save and improve state
+  const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isImproving, setIsImproving] = useState(false);
+  const [improveDetails, setImproveDetails] = useState('');
+  const [showImproveDialog, setShowImproveDialog] = useState(false);
+  const [pitchTimestamp, setPitchTimestamp] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadSavedPitch();
+  }, [projectId]);
+
+  const loadSavedPitch = async () => {
+    try {
+      console.log('📚 Loading saved pitch from Pinecone...');
+      const response = await fetch(`/api/projects/${projectId}/analyses`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const savedData = await response.json();
+        console.log('📊 Saved analyses loaded:', savedData);
+        
+        if (savedData.analyses && savedData.analyses.pitch) {
+          const pitchData = savedData.analyses.pitch;
+          setPitchResult(pitchData);
+          setPitchTimestamp(pitchData.timestamp);
+          setIsSaved(true);
+          setHasUnsavedChanges(false);
+          
+          // Restore configuration if available
+          if (pitchData.format) {
+            setSelectedFormat(pitchData.format);
+          }
+          if (pitchData.sections) {
+            setSelectedSections(pitchData.sections);
+          }
+          
+          console.log('✅ Loaded saved pitch');
+        }
+      } else {
+        console.log('No saved pitch found');
+      }
+    } catch (error) {
+      console.error('Failed to load saved pitch:', error);
+      // Don't show error to user as this is optional
+    }
+  };
+
   const handleGeneratePitch = async () => {
     try {
       setIsGenerating(true);
@@ -119,6 +176,13 @@ export function ProjectPitch({ projectId }: ProjectPitchProps) {
         console.log('✅ Pitch generated successfully');
         console.log(`📊 Token usage: ${result.tokenUsage.totalTokens} tokens`);
         setPitchResult(result);
+        setPitchTimestamp(new Date().toISOString());
+        
+        // Mark as having unsaved changes if this pitch was previously saved
+        if (isSaved) {
+          setHasUnsavedChanges(true);
+        }
+        
         setSuccessMessage('Pitch generated successfully!');
         setTimeout(() => setSuccessMessage(null), 3000);
       } else {
@@ -139,6 +203,125 @@ export function ProjectPitch({ projectId }: ProjectPitchProps) {
       }
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleSavePitch = async () => {
+    if (!pitchResult) {
+      setError('No pitch data to save');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      const isUpdate = isSaved;
+      console.log(`💾 ${isUpdate ? 'Updating' : 'Saving'} pitch to Pinecone...`);
+
+      const response = await fetch(`/api/projects/${projectId}/analyses`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          analysisType: 'pitch',
+          analysisData: {
+            ...pitchResult,
+            timestamp: pitchTimestamp || new Date().toISOString(),
+            format: selectedFormat,
+            sections: selectedSections
+          },
+        }),
+      });
+
+      if (response.ok) {
+        setIsSaved(true);
+        setHasUnsavedChanges(false);
+        setSuccessMessage(`Pitch ${isUpdate ? 'updated' : 'saved'} successfully!`);
+        setTimeout(() => setSuccessMessage(null), 3000);
+        console.log(`✅ Pitch ${isUpdate ? 'updated' : 'saved'} to Pinecone`);
+      } else {
+        const errorData = await response.json();
+        setError(`Failed to ${isUpdate ? 'update' : 'save'} pitch: ${errorData.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error(`Failed to ${isSaved ? 'update' : 'save'} pitch:`, error);
+      setError(`Error ${isSaved ? 'updating' : 'saving'} pitch`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleImprovePitch = async () => {
+    if (!improveDetails?.trim()) {
+      setError('Please provide details on how to improve the pitch');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    if (!pitchResult) {
+      setError('No pitch found to improve');
+      return;
+    }
+
+    try {
+      setIsImproving(true);
+      setError(null);
+
+      // Convert pitch result to string format for improvement
+      const originalPitch = JSON.stringify(pitchResult, null, 2);
+
+      const response = await fetch(`/api/projects/${projectId}/improve-analysis`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          analysisType: 'pitch',
+          originalAnalysis: originalPitch,
+          improvementDetails: improveDetails,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to improve pitch');
+      }
+
+      const result = await response.json();
+      
+      // Try to parse the improved pitch back to the expected format
+      let improvedPitchData;
+      try {
+        improvedPitchData = JSON.parse(result.improvedAnalysis);
+      } catch {
+        // If parsing fails, create a new pitch object with the improved content
+        improvedPitchData = {
+          ...pitchResult,
+          pitch: result.improvedAnalysis,
+          timestamp: new Date().toISOString()
+        };
+      }
+
+      // Update the pitch results with the improved version
+      setPitchResult(improvedPitchData);
+      setPitchTimestamp(new Date().toISOString());
+
+      // Mark as having unsaved changes
+      setHasUnsavedChanges(true);
+
+      // Clear the improvement details and close dialog
+      setImproveDetails('');
+      setShowImproveDialog(false);
+
+      setSuccessMessage('Pitch improved successfully!');
+      setTimeout(() => setSuccessMessage(null), 3000);
+
+    } catch (error: any) {
+      console.error('Pitch improvement error:', error);
+      setError(error.message || 'Failed to improve pitch');
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setIsImproving(false);
     }
   };
 
@@ -239,6 +422,99 @@ export function ProjectPitch({ projectId }: ProjectPitchProps) {
         
         {pitchResult && (
           <div className="flex items-center space-x-2">
+            <Button
+              onClick={handleSavePitch}
+              disabled={isSaving || (isSaved && !hasUnsavedChanges)}
+              variant="outline"
+              size="sm"
+              className="flex items-center"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  {hasUnsavedChanges ? 'Updating...' : 'Saving...'}
+                </>
+              ) : isSaved && !hasUnsavedChanges ? (
+                <>
+                  <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                  Saved
+                </>
+              ) : hasUnsavedChanges ? (
+                <>
+                  <Brain className="w-4 h-4 mr-2" />
+                  Update Pitch
+                </>
+              ) : (
+                <>
+                  <Brain className="w-4 h-4 mr-2" />
+                  Save Pitch
+                </>
+              )}
+            </Button>
+            
+            <Dialog open={showImproveDialog} onOpenChange={setShowImproveDialog}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Improve Pitch
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center">
+                    <Sparkles className="w-5 h-5 mr-2" />
+                    Improve Project Pitch
+                  </DialogTitle>
+                  <DialogDescription>
+                    Describe how you'd like to improve this pitch. Be specific about what aspects you want enhanced.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="improve-pitch" className="text-sm font-medium">
+                      What would you like to improve or enhance?
+                    </Label>
+                    <Textarea
+                      id="improve-pitch"
+                      value={improveDetails}
+                      onChange={(e) => setImproveDetails(e.target.value)}
+                      placeholder="e.g., Make it more compelling, add stronger value propositions, improve the flow, add more specific metrics, make it shorter and punchier..."
+                      className="min-h-[100px] mt-2"
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowImproveDialog(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleImprovePitch}
+                      disabled={isImproving || !improveDetails?.trim()}
+                      className="flex items-center"
+                    >
+                      {isImproving ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Improving...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4 mr-2" />
+                          Improve Pitch
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+            
             <Button
               variant="outline"
               size="sm"
@@ -378,9 +654,17 @@ export function ProjectPitch({ projectId }: ProjectPitchProps) {
                 <Presentation className="w-5 h-5 mr-2" />
                 Generated Pitch
               </CardTitle>
-              <Badge variant="secondary" className="text-xs">
-                {pitchResult.tokenUsage.totalTokens} tokens • ${pitchResult.tokenUsage.cost.toFixed(4)}
-              </Badge>
+              <div className="flex items-center space-x-3">
+                {pitchTimestamp && (
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <Clock className="w-4 h-4 mr-2" />
+                    Generated at {new Date(pitchTimestamp).toLocaleString()}
+                  </div>
+                )}
+                <Badge variant="secondary" className="text-xs">
+                  {pitchResult.tokenUsage.totalTokens} tokens • ${pitchResult.tokenUsage.cost.toFixed(4)}
+                </Badge>
+              </div>
             </div>
           </CardHeader>
           <CardContent>

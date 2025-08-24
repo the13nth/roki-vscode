@@ -126,80 +126,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
-  try {
-    const { id: projectId } = await params;
-    
-    // Get the current API configuration for this project (respects user/app key selection)
-    const configResponse = await fetch(`${request.nextUrl.origin}/api/projects/${projectId}/api-config`, {
-      headers: {
-        'Cookie': request.headers.get('Cookie') || ''
-      }
-    });
-
-    if (!configResponse.ok) {
-      return NextResponse.json(
-        { error: 'Failed to load project API configuration' },
-        { status: 500 }
-      );
-    }
-
-    const config: ApiConfiguration & { source?: string; usePersonalApiKey?: boolean } = await configResponse.json();
-
-    // Validate required fields
-    if (!config.provider || !config.apiKey || !config.model) {
-      return NextResponse.json(
-        { error: 'API configuration is incomplete. Please configure your API settings.' },
-        { status: 400 }
-      );
-    }
-
-    let testResult = false;
-    let errorMessage = '';
-
-    // Test the configured provider
-    try {
-      switch (config.provider) {
-        case 'openai':
-          testResult = await testOpenAI(config);
-          break;
-        case 'anthropic':
-          testResult = await testAnthropic(config);
-          break;
-        case 'google':
-          testResult = await testGoogleAI(config);
-          break;
-        case 'custom':
-          testResult = await testCustomProvider(config);
-          break;
-        default:
-          return NextResponse.json(
-            { error: 'Unsupported provider' },
-            { status: 400 }
-          );
-      }
-    } catch (error) {
-      errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      testResult = false;
-    }
-
-    if (testResult) {
-      const keySource = config.usePersonalApiKey ? 'personal' : 'app default';
-      return NextResponse.json({ 
-        success: true, 
-        message: `API connection successful using ${keySource} key (${config.provider} - ${config.model})` 
-      });
-    } else {
-      const keySource = config.usePersonalApiKey ? 'personal' : 'app default';
-      return NextResponse.json(
-        { error: `API connection failed using ${keySource} key. ${errorMessage || 'Please check your API key and configuration.'}` },
-        { status: 400 }
-      );
-    }
-  } catch (error) {
-    console.error('API test failed:', error);
-    return NextResponse.json(
-      { error: 'Failed to test API connection' },
-      { status: 500 }
-    );
-  }
+  return NextResponse.json({
+    error: 'Per-project API testing is deprecated. Please use the global API test endpoint.',
+    redirectTo: '/profile',
+    useGlobalEndpoint: '/api/user-api-test'
+  }, { status: 410 });
 }

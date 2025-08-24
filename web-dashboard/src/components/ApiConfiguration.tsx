@@ -1,74 +1,29 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ApiKeyToggle } from '@/components/ApiKeyToggle';
-import { 
-  Settings, 
-  Key, 
-  Eye, 
-  EyeOff, 
-  Save, 
-  TestTube, 
-  CheckCircle, 
+import {
+  Settings,
+  Key,
+  TestTube,
+  CheckCircle,
   AlertCircle,
   Loader2,
-  Info
+  Info,
+  ExternalLink
 } from 'lucide-react';
-
-interface ApiProvider {
-  id: string;
-  name: string;
-  description: string;
-  baseUrl: string;
-  models: string[];
-}
 
 interface ApiConfiguration {
   provider: string;
   apiKey: string;
   model: string;
   baseUrl?: string;
-  source?: string;
-  usePersonalApiKey?: boolean;
+  source: 'user' | 'environment' | 'none';
 }
-
-const AI_PROVIDERS: ApiProvider[] = [
-  {
-    id: 'openai',
-    name: 'OpenAI',
-    description: 'GPT-4, GPT-3.5 Turbo, and other OpenAI models',
-    baseUrl: 'https://api.openai.com/v1',
-    models: ['gpt-4', 'gpt-4-turbo', 'gpt-3.5-turbo', 'gpt-3.5-turbo-16k']
-  },
-  {
-    id: 'anthropic',
-    name: 'Anthropic',
-    description: 'Claude 3 and Claude 2 models',
-    baseUrl: 'https://api.anthropic.com',
-    models: ['claude-3-opus-20240229', 'claude-3-sonnet-20240229', 'claude-3-haiku-20240307', 'claude-2.1']
-  },
-  {
-    id: 'google',
-    name: 'Google AI',
-    description: 'Gemini Pro and other Google AI models',
-    baseUrl: 'https://generativelanguage.googleapis.com',
-    models: ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro']
-  },
-  {
-    id: 'custom',
-    name: 'Custom Provider',
-    description: 'Use your own API endpoint',
-    baseUrl: '',
-    models: ['custom']
-  }
-];
 
 interface ApiConfigurationProps {
   projectId: string;
@@ -78,59 +33,53 @@ export function ApiConfiguration({ projectId }: ApiConfigurationProps) {
   const [config, setConfig] = useState<ApiConfiguration>({
     provider: '',
     apiKey: '',
-    model: ''
+    model: '',
+    source: 'none'
   });
-  const [showApiKey, setShowApiKey] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     loadConfiguration();
-  }, [projectId]);
+  }, []);
 
   const loadConfiguration = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/projects/${projectId}/api-config`);
+
+      // Use the config status endpoint that checks both user config and environment variables
+      const response = await fetch('/api/config-status');
       if (response.ok) {
         const data = await response.json();
-        setConfig(data);
-        
-        // Show error message if there's a configuration error
-        if (data.error) {
-          setTestResult({ success: false, message: data.error });
-        }
+        setConfig({
+          provider: data.provider || '',
+          apiKey: data.apiKey || '',
+          model: data.model || '',
+          baseUrl: data.baseUrl,
+          source: data.source || 'none'
+        });
+      } else {
+        // If the endpoint fails, assume no configuration
+        setConfig({
+          provider: '',
+          apiKey: '',
+          model: '',
+          source: 'none'
+        });
       }
+
     } catch (error) {
       console.error('Failed to load API configuration:', error);
       setTestResult({ success: false, message: 'Failed to load API configuration' });
+      setConfig({
+        provider: '',
+        apiKey: '',
+        model: '',
+        source: 'none'
+      });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleSave = async () => {
-    try {
-      setIsSaving(true);
-      const response = await fetch(`/api/projects/${projectId}/api-config`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(config),
-      });
-
-      if (response.ok) {
-        setTestResult({ success: true, message: 'API configuration saved successfully!' });
-      } else {
-        setTestResult({ success: false, message: 'Failed to save API configuration' });
-      }
-    } catch (error) {
-      setTestResult({ success: false, message: 'Error saving API configuration' });
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -138,19 +87,24 @@ export function ApiConfiguration({ projectId }: ApiConfigurationProps) {
     try {
       setIsTesting(true);
       setTestResult(null);
-      
-      const response = await fetch(`/api/projects/${projectId}/api-test`, {
+
+      // Always use the config-test endpoint since we don't have access to the real API key
+      // (the config-status endpoint returns masked keys for security)
+      const testEndpoint = '/api/config-test';
+      const testBody = {}; // Backend will use getApiConfiguration to get the real config
+
+      const response = await fetch(testEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(config),
+        body: JSON.stringify(testBody),
       });
 
       const result = await response.json();
-      
+
       if (response.ok) {
-        setTestResult({ success: true, message: 'API connection successful! Model is ready to use.' });
+        setTestResult({ success: true, message: result.message || 'API connection successful! Model is ready to use.' });
       } else {
         setTestResult({ success: false, message: result.error || 'API connection failed' });
       }
@@ -161,19 +115,50 @@ export function ApiConfiguration({ projectId }: ApiConfigurationProps) {
     }
   };
 
-  const selectedProvider = AI_PROVIDERS.find(p => p.id === config.provider);
+  const getSourceBadge = () => {
+    switch (config.source) {
+      case 'user':
+        return (
+          <Badge variant="default" className="flex items-center">
+            <Key className="w-4 h-4 mr-1" />
+            Personal API Key
+          </Badge>
+        );
+      case 'environment':
+        return (
+          <Badge variant="secondary" className="flex items-center">
+            <Settings className="w-4 h-4 mr-1" />
+            Environment Variable
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="destructive" className="flex items-center">
+            <AlertCircle className="w-4 h-4 mr-1" />
+            Not Configured
+          </Badge>
+        );
+    }
+  };
+
+  const getProviderName = (providerId: string) => {
+    const providers: Record<string, string> = {
+      'openai': 'OpenAI',
+      'anthropic': 'Anthropic',
+      'google': 'Google AI',
+      'custom': 'Custom Provider'
+    };
+    return providers[providerId] || providerId;
+  };
 
   return (
     <div className="p-8 space-y-6">
       <div>
         <h1 className="text-3xl font-bold mb-3">API Configuration</h1>
         <p className="text-muted-foreground text-lg">
-          Configure AI providers and API keys for project analysis and AI-powered features.
+          View current AI API configuration. Configure your personal API keys in your profile settings.
         </p>
       </div>
-
-      {/* API Key Selection Toggle */}
-      <ApiKeyToggle projectId={projectId} />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Current Configuration Display Card */}
@@ -194,28 +179,18 @@ export function ApiConfiguration({ projectId }: ApiConfigurationProps) {
               <>
                 {/* Configuration Source */}
                 <div className="space-y-2">
-                  <Label>Configuration Source</Label>
+                  <div className="text-sm font-medium">Configuration Source</div>
                   <div className="flex items-center space-x-2">
-                    {config.usePersonalApiKey ? (
-                      <Badge variant="default" className="flex items-center">
-                        <Key className="w-4 h-4 mr-1" />
-                        Personal API Key
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary" className="flex items-center">
-                        <Settings className="w-4 h-4 mr-1" />
-                        App Default Key
-                      </Badge>
-                    )}
+                    {getSourceBadge()}
                   </div>
                 </div>
 
                 {/* Provider Information */}
-                {config.provider && (
+                {config.provider && config.source !== 'none' && (
                   <div className="space-y-2">
-                    <Label>Provider Information</Label>
+                    <div className="text-sm font-medium">Provider Information</div>
                     <div className="text-sm space-y-1">
-                      <p><strong>Provider:</strong> {AI_PROVIDERS.find(p => p.id === config.provider)?.name || config.provider}</p>
+                      <p><strong>Provider:</strong> {getProviderName(config.provider)}</p>
                       <p><strong>Model:</strong> {config.model}</p>
                       {config.baseUrl && <p><strong>Base URL:</strong> {config.baseUrl}</p>}
                       <p><strong>API Key:</strong> {config.apiKey ? '••••••••' : 'Not configured'}</p>
@@ -223,26 +198,45 @@ export function ApiConfiguration({ projectId }: ApiConfigurationProps) {
                   </div>
                 )}
 
+                {/* No Configuration Message */}
+                {config.source === 'none' && (
+                  <div className="text-center py-8">
+                    <AlertCircle className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground mb-4">
+                      No API configuration found. Configure your personal API keys to use AI features.
+                    </p>
+                    <Button asChild>
+                      <Link href="/profile" className="flex items-center">
+                        <Key className="w-4 h-4 mr-2" />
+                        Configure API Keys
+                        <ExternalLink className="w-4 h-4 ml-2" />
+                      </Link>
+                    </Button>
+                  </div>
+                )}
+
                 {/* Test Connection Button */}
-                <div className="pt-4">
-                  <Button
-                    onClick={handleTest}
-                    disabled={isTesting || !config.provider || !config.apiKey || !config.model}
-                    className="w-full"
-                  >
-                    {isTesting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Testing Connection...
-                      </>
-                    ) : (
-                      <>
-                        <TestTube className="w-4 h-4 mr-2" />
-                        Test Current Configuration
-                      </>
-                    )}
-                  </Button>
-                </div>
+                {(config.source === 'user' || config.source === 'environment') && (
+                  <div className="pt-4">
+                    <Button
+                      onClick={handleTest}
+                      disabled={isTesting}
+                      className="w-full"
+                    >
+                      {isTesting ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Testing Connection...
+                        </>
+                      ) : (
+                        <>
+                          <TestTube className="w-4 h-4 mr-2" />
+                          Test Current Configuration
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
               </>
             )}
           </CardContent>
@@ -256,9 +250,9 @@ export function ApiConfiguration({ projectId }: ApiConfigurationProps) {
           <CardContent className="space-y-4">
             {/* Current Status */}
             <div className="space-y-2">
-              <Label>Current Status</Label>
+              <div className="text-sm font-medium">Current Status</div>
               <div className="flex items-center space-x-2">
-                {config.provider && config.apiKey && config.model ? (
+                {config.source !== 'none' ? (
                   <Badge variant="default" className="flex items-center">
                     <CheckCircle className="w-4 h-4 mr-1" />
                     Configured
@@ -272,19 +266,6 @@ export function ApiConfiguration({ projectId }: ApiConfigurationProps) {
               </div>
             </div>
 
-            {/* Provider Info */}
-            {selectedProvider && (
-              <div className="space-y-2">
-                <Label>Provider Information</Label>
-                <div className="text-sm space-y-1">
-                  <p><strong>Name:</strong> {selectedProvider.name}</p>
-                  <p><strong>Description:</strong> {selectedProvider.description}</p>
-                  <p><strong>Base URL:</strong> {selectedProvider.baseUrl}</p>
-                  <p><strong>Selected Model:</strong> {config.model}</p>
-                </div>
-              </div>
-            )}
-
             {/* Test Results */}
             {testResult && (
               <Alert variant={testResult.success ? "default" : "destructive"}>
@@ -293,15 +274,36 @@ export function ApiConfiguration({ projectId }: ApiConfigurationProps) {
               </Alert>
             )}
 
+            {/* Configuration Instructions */}
+            <div className="space-y-2">
+              <div className="text-sm font-medium">Configuration Options</div>
+              <div className="text-sm text-muted-foreground space-y-2">
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="font-medium mb-1">Option 1: Personal API Keys (Recommended)</p>
+                  <p>Configure your own API keys in your profile settings for enhanced privacy and control.</p>
+                  <Button asChild variant="outline" size="sm" className="mt-2">
+                    <Link href="/profile" className="flex items-center">
+                      <Key className="w-4 h-4 mr-2" />
+                      Go to Profile Settings
+                      <ExternalLink className="w-4 h-4 ml-2" />
+                    </Link>
+                  </Button>
+                </div>
+                <div className="p-3 bg-muted rounded-lg">
+                  <p className="font-medium mb-1">Option 2: Environment Variables</p>
+                  <p>Set GOOGLE_AI_API_KEY in your .env.local file for app-wide configuration.</p>
+                </div>
+              </div>
+            </div>
+
             {/* Usage Information */}
             <div className="space-y-2">
-              <Label>Usage</Label>
+              <div className="text-sm font-medium">Usage</div>
               <div className="text-sm text-muted-foreground space-y-1">
-                <p>• This API configuration will be used for project analysis</p>
-                <p>• The AI model will analyze your project context and provide insights</p>
-                <p>• For Google AI (Gemini), set GOOGLE_AI_API_KEY environment variable for secure configuration</p>
-                <p>• API keys are encrypted in production, stored as plaintext in development</p>
-                <p>• Test the connection before using analysis features</p>
+                <p>• This API configuration will be used for all AI features</p>
+                <p>• Personal API keys take priority over environment variables</p>
+                <p>• API keys are encrypted and stored securely</p>
+                <p>• Test the connection to ensure everything works correctly</p>
               </div>
             </div>
           </CardContent>

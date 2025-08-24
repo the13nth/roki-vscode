@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { getGoogleAIConfig, getGoogleAIConfigWithFallback, validateSecureConfig, decryptApiKey } from '@/lib/secureConfig';
+import { getApiConfiguration } from '@/lib/apiConfig';
 import { PineconeSyncServiceInstance } from '@/lib/pineconeSyncService';
 import { getPineconeClient, PINECONE_INDEX_NAME } from '@/lib/pinecone';
 import { promises as fs } from 'fs';
@@ -14,6 +15,7 @@ interface ApiConfiguration {
   apiKey: string;
   model: string;
   baseUrl?: string;
+  source: 'user' | 'environment' | 'none';
 }
 
 function getGlobalConfigPath(): string {
@@ -383,144 +385,27 @@ export async function POST(
       );
     }
 
-    // Get the appropriate API configuration for this project (respects user/app key selection)
+    // Get the API configuration (user personal key > environment variables)
     let apiConfig: ApiConfiguration | undefined;
     
-    // Always check user API key preference first, regardless of environment variables
-    let usePersonalApiKey = false;
-    
     try {
-      const selection = await PineconeSyncServiceInstance.getApiKeySelection(id, userId);
-      usePersonalApiKey = selection?.usePersonalApiKey || false;
-      console.log(`🔑 API key selection: ${usePersonalApiKey ? 'personal' : 'app default'}`);
-      console.log(`🔑 API Source: ${usePersonalApiKey ? 'USER PERSONAL API KEY' : 'APP DEFAULT API KEY'}`);
+      apiConfig = await getApiConfiguration();
+      console.log(`🔑 API Source: ${apiConfig.source.toUpperCase()}`);
+      console.log(`🤖 Provider: ${apiConfig.provider}, Model: ${apiConfig.model}`);
       console.log(`👤 User ID: ${userId}`);
       console.log(`📁 Project ID: ${id}`);
+      
+      if (apiConfig.source === 'none') {
+        return NextResponse.json(
+          { error: 'No AI configuration found. Please set GOOGLE_AI_API_KEY environment variable or configure your personal API key in profile settings.' },
+          { status: 400 }
+        );
+      }
     } catch (error) {
-      console.warn('⚠️ Failed to read API key selection from Pinecone, defaulting to global config');
-      console.log(`🔑 API Source: APP DEFAULT API KEY (fallback)`);
-      console.log(`👤 User ID: ${userId}`);
-      console.log(`📁 Project ID: ${id}`);
-    }
-    
-    // If user wants to use personal API key, try to get their personal config
-    if (usePersonalApiKey) {
-      console.log('🔑 User selected personal API key, checking personal configuration...');
-      
-      // Try to get user's personal API config from Pinecone
-      try {
-        const pinecone = getPineconeClient();
-        const index = pinecone.index(PINECONE_INDEX_NAME);
-        
-        const queryResponse = await index.namespace('user-api-configs').query({
-          vector: new Array(1024).fill(0.1),
-          topK: 1,
-          filter: { userId: { $eq: userId } },
-          includeMetadata: true
-        });
-
-        if (queryResponse.matches && queryResponse.matches.length > 0) {
-          const metadata = queryResponse.matches[0].metadata;
-          if (metadata) {
-            const userConfig = metadata as unknown as any;
-            
-            // Decrypt API key if it's encrypted
-            let decryptedApiKey = '';
-            if (userConfig.encryptedApiKey) {
-              decryptedApiKey = decryptApiKey(userConfig.encryptedApiKey);
-            } else if (userConfig.apiKey) {
-              decryptedApiKey = userConfig.apiKey;
-            }
-            
-            if (decryptedApiKey) {
-              apiConfig = {
-                provider: userConfig.provider,
-                apiKey: decryptedApiKey,
-                model: userConfig.model,
-                baseUrl: userConfig.baseUrl
-              };
-              console.log('✅ Using user personal API configuration from Pinecone');
-              console.log(`🔑 CONFIG SOURCE: USER PERSONAL API KEY`);
-              console.log(`🤖 Provider: ${userConfig.provider}, Model: ${userConfig.model}`);
-            }
-          }
-        }
-      } catch (error) {
-        console.warn('⚠️ Failed to load user personal API config from Pinecone:', error);
-      }
-      
-      // If personal config not found, fall back to environment variables
-      if (!apiConfig) {
-        console.log('⚠️ Personal API config not found, falling back to environment variables...');
-        const envConfig = getGoogleAIConfigWithFallback();
-        if (envConfig) {
-          apiConfig = envConfig;
-          console.log('✅ Using environment variables as fallback for personal API key');
-          console.log(`🔑 CONFIG SOURCE: ENVIRONMENT VARIABLE (fallback for personal)`);
-        }
-      }
-    } else {
-      // User wants to use app default - try environment variables first
-      console.log('🔑 User selected app default API key, checking environment variables...');
-      
-      const envConfig = getGoogleAIConfigWithFallback();
-      if (envConfig) {
-        apiConfig = envConfig;
-        console.log('✅ Using secure Google AI configuration from environment');
-        console.log(`🔑 CONFIG SOURCE: ENVIRONMENT VARIABLE (GOOGLE_AI_API_KEY)`);
-      }
-    }
-    
-    // If we still don't have a config, try project-specific config
-    if (!apiConfig) {
-      console.log('⚠️ Environment config not found, checking project-specific configuration...');
-      const projectConfigPath = path.join(process.cwd(), '.ai-project', 'projects', id, 'api-config.json');
-      if (await fileExists(projectConfigPath)) {
-        try {
-          const projectConfigData = await fs.readFile(projectConfigPath, 'utf8');
-          const parsedConfig = JSON.parse(projectConfigData);
-          apiConfig = parsedConfig;
-          console.log('✅ Using project-specific API configuration');
-          console.log(`🔑 CONFIG SOURCE: PROJECT-SPECIFIC API KEY`);
-          console.log(`🤖 Provider: ${parsedConfig.provider}, Model: ${parsedConfig.model}`);
-        } catch (error) {
-          console.warn('⚠️ Failed to load project API config:', error);
-        }
-      }
-    }
-    
-    // Finally, fallback to global configuration file
-    if (!apiConfig) {
-      console.log('⚠️ Project config not found, checking global configuration...');
-      const globalConfigPath = getGlobalConfigPath();
-      if (await fileExists(globalConfigPath)) {
-        try {
-          const globalConfigData = await fs.readFile(globalConfigPath, 'utf8');
-          const parsedConfig = JSON.parse(globalConfigData);
-          apiConfig = parsedConfig;
-          console.log('✅ Using global API configuration');
-          console.log(`🔑 CONFIG SOURCE: GLOBAL/APP DEFAULT API KEY`);
-          console.log(`🤖 Provider: ${parsedConfig.provider}, Model: ${parsedConfig.model}`);
-        } catch (error) {
-          console.warn('⚠️ Failed to load global API config:', error);
-        }
-      }
-    }
-    
-    // If we still don't have a config, return an error
-    if (!apiConfig) {
-      console.error('❌ No AI configuration found in any source');
+      console.error('Failed to get API configuration:', error);
       return NextResponse.json(
-        { error: 'No AI configuration found. Please set GOOGLE_AI_API_KEY environment variable or configure an AI provider in the global settings.' },
-        { status: 400 }
-      );
-    }
-
-    // Ensure we have a valid API configuration
-    if (!apiConfig) {
-      return NextResponse.json(
-        { error: 'No valid AI configuration found. Please configure an AI provider in the project settings or global settings.' },
-        { status: 400 }
+        { error: 'Failed to load API configuration. Please check your settings.' },
+        { status: 500 }
       );
     }
 

@@ -42,7 +42,8 @@ import {
   Eye,
   Presentation,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Sparkles
 } from 'lucide-react';
 import { JSX } from 'react/jsx-runtime';
 
@@ -134,7 +135,13 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
   const [showPitchModal, setShowPitchModal] = useState(false);
   const [savedAnalyses, setSavedAnalyses] = useState<Record<string, boolean>>({});
   const [savingAnalyses, setSavingAnalyses] = useState<Record<string, boolean>>({});
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState<Record<string, boolean>>({});
   const [isAnalysisOptionsCollapsed, setIsAnalysisOptionsCollapsed] = useState(false);
+
+  // Improve analysis state
+  const [improvingAnalyses, setImprovingAnalyses] = useState<Record<string, boolean>>({});
+  const [improveDetails, setImproveDetails] = useState<Record<string, string>>({});
+  const [showImproveDialog, setShowImproveDialog] = useState<Record<string, boolean>>({});
 
 
 
@@ -349,7 +356,8 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
 
     try {
       setSavingAnalyses(prev => ({ ...prev, [analysisType]: true }));
-      console.log(`💾 Saving ${analysisType} analysis to Pinecone...`);
+      const isUpdate = savedAnalyses[analysisType];
+      console.log(`💾 ${isUpdate ? 'Updating' : 'Saving'} ${analysisType} analysis to Pinecone...`);
 
       const response = await fetch(`/api/projects/${projectId}/analyses`, {
         method: 'POST',
@@ -364,18 +372,104 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
 
       if (response.ok) {
         setSavedAnalyses(prev => ({ ...prev, [analysisType]: true }));
-        setSuccessMessage(`${getAnalysisTypeLabel(analysisType)} saved successfully!`);
+        setHasUnsavedChanges(prev => ({ ...prev, [analysisType]: false }));
+        setSuccessMessage(`${getAnalysisTypeLabel(analysisType)} ${isUpdate ? 'updated' : 'saved'} successfully!`);
         setTimeout(() => setSuccessMessage(null), 3000);
-        console.log(`✅ ${analysisType} analysis saved to Pinecone`);
+        console.log(`✅ ${analysisType} analysis ${isUpdate ? 'updated' : 'saved'} to Pinecone`);
       } else {
         const errorData = await response.json();
-        setError(`Failed to save analysis: ${errorData.error || 'Unknown error'}`);
+        setError(`Failed to ${isUpdate ? 'update' : 'save'} analysis: ${errorData.error || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error(`Failed to save ${analysisType} analysis:`, error);
-      setError('Error saving analysis');
+      console.error(`Failed to ${savedAnalyses[analysisType] ? 'update' : 'save'} ${analysisType} analysis:`, error);
+      setError(`Error ${savedAnalyses[analysisType] ? 'updating' : 'saving'} analysis`);
     } finally {
       setSavingAnalyses(prev => ({ ...prev, [analysisType]: false }));
+    }
+  };
+
+  const handleImproveDetailsChange = (analysisType: string, details: string) => {
+    setImproveDetails(prev => ({
+      ...prev,
+      [analysisType]: details
+    }));
+  };
+
+  const handleImproveAnalysis = async (analysisType: string) => {
+    const details = improveDetails[analysisType];
+    
+    if (!details?.trim()) {
+      setError('Please provide details on how to improve the analysis');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    if (!analysisResults[analysisType]) {
+      setError('No analysis found to improve');
+      return;
+    }
+
+    try {
+      setImprovingAnalyses(prev => ({ ...prev, [analysisType]: true }));
+      setError(null);
+
+      // Convert analysis result to string format for improvement
+      const originalAnalysis = JSON.stringify(analysisResults[analysisType], null, 2);
+
+      const response = await fetch(`/api/projects/${projectId}/improve-analysis`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          analysisType,
+          originalAnalysis,
+          improvementDetails: details,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to improve analysis');
+      }
+
+      const result = await response.json();
+      
+      // Try to parse the improved analysis back to the expected format
+      let improvedAnalysisData;
+      try {
+        improvedAnalysisData = JSON.parse(result.improvedAnalysis);
+      } catch {
+        // If parsing fails, create a new analysis object with the improved content
+        improvedAnalysisData = {
+          ...analysisResults[analysisType],
+          summary: result.improvedAnalysis,
+          timestamp: new Date().toISOString()
+        };
+      }
+
+      // Update the analysis results with the improved version
+      setAnalysisResults(prev => ({
+        ...prev,
+        [analysisType]: improvedAnalysisData
+      }));
+
+      // Mark as having unsaved changes
+      setHasUnsavedChanges(prev => ({ ...prev, [analysisType]: true }));
+
+      // Clear the improvement details and close dialog
+      setImproveDetails(prev => ({ ...prev, [analysisType]: '' }));
+      setShowImproveDialog(prev => ({ ...prev, [analysisType]: false }));
+
+      setSuccessMessage(`${getAnalysisTypeLabel(analysisType)} improved successfully!`);
+      setTimeout(() => setSuccessMessage(null), 3000);
+
+    } catch (error: any) {
+      console.error('Analysis improvement error:', error);
+      setError(error.message || 'Failed to improve analysis');
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setImprovingAnalyses(prev => ({ ...prev, [analysisType]: false }));
     }
   };
 
@@ -420,6 +514,11 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
           ...prev,
           [analysisType]: result
         }));
+
+        // Mark as having unsaved changes if this analysis was previously saved
+        if (savedAnalyses[analysisType]) {
+          setHasUnsavedChanges(prev => ({ ...prev, [analysisType]: true }));
+        }
 
         // Switch to the appropriate tab
         setActiveAnalysisTab(analysisType);
@@ -1021,30 +1120,100 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                         <Clock className="w-4 h-4 mr-2" />
                         Analysis completed at {new Date(analysisResults.technical.timestamp).toLocaleString()}
                       </div>
-                      <Button
-                        onClick={() => saveAnalysis('technical')}
-                        disabled={savingAnalyses.technical || savedAnalyses.technical}
-                        variant="outline"
-                        size="sm"
-                        className="flex items-center"
-                      >
-                        {savingAnalyses.technical ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Saving...
-                          </>
-                        ) : savedAnalyses.technical ? (
-                          <>
-                            <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                            Saved
-                          </>
-                        ) : (
-                          <>
-                            <Brain className="w-4 h-4 mr-2" />
-                            Save for Social Posts
-                          </>
-                        )}
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => saveAnalysis('technical')}
+                          disabled={savingAnalyses.technical || (savedAnalyses.technical && !hasUnsavedChanges.technical)}
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center"
+                        >
+                          {savingAnalyses.technical ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              {hasUnsavedChanges.technical ? 'Updating...' : 'Saving...'}
+                            </>
+                          ) : savedAnalyses.technical && !hasUnsavedChanges.technical ? (
+                            <>
+                              <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                              Saved
+                            </>
+                          ) : hasUnsavedChanges.technical ? (
+                            <>
+                              <Brain className="w-4 h-4 mr-2" />
+                              Update Analysis
+                            </>
+                          ) : (
+                            <>
+                              <Brain className="w-4 h-4 mr-2" />
+                              Save for Social Posts
+                            </>
+                          )}
+                        </Button>
+                        
+                        <Dialog open={showImproveDialog.technical} onOpenChange={(open) => setShowImproveDialog(prev => ({ ...prev, technical: open }))}>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex items-center"
+                            >
+                              <Sparkles className="w-4 h-4 mr-2" />
+                              Improve Analysis
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle className="flex items-center">
+                                <Sparkles className="w-5 h-5 mr-2" />
+                                Improve Technical Analysis
+                              </DialogTitle>
+                              <DialogDescription>
+                                Describe how you'd like to improve this analysis. Be specific about what aspects you want enhanced.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div>
+                                <Label htmlFor="improve-technical" className="text-sm font-medium">
+                                  What would you like to improve or enhance?
+                                </Label>
+                                <Textarea
+                                  id="improve-technical"
+                                  value={improveDetails.technical || ''}
+                                  onChange={(e) => handleImproveDetailsChange('technical', e.target.value)}
+                                  placeholder="e.g., Add more technical depth, include specific technology recommendations, expand on scalability considerations, add security analysis..."
+                                  className="min-h-[100px] mt-2"
+                                />
+                              </div>
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setShowImproveDialog(prev => ({ ...prev, technical: false }))}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  onClick={() => handleImproveAnalysis('technical')}
+                                  disabled={improvingAnalyses.technical || !improveDetails.technical?.trim()}
+                                  className="flex items-center"
+                                >
+                                  {improvingAnalyses.technical ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                      Improving...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Sparkles className="w-4 h-4 mr-2" />
+                                      Improve Analysis
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
                     </div>
                   </TabsContent>
                 )}
@@ -1074,30 +1243,100 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                         <Clock className="w-4 h-4 mr-2" />
                         Analysis completed at {new Date(analysisResults.market.timestamp).toLocaleString()}
                       </div>
-                      <Button
-                        onClick={() => saveAnalysis('market')}
-                        disabled={savingAnalyses.market || savedAnalyses.market}
-                        variant="outline"
-                        size="sm"
-                        className="flex items-center"
-                      >
-                        {savingAnalyses.market ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Saving...
-                          </>
-                        ) : savedAnalyses.market ? (
-                          <>
-                            <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                            Saved
-                          </>
-                        ) : (
-                          <>
-                            <Brain className="w-4 h-4 mr-2" />
-                            Save for Social Posts
-                          </>
-                        )}
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => saveAnalysis('market')}
+                          disabled={savingAnalyses.market || (savedAnalyses.market && !hasUnsavedChanges.market)}
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center"
+                        >
+                          {savingAnalyses.market ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              {hasUnsavedChanges.market ? 'Updating...' : 'Saving...'}
+                            </>
+                          ) : savedAnalyses.market && !hasUnsavedChanges.market ? (
+                            <>
+                              <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                              Saved
+                            </>
+                          ) : hasUnsavedChanges.market ? (
+                            <>
+                              <Brain className="w-4 h-4 mr-2" />
+                              Update Analysis
+                            </>
+                          ) : (
+                            <>
+                              <Brain className="w-4 h-4 mr-2" />
+                              Save for Social Posts
+                            </>
+                          )}
+                        </Button>
+                        
+                        <Dialog open={showImproveDialog.market} onOpenChange={(open) => setShowImproveDialog(prev => ({ ...prev, market: open }))}>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex items-center"
+                            >
+                              <Sparkles className="w-4 h-4 mr-2" />
+                              Improve Analysis
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle className="flex items-center">
+                                <Sparkles className="w-5 h-5 mr-2" />
+                                Improve Market Analysis
+                              </DialogTitle>
+                              <DialogDescription>
+                                Describe how you'd like to improve this market analysis. Be specific about what aspects you want enhanced.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div>
+                                <Label htmlFor="improve-market" className="text-sm font-medium">
+                                  What would you like to improve or enhance?
+                                </Label>
+                                <Textarea
+                                  id="improve-market"
+                                  value={improveDetails.market || ''}
+                                  onChange={(e) => handleImproveDetailsChange('market', e.target.value)}
+                                  placeholder="e.g., Add more market research data, include competitor analysis, expand on target demographics, add market size estimates..."
+                                  className="min-h-[100px] mt-2"
+                                />
+                              </div>
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setShowImproveDialog(prev => ({ ...prev, market: false }))}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  onClick={() => handleImproveAnalysis('market')}
+                                  disabled={improvingAnalyses.market || !improveDetails.market?.trim()}
+                                  className="flex items-center"
+                                >
+                                  {improvingAnalyses.market ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                      Improving...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Sparkles className="w-4 h-4 mr-2" />
+                                      Improve Analysis
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
                     </div>
                   </TabsContent>
                 )}
@@ -1127,30 +1366,100 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                         <Clock className="w-4 h-4 mr-2" />
                         Analysis completed at {new Date(analysisResults.differentiation.timestamp).toLocaleString()}
                       </div>
-                      <Button
-                        onClick={() => saveAnalysis('differentiation')}
-                        disabled={savingAnalyses.differentiation || savedAnalyses.differentiation}
-                        variant="outline"
-                        size="sm"
-                        className="flex items-center"
-                      >
-                        {savingAnalyses.differentiation ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Saving...
-                          </>
-                        ) : savedAnalyses.differentiation ? (
-                          <>
-                            <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                            Saved
-                          </>
-                        ) : (
-                          <>
-                            <Brain className="w-4 h-4 mr-2" />
-                            Save for Social Posts
-                          </>
-                        )}
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => saveAnalysis('differentiation')}
+                          disabled={savingAnalyses.differentiation || (savedAnalyses.differentiation && !hasUnsavedChanges.differentiation)}
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center"
+                        >
+                          {savingAnalyses.differentiation ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              {hasUnsavedChanges.differentiation ? 'Updating...' : 'Saving...'}
+                            </>
+                          ) : savedAnalyses.differentiation && !hasUnsavedChanges.differentiation ? (
+                            <>
+                              <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                              Saved
+                            </>
+                          ) : hasUnsavedChanges.differentiation ? (
+                            <>
+                              <Brain className="w-4 h-4 mr-2" />
+                              Update Analysis
+                            </>
+                          ) : (
+                            <>
+                              <Brain className="w-4 h-4 mr-2" />
+                              Save for Social Posts
+                            </>
+                          )}
+                        </Button>
+                        
+                        <Dialog open={showImproveDialog.differentiation} onOpenChange={(open) => setShowImproveDialog(prev => ({ ...prev, differentiation: open }))}>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex items-center"
+                            >
+                              <Sparkles className="w-4 h-4 mr-2" />
+                              Improve Analysis
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle className="flex items-center">
+                                <Sparkles className="w-5 h-5 mr-2" />
+                                Improve Differentiation Analysis
+                              </DialogTitle>
+                              <DialogDescription>
+                                Describe how you'd like to improve this competitive differentiation analysis.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div>
+                                <Label htmlFor="improve-differentiation" className="text-sm font-medium">
+                                  What would you like to improve or enhance?
+                                </Label>
+                                <Textarea
+                                  id="improve-differentiation"
+                                  value={improveDetails.differentiation || ''}
+                                  onChange={(e) => handleImproveDetailsChange('differentiation', e.target.value)}
+                                  placeholder="e.g., Add more competitive analysis, strengthen unique value propositions, include positioning strategies, expand on market advantages..."
+                                  className="min-h-[100px] mt-2"
+                                />
+                              </div>
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setShowImproveDialog(prev => ({ ...prev, differentiation: false }))}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  onClick={() => handleImproveAnalysis('differentiation')}
+                                  disabled={improvingAnalyses.differentiation || !improveDetails.differentiation?.trim()}
+                                  className="flex items-center"
+                                >
+                                  {improvingAnalyses.differentiation ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                      Improving...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Sparkles className="w-4 h-4 mr-2" />
+                                      Improve Analysis
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
                     </div>
                   </TabsContent>
                 )}
@@ -1180,30 +1489,100 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                         <Clock className="w-4 h-4 mr-2" />
                         Analysis completed at {new Date(analysisResults.financial.timestamp).toLocaleString()}
                       </div>
-                      <Button
-                        onClick={() => saveAnalysis('financial')}
-                        disabled={savingAnalyses.financial || savedAnalyses.financial}
-                        variant="outline"
-                        size="sm"
-                        className="flex items-center"
-                      >
-                        {savingAnalyses.financial ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Saving...
-                          </>
-                        ) : savedAnalyses.financial ? (
-                          <>
-                            <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                            Saved
-                          </>
-                        ) : (
-                          <>
-                            <Brain className="w-4 h-4 mr-2" />
-                            Save for Social Posts
-                          </>
-                        )}
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => saveAnalysis('financial')}
+                          disabled={savingAnalyses.financial || (savedAnalyses.financial && !hasUnsavedChanges.financial)}
+                          variant="outline"
+                          size="sm"
+                          className="flex items-center"
+                        >
+                          {savingAnalyses.financial ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              {hasUnsavedChanges.financial ? 'Updating...' : 'Saving...'}
+                            </>
+                          ) : savedAnalyses.financial && !hasUnsavedChanges.financial ? (
+                            <>
+                              <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                              Saved
+                            </>
+                          ) : hasUnsavedChanges.financial ? (
+                            <>
+                              <Brain className="w-4 h-4 mr-2" />
+                              Update Analysis
+                            </>
+                          ) : (
+                            <>
+                              <Brain className="w-4 h-4 mr-2" />
+                              Save for Social Posts
+                            </>
+                          )}
+                        </Button>
+                        
+                        <Dialog open={showImproveDialog.financial} onOpenChange={(open) => setShowImproveDialog(prev => ({ ...prev, financial: open }))}>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex items-center"
+                            >
+                              <Sparkles className="w-4 h-4 mr-2" />
+                              Improve Analysis
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle className="flex items-center">
+                                <Sparkles className="w-5 h-5 mr-2" />
+                                Improve Financial Analysis
+                              </DialogTitle>
+                              <DialogDescription>
+                                Describe how you'd like to improve this financial analysis and cost projections.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                              <div>
+                                <Label htmlFor="improve-financial" className="text-sm font-medium">
+                                  What would you like to improve or enhance?
+                                </Label>
+                                <Textarea
+                                  id="improve-financial"
+                                  value={improveDetails.financial || ''}
+                                  onChange={(e) => handleImproveDetailsChange('financial', e.target.value)}
+                                  placeholder="e.g., Add more detailed cost breakdowns, include revenue projections, expand on funding requirements, add ROI calculations..."
+                                  className="min-h-[100px] mt-2"
+                                />
+                              </div>
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  variant="outline"
+                                  onClick={() => setShowImproveDialog(prev => ({ ...prev, financial: false }))}
+                                >
+                                  Cancel
+                                </Button>
+                                <Button
+                                  onClick={() => handleImproveAnalysis('financial')}
+                                  disabled={improvingAnalyses.financial || !improveDetails.financial?.trim()}
+                                  className="flex items-center"
+                                >
+                                  {improvingAnalyses.financial ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                      Improving...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Sparkles className="w-4 h-4 mr-2" />
+                                      Improve Analysis
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
                     </div>
                   </TabsContent>
                 )}
@@ -1338,30 +1717,100 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                             <Clock className="w-4 h-4 mr-2" />
                             Analysis completed at {new Date(analysisResults.bmc.timestamp).toLocaleString()}
                           </div>
-                          <Button
-                            onClick={() => saveAnalysis('bmc')}
-                            disabled={savingAnalyses.bmc || savedAnalyses.bmc}
-                            variant="outline"
-                            size="sm"
-                            className="flex items-center"
-                          >
-                            {savingAnalyses.bmc ? (
-                              <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Saving...
-                              </>
-                            ) : savedAnalyses.bmc ? (
-                              <>
-                                <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                                Saved
-                              </>
-                            ) : (
-                              <>
-                                <Brain className="w-4 h-4 mr-2" />
-                                Save for Social Posts
-                              </>
-                            )}
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => saveAnalysis('bmc')}
+                              disabled={savingAnalyses.bmc || (savedAnalyses.bmc && !hasUnsavedChanges.bmc)}
+                              variant="outline"
+                              size="sm"
+                              className="flex items-center"
+                            >
+                              {savingAnalyses.bmc ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  {hasUnsavedChanges.bmc ? 'Updating...' : 'Saving...'}
+                                </>
+                              ) : savedAnalyses.bmc && !hasUnsavedChanges.bmc ? (
+                                <>
+                                  <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                                  Saved
+                                </>
+                              ) : hasUnsavedChanges.bmc ? (
+                                <>
+                                  <Brain className="w-4 h-4 mr-2" />
+                                  Update Analysis
+                                </>
+                              ) : (
+                                <>
+                                  <Brain className="w-4 h-4 mr-2" />
+                                  Save for Social Posts
+                                </>
+                              )}
+                            </Button>
+                            
+                            <Dialog open={showImproveDialog.bmc} onOpenChange={(open) => setShowImproveDialog(prev => ({ ...prev, bmc: open }))}>
+                              <DialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex items-center"
+                                >
+                                  <Sparkles className="w-4 h-4 mr-2" />
+                                  Improve Analysis
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-2xl">
+                                <DialogHeader>
+                                  <DialogTitle className="flex items-center">
+                                    <Sparkles className="w-5 h-5 mr-2" />
+                                    Improve Business Model Canvas
+                                  </DialogTitle>
+                                  <DialogDescription>
+                                    Describe how you'd like to improve this business model canvas analysis.
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <div className="space-y-4">
+                                  <div>
+                                    <Label htmlFor="improve-bmc" className="text-sm font-medium">
+                                      What would you like to improve or enhance?
+                                    </Label>
+                                    <Textarea
+                                      id="improve-bmc"
+                                      value={improveDetails.bmc || ''}
+                                      onChange={(e) => handleImproveDetailsChange('bmc', e.target.value)}
+                                      placeholder="e.g., Strengthen value propositions, expand on customer segments, improve revenue streams, add partnership details..."
+                                      className="min-h-[100px] mt-2"
+                                    />
+                                  </div>
+                                  <div className="flex justify-end gap-2">
+                                    <Button
+                                      variant="outline"
+                                      onClick={() => setShowImproveDialog(prev => ({ ...prev, bmc: false }))}
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button
+                                      onClick={() => handleImproveAnalysis('bmc')}
+                                      disabled={improvingAnalyses.bmc || !improveDetails.bmc?.trim()}
+                                      className="flex items-center"
+                                    >
+                                      {improvingAnalyses.bmc ? (
+                                        <>
+                                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                          Improving...
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Sparkles className="w-4 h-4 mr-2" />
+                                          Improve Analysis
+                                        </>
+                                      )}
+                                    </Button>
+                                  </div>
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          </div>
                         </div>
                       </div>
                     ) : (
@@ -1446,30 +1895,100 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                           <Clock className="w-4 h-4 mr-2" />
                           Analysis completed at {new Date(analysisResults.roast.timestamp).toLocaleString()}
                         </div>
-                        <Button
-                          onClick={() => saveAnalysis('roast')}
-                          disabled={savingAnalyses.roast || savedAnalyses.roast}
-                          variant="outline"
-                          size="sm"
-                          className="flex items-center"
-                        >
-                          {savingAnalyses.roast ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Saving...
-                            </>
-                          ) : savedAnalyses.roast ? (
-                            <>
-                              <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                              Saved
-                            </>
-                          ) : (
-                            <>
-                              <Brain className="w-4 h-4 mr-2" />
-                              Save for Social Posts
-                            </>
-                          )}
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => saveAnalysis('roast')}
+                            disabled={savingAnalyses.roast || (savedAnalyses.roast && !hasUnsavedChanges.roast)}
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center"
+                          >
+                            {savingAnalyses.roast ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                {hasUnsavedChanges.roast ? 'Updating...' : 'Saving...'}
+                              </>
+                            ) : savedAnalyses.roast && !hasUnsavedChanges.roast ? (
+                              <>
+                                <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+                                Saved
+                              </>
+                            ) : hasUnsavedChanges.roast ? (
+                              <>
+                                <Brain className="w-4 h-4 mr-2" />
+                                Update Analysis
+                              </>
+                            ) : (
+                              <>
+                                <Brain className="w-4 h-4 mr-2" />
+                                Save for Social Posts
+                              </>
+                            )}
+                          </Button>
+                          
+                          <Dialog open={showImproveDialog.roast} onOpenChange={(open) => setShowImproveDialog(prev => ({ ...prev, roast: open }))}>
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex items-center"
+                              >
+                                <Sparkles className="w-4 h-4 mr-2" />
+                                Improve Analysis
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-2xl">
+                              <DialogHeader>
+                                <DialogTitle className="flex items-center">
+                                  <Sparkles className="w-5 h-5 mr-2" />
+                                  Improve Roast Analysis
+                                </DialogTitle>
+                                <DialogDescription>
+                                  Describe how you'd like to improve this critical analysis of your idea.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="space-y-4">
+                                <div>
+                                  <Label htmlFor="improve-roast" className="text-sm font-medium">
+                                    What would you like to improve or enhance?
+                                  </Label>
+                                  <Textarea
+                                    id="improve-roast"
+                                    value={improveDetails.roast || ''}
+                                    onChange={(e) => handleImproveDetailsChange('roast', e.target.value)}
+                                    placeholder="e.g., Add more specific criticisms, include industry-specific challenges, expand on realistic obstacles, provide more constructive feedback..."
+                                    className="min-h-[100px] mt-2"
+                                  />
+                                </div>
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    variant="outline"
+                                    onClick={() => setShowImproveDialog(prev => ({ ...prev, roast: false }))}
+                                  >
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    onClick={() => handleImproveAnalysis('roast')}
+                                    disabled={improvingAnalyses.roast || !improveDetails.roast?.trim()}
+                                    className="flex items-center"
+                                  >
+                                    {improvingAnalyses.roast ? (
+                                      <>
+                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                        Improving...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Sparkles className="w-4 h-4 mr-2" />
+                                        Improve Analysis
+                                      </>
+                                    )}
+                                  </Button>
+                                </div>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
                       </div>
                     </div>
                   </TabsContent>

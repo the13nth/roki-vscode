@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { PineconeSyncServiceInstance } from '@/lib/pineconeSyncService';
+import { getPineconeClient } from '@/lib/pinecone';
 
 interface ApiKeySelection {
   usePersonalApiKey: boolean;
@@ -23,18 +23,40 @@ export async function GET(
 
     const { id: projectId } = await params;
     
-    // Get API key selection from Pinecone
-    const selection = await PineconeSyncServiceInstance.getApiKeySelection(projectId, userId);
-    
-    if (!selection) {
-      // Default to app API key if no selection exists
+    try {
+      // Get user's API configuration from Pinecone
+      const pinecone = getPineconeClient();
+      const index = pinecone.index(process.env.PINECONE_INDEX_NAME!);
+      
+      // Query user's API configuration
+      const queryResponse = await index.namespace('user-api-configs').fetch([`user-config-${userId}`]);
+      const matches = queryResponse as unknown as { 
+        [key: string]: { 
+          metadata: { 
+            provider: string;
+            model: string;
+            encryptedApiKey: string;
+          } 
+        } 
+      };
+      
+      const userConfig = matches[`user-config-${userId}`];
+      
+      // If user has configured their API key, use it
+      const hasPersonalApiKey = userConfig?.metadata?.encryptedApiKey ? true : false;
+
+      return NextResponse.json({
+        usePersonalApiKey: hasPersonalApiKey,
+        lastUpdated: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Failed to get API key selection from Pinecone:', error);
+      // Default to app API key on error
       return NextResponse.json({
         usePersonalApiKey: false,
         lastUpdated: new Date().toISOString()
       });
     }
-
-    return NextResponse.json(selection);
   } catch (error) {
     console.error('Failed to load API key selection:', error);
     return NextResponse.json(
@@ -69,26 +91,11 @@ export async function POST(
       );
     }
 
-    // Save the selection to Pinecone
-    const success = await PineconeSyncServiceInstance.saveApiKeySelection(projectId, userId, usePersonalApiKey);
-
-    if (!success) {
-      return NextResponse.json(
-        { error: 'Failed to save API key selection to cloud storage' },
-        { status: 500 }
-      );
-    }
-
-    const selection: ApiKeySelection = {
-      usePersonalApiKey,
-      lastUpdated: new Date().toISOString()
-    };
-
+    // This endpoint is deprecated - API keys are now managed globally in user settings
     return NextResponse.json({ 
-      success: true, 
-      message: `API key selection updated to ${usePersonalApiKey ? 'personal' : 'app default'} key and saved to cloud storage`,
-      selection
-    });
+      error: 'API keys are now managed globally in user settings. Please configure your API key in the profile settings.',
+      redirectTo: '/profile'
+    }, { status: 410 });
   } catch (error) {
     console.error('Failed to save API key selection:', error);
     return NextResponse.json(
