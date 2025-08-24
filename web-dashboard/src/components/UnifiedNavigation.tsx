@@ -109,7 +109,7 @@ export function UnifiedNavigation({
             href="/projects"
             className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
-            Projects
+            Projects1
           </Link>
           <ChevronRight className="w-4 h-4 text-muted-foreground" />
           <span className="text-sm font-medium truncate max-w-xs">
@@ -145,10 +145,10 @@ export function UnifiedNavigation({
             <Link href="#pricing" className="text-gray-600 hover:text-gray-900">
               Pricing
             </Link>
-            <Link href="/projects" className="flex items-center text-gray-600 hover:text-gray-900">
+            {/* <Link href="/projects" className="flex items-center text-gray-600 hover:text-gray-900">
               <FolderOpen className="mr-1 h-4 w-4" />
-              Projects
-            </Link>
+              Projects2
+            </Link> */}
           </nav>
           
           {/* Mobile menu button for homepage */}
@@ -253,7 +253,7 @@ export function UnifiedNavigation({
                 className="block py-2 text-gray-600 hover:text-gray-900"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                Projects
+                Projects3
               </Link>
             </>
           ) : (
@@ -268,7 +268,7 @@ export function UnifiedNavigation({
                 <Link href="/projects" onClick={() => setIsMobileMenuOpen(false)}>
                   <Button variant="ghost" size="sm" className="w-full justify-start">
                     <FolderOpen className="mr-2 h-4 w-4" />
-                    Projects
+                    Projects4
                   </Button>
                 </Link>
                 <Link href="/profile" onClick={() => setIsMobileMenuOpen(false)}>
