@@ -358,7 +358,7 @@ export function HomePage() {
         <div className="container mx-auto px-4 py-12 md:py-20 relative z-10">
         <div className="text-center mb-12 md:mb-16">
             <Badge className="mb-4 md:mb-6 bg-white/80 text-black border-2 border-gray-800 text-xs md:text-sm">
-              🔥 Now with Brutally Honest Project Roasting & AI Mitigations
+              Sign up today for one week of free access!
             </Badge>
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-bold text-gray-900 mb-4 md:mb-6">
               Turn <TypewriterEffect 
