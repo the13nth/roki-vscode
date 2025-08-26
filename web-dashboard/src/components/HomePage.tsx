@@ -417,7 +417,7 @@ export function HomePage() {
               </div>
               <div className="flex items-center">
                 <Users className="h-4 w-4 mr-1" />
-                <span className="font-medium">10K+</span> projects created
+                <span className="font-medium">100+</span> projects created and counting...
               </div>
               <div className="flex items-center">
                 <TrendingUp className="h-4 w-4 mr-1" />
@@ -445,7 +445,7 @@ export function HomePage() {
             <Card className="text-center border-2 border-gray-800 bg-white/70 rounded-none relative">
               <CircuitDiagram className="top-1 right-1 text-gray-400 scale-75" />
               <CardContent className="pt-6">
-                <div className="text-4xl font-bold text-black mb-2">$50K</div>
+                <div className="text-4xl font-bold text-black mb-2">$10K</div>
                 <div className="text-gray-600">Average Value Created</div>
               </CardContent>
             </Card>
@@ -748,129 +748,7 @@ export function HomePage() {
         <CircuitDiagram className="bottom-16 right-16 text-gray-300" />
         <MeasurementLines className="top-32 right-1/3 text-gray-400" />
         
-        <div className="container mx-auto px-4 text-center relative z-10">
-          <div className="max-w-4xl mx-auto">
-            <Badge className="mb-6 bg-black text-white border-2 border-gray-800">
-              <Bell className="w-4 h-4 mr-2" />
-              Early Access Program
-            </Badge>
-            
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-              Join the AI Project Manager 
-              <span className="text-black"> Waitlist</span>
-          </h2>
-            
-            <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-              Be among the first to experience the next generation of AI-powered project management. 
-              Get early access to advanced features, exclusive beta testing opportunities, and special launch pricing.
-            </p>
-
-            {/* Waitlist Benefits */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-              <Card className="border-2 border-gray-800 bg-white/70 rounded-none relative">
-                <SketchArrow className="top-2 right-2 text-gray-400 scale-75" />
-                <CardContent className="p-6 text-center">
-                  <Gift className="h-8 w-8 text-black mx-auto mb-3" />
-                  <h4 className="font-semibold text-gray-900 mb-2">Early Access</h4>
-                  <p className="text-sm text-gray-600">Get access to new features before public release</p>
-                </CardContent>
-              </Card>
-              
-              <Card className="border-2 border-gray-800 bg-white/70 rounded-none relative">
-                <MeasurementLines className="top-1 left-1 text-gray-300 scale-75" />
-                <CardContent className="p-6 text-center">
-                  <Zap className="h-8 w-8 text-black mx-auto mb-3" />
-                  <h4 className="font-semibold text-gray-900 mb-2">Special Pricing</h4>
-                  <p className="text-sm text-gray-600">Exclusive launch discounts for early supporters</p>
-                </CardContent>
-              </Card>
-              
-              <Card className="border-2 border-gray-800 bg-white/70 rounded-none relative">
-                <CircuitDiagram className="bottom-1 right-1 text-gray-400 scale-50" />
-                <CardContent className="p-6 text-center">
-                  <Users className="h-8 w-8 text-black mx-auto mb-3" />
-                  <h4 className="font-semibold text-gray-900 mb-2">Community Access</h4>
-                  <p className="text-sm text-gray-600">Join exclusive beta tester community</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Waitlist Form */}
-            <Card className="max-w-md mx-auto border-2 border-gray-800 bg-white/80 rounded-none relative">
-              <SketchLine className="top-3 left-3 text-gray-400" />
-              <CardContent className="p-8">
-                <form onSubmit={handleWaitlistSubmit} className="space-y-4">
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <div className="flex-1">
-                      <Input
-                        type="email"
-                        placeholder="Enter your email address"
-                        value={waitlistEmail}
-                        onChange={(e) => setWaitlistEmail(e.target.value)}
-                        disabled={waitlistStatus === 'submitting' || waitlistStatus === 'success'}
-                        className="border-2 border-gray-800 rounded-none"
-                        required
-                      />
-                    </div>
-                    <Button 
-                      type="submit"
-                      disabled={waitlistStatus === 'submitting' || waitlistStatus === 'success' || !waitlistEmail}
-                      className="bg-black hover:bg-gray-800 text-white border-2 border-gray-800 px-6"
-                    >
-                      {waitlistStatus === 'submitting' ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Joining...
-                        </>
-                      ) : waitlistStatus === 'success' ? (
-                        <>
-                          <CheckCircle className="w-4 h-4 mr-2" />
-                          Joined!
-                        </>
-                      ) : (
-                        <>
-                          <ArrowRight className="w-4 h-4 mr-2" />
-                          Join Waitlist
-                        </>
-                      )}
-                </Button>
-                  </div>
-                  
-                  {waitlistStatus === 'success' && (
-                    <div className="text-sm text-green-600 text-center">
-                      ✅ You're on the waitlist! We'll notify you when early access opens.
-                    </div>
-                  )}
-                  
-                  {waitlistStatus === 'error' && (
-                    <div className="text-sm text-red-600 text-center">
-                      ❌ Something went wrong. Please try again.
-                    </div>
-                  )}
-                </form>
-                
-                <div className="mt-6 text-center">
-                  <div className="flex items-center justify-center space-x-4 text-xs text-gray-500">
-                    <div className="flex items-center">
-                      <Mail className="h-3 w-3 mr-1" />
-                      No spam, ever
-                    </div>
-                    <div className="flex items-center">
-                      <Shield className="h-3 w-3 mr-1" />
-                      Unsubscribe anytime
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <div className="mt-8 text-center">
-              <p className="text-gray-600 text-sm">
-                Join <strong>2,847</strong> developers and project managers already on the waitlist
-              </p>
-            </div>
-          </div>
-        </div>
+        
       </div>
 
       {/* Footer */}
@@ -899,38 +777,38 @@ export function HomePage() {
             {/* Social Links */}
             <div className="flex flex-col items-center md:items-end">
               <div className="flex items-center space-x-4 mb-4">
-                <a 
+                {/* <a 
                   href="https://twitter.com/aiprojectmgr" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-gray-400 hover:text-white transition-colors p-2 border border-gray-700 hover:border-gray-500 rounded-none"
                 >
                   <Twitter className="h-5 w-5" />
-                </a>
+                </a> */}
                 <a 
-                  href="https://linkedin.com/company/ai-project-manager" 
+                  href="https://www.linkedin.com/company/rokiai/" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-gray-400 hover:text-white transition-colors p-2 border border-gray-700 hover:border-gray-500 rounded-none"
                 >
                   <Linkedin className="h-5 w-5" />
                 </a>
-                <a 
+                {/* <a 
                   href="https://github.com/ai-project-manager" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-gray-400 hover:text-white transition-colors p-2 border border-gray-700 hover:border-gray-500 rounded-none"
                 >
                   <Github className="h-5 w-5" />
-                </a>
-                <a 
+                </a> */}
+                {/* <a 
                   href="https://instagram.com/aiprojectmanager" 
                   target="_blank" 
                   rel="noopener noreferrer"
                   className="text-gray-400 hover:text-white transition-colors p-2 border border-gray-700 hover:border-gray-500 rounded-none"
                 >
                   <Instagram className="h-5 w-5" />
-                </a>
+                </a> */}
               </div>
               
               {/* Navigation Links */}
