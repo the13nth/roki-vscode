@@ -349,6 +349,42 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
     }
   };
 
+  const autoSaveAnalysis = async (analysisType: string, analysisData: any) => {
+    try {
+      setSavingAnalyses(prev => ({ ...prev, [analysisType]: true }));
+      const isUpdate = savedAnalyses[analysisType];
+      console.log(`💾 Auto-${isUpdate ? 'updating' : 'saving'} ${analysisType} analysis to Pinecone...`);
+
+      const response = await fetch(`/api/projects/${projectId}/analyses`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          analysisType,
+          analysisData: analysisData,
+        }),
+      });
+
+      if (response.ok) {
+        setSavedAnalyses(prev => ({ ...prev, [analysisType]: true }));
+        setHasUnsavedChanges(prev => ({ ...prev, [analysisType]: false }));
+        setSuccessMessage(`${getAnalysisTypeLabel(analysisType)} analysis completed and auto-saved successfully!`);
+        setTimeout(() => setSuccessMessage(null), 3000);
+        console.log(`✅ ${analysisType} analysis auto-${isUpdate ? 'updated' : 'saved'} to Pinecone`);
+      } else {
+        const errorData = await response.json();
+        console.error(`Failed to auto-${isUpdate ? 'update' : 'save'} analysis: ${errorData.error || 'Unknown error'}`);
+        // Don't show error to user for auto-save failures, just log them
+      }
+    } catch (error) {
+      console.error(`Failed to auto-${savedAnalyses[analysisType] ? 'update' : 'save'} ${analysisType} analysis:`, error);
+      // Don't show error to user for auto-save failures, just log them
+    } finally {
+      setSavingAnalyses(prev => ({ ...prev, [analysisType]: false }));
+    }
+  };
+
   const saveAnalysis = async (analysisType: string) => {
     if (!analysisResults[analysisType]) {
       setError('No analysis data to save');
@@ -455,14 +491,14 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
         [analysisType]: improvedAnalysisData
       }));
 
-      // Mark as having unsaved changes
-      setHasUnsavedChanges(prev => ({ ...prev, [analysisType]: true }));
+      // Auto-save the improved analysis
+      await autoSaveAnalysis(analysisType, improvedAnalysisData);
 
       // Clear the improvement details and close dialog
       setImproveDetails(prev => ({ ...prev, [analysisType]: '' }));
       setShowImproveDialog(prev => ({ ...prev, [analysisType]: false }));
 
-      setSuccessMessage(`${getAnalysisTypeLabel(analysisType)} improved successfully!`);
+      setSuccessMessage(`${getAnalysisTypeLabel(analysisType)} improved and auto-saved successfully!`);
       setTimeout(() => setSuccessMessage(null), 3000);
 
     } catch (error: any) {
@@ -516,10 +552,8 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
           [analysisType]: result
         }));
 
-        // Mark as having unsaved changes if this analysis was previously saved
-        if (savedAnalyses[analysisType]) {
-          setHasUnsavedChanges(prev => ({ ...prev, [analysisType]: true }));
-        }
+        // Auto-save the analysis immediately
+        await autoSaveAnalysis(analysisType, result);
 
         // Switch to the appropriate tab
         setActiveAnalysisTab(analysisType);
@@ -1131,35 +1165,18 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                         Analysis completed at {new Date(analysisResults.technical.timestamp).toLocaleString()}
                       </div>
                       <div className="flex gap-2">
-                        <Button
-                          onClick={() => saveAnalysis('technical')}
-                          disabled={!isOwned || savingAnalyses.technical || (savedAnalyses.technical && !hasUnsavedChanges.technical)}
-                          variant="outline"
-                          size="sm"
-                          className="flex items-center"
-                        >
-                          {savingAnalyses.technical ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              {hasUnsavedChanges.technical ? 'Updating...' : 'Saving...'}
-                            </>
-                          ) : savedAnalyses.technical && !hasUnsavedChanges.technical ? (
-                            <>
-                              <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                              Saved
-                            </>
-                          ) : hasUnsavedChanges.technical ? (
-                            <>
-                              <Brain className="w-4 h-4 mr-2" />
-                              Update Analysis
-                            </>
-                          ) : (
-                            <>
-                              <Brain className="w-4 h-4 mr-2" />
-                              Save for Social Posts
-                            </>
-                          )}
-                        </Button>
+                        {savingAnalyses.technical && (
+                          <Badge variant="secondary" className="flex items-center">
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Auto-saving...
+                          </Badge>
+                        )}
+                        {savedAnalyses.technical && !savingAnalyses.technical && (
+                          <Badge variant="default" className="flex items-center">
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Auto-saved
+                          </Badge>
+                        )}
                         
                         <Dialog open={showImproveDialog.technical} onOpenChange={(open) => setShowImproveDialog(prev => ({ ...prev, technical: open }))}>
                           <DialogTrigger asChild>
@@ -1255,35 +1272,18 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                         Analysis completed at {new Date(analysisResults.market.timestamp).toLocaleString()}
                       </div>
                       <div className="flex gap-2">
-                        <Button
-                          onClick={() => saveAnalysis('market')}
-                          disabled={!isOwned || savingAnalyses.market || (savedAnalyses.market && !hasUnsavedChanges.market)}
-                          variant="outline"
-                          size="sm"
-                          className="flex items-center"
-                        >
-                          {savingAnalyses.market ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              {hasUnsavedChanges.market ? 'Updating...' : 'Saving...'}
-                            </>
-                          ) : savedAnalyses.market && !hasUnsavedChanges.market ? (
-                            <>
-                              <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                              Saved
-                            </>
-                          ) : hasUnsavedChanges.market ? (
-                            <>
-                              <Brain className="w-4 h-4 mr-2" />
-                              Update Analysis
-                            </>
-                          ) : (
-                            <>
-                              <Brain className="w-4 h-4 mr-2" />
-                              Save for Social Posts
-                            </>
-                          )}
-                        </Button>
+                        {savingAnalyses.market && (
+                          <Badge variant="secondary" className="flex items-center">
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Auto-saving...
+                          </Badge>
+                        )}
+                        {savedAnalyses.market && !savingAnalyses.market && (
+                          <Badge variant="default" className="flex items-center">
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Auto-saved
+                          </Badge>
+                        )}
                         
                         <Dialog open={showImproveDialog.market} onOpenChange={(open) => setShowImproveDialog(prev => ({ ...prev, market: open }))}>
                           <DialogTrigger asChild>
@@ -1379,35 +1379,18 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                         Analysis completed at {new Date(analysisResults.differentiation.timestamp).toLocaleString()}
                       </div>
                       <div className="flex gap-2">
-                        <Button
-                          onClick={() => saveAnalysis('differentiation')}
-                          disabled={!isOwned || savingAnalyses.differentiation || (savedAnalyses.differentiation && !hasUnsavedChanges.differentiation)}
-                          variant="outline"
-                          size="sm"
-                          className="flex items-center"
-                        >
-                          {savingAnalyses.differentiation ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              {hasUnsavedChanges.differentiation ? 'Updating...' : 'Saving...'}
-                            </>
-                          ) : savedAnalyses.differentiation && !hasUnsavedChanges.differentiation ? (
-                            <>
-                              <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                              Saved
-                            </>
-                          ) : hasUnsavedChanges.differentiation ? (
-                            <>
-                              <Brain className="w-4 h-4 mr-2" />
-                              Update Analysis
-                            </>
-                          ) : (
-                            <>
-                              <Brain className="w-4 h-4 mr-2" />
-                              Save for Social Posts
-                            </>
-                          )}
-                        </Button>
+                        {savingAnalyses.differentiation && (
+                          <Badge variant="secondary" className="flex items-center">
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Auto-saving...
+                          </Badge>
+                        )}
+                        {savedAnalyses.differentiation && !savingAnalyses.differentiation && (
+                          <Badge variant="default" className="flex items-center">
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Auto-saved
+                          </Badge>
+                        )}
                         
                         <Dialog open={showImproveDialog.differentiation} onOpenChange={(open) => setShowImproveDialog(prev => ({ ...prev, differentiation: open }))}>
                           <DialogTrigger asChild>
@@ -1503,35 +1486,18 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                         Analysis completed at {new Date(analysisResults.financial.timestamp).toLocaleString()}
                       </div>
                       <div className="flex gap-2">
-                        <Button
-                          onClick={() => saveAnalysis('financial')}
-                          disabled={!isOwned || savingAnalyses.financial || (savedAnalyses.financial && !hasUnsavedChanges.financial)}
-                          variant="outline"
-                          size="sm"
-                          className="flex items-center"
-                        >
-                          {savingAnalyses.financial ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              {hasUnsavedChanges.financial ? 'Updating...' : 'Saving...'}
-                            </>
-                          ) : savedAnalyses.financial && !hasUnsavedChanges.financial ? (
-                            <>
-                              <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                              Saved
-                            </>
-                          ) : hasUnsavedChanges.financial ? (
-                            <>
-                              <Brain className="w-4 h-4 mr-2" />
-                              Update Analysis
-                            </>
-                          ) : (
-                            <>
-                              <Brain className="w-4 h-4 mr-2" />
-                              Save for Social Posts
-                            </>
-                          )}
-                        </Button>
+                        {savingAnalyses.financial && (
+                          <Badge variant="secondary" className="flex items-center">
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Auto-saving...
+                          </Badge>
+                        )}
+                        {savedAnalyses.financial && !savingAnalyses.financial && (
+                          <Badge variant="default" className="flex items-center">
+                            <CheckCircle className="w-4 h-4 mr-2" />
+                            Auto-saved
+                          </Badge>
+                        )}
                         
                         <Dialog open={showImproveDialog.financial} onOpenChange={(open) => setShowImproveDialog(prev => ({ ...prev, financial: open }))}>
                           <DialogTrigger asChild>
@@ -1732,35 +1698,18 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                             Analysis completed at {new Date(analysisResults.bmc.timestamp).toLocaleString()}
                           </div>
                           <div className="flex gap-2">
-                            <Button
-                                                        onClick={() => saveAnalysis('bmc')}
-                          disabled={!isOwned || savingAnalyses.bmc || (savedAnalyses.bmc && !hasUnsavedChanges.bmc)}
-                              variant="outline"
-                              size="sm"
-                              className="flex items-center"
-                            >
-                              {savingAnalyses.bmc ? (
-                                <>
-                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                  {hasUnsavedChanges.bmc ? 'Updating...' : 'Saving...'}
-                                </>
-                              ) : savedAnalyses.bmc && !hasUnsavedChanges.bmc ? (
-                                <>
-                                  <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                                  Saved
-                                </>
-                              ) : hasUnsavedChanges.bmc ? (
-                                <>
-                                  <Brain className="w-4 h-4 mr-2" />
-                                  Update Analysis
-                                </>
-                              ) : (
-                                <>
-                                  <Brain className="w-4 h-4 mr-2" />
-                                  Save for Social Posts
-                                </>
-                              )}
-                            </Button>
+                            {savingAnalyses.bmc && (
+                              <Badge variant="secondary" className="flex items-center">
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Auto-saving...
+                              </Badge>
+                            )}
+                            {savedAnalyses.bmc && !savingAnalyses.bmc && (
+                              <Badge variant="default" className="flex items-center">
+                                <CheckCircle className="w-4 h-4 mr-2" />
+                                Auto-saved
+                              </Badge>
+                            )}
                             
                             <Dialog open={showImproveDialog.bmc} onOpenChange={(open) => setShowImproveDialog(prev => ({ ...prev, bmc: open }))}>
                               <DialogTrigger asChild>
@@ -1911,35 +1860,18 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                           Analysis completed at {new Date(analysisResults.roast.timestamp).toLocaleString()}
                         </div>
                         <div className="flex gap-2">
-                          <Button
-                                                      onClick={() => saveAnalysis('roast')}
-                          disabled={!isOwned || savingAnalyses.roast || (savedAnalyses.roast && !hasUnsavedChanges.roast)}
-                            variant="outline"
-                            size="sm"
-                            className="flex items-center"
-                          >
-                            {savingAnalyses.roast ? (
-                              <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                {hasUnsavedChanges.roast ? 'Updating...' : 'Saving...'}
-                              </>
-                            ) : savedAnalyses.roast && !hasUnsavedChanges.roast ? (
-                              <>
-                                <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-                                Saved
-                              </>
-                            ) : hasUnsavedChanges.roast ? (
-                              <>
-                                <Brain className="w-4 h-4 mr-2" />
-                                Update Analysis
-                              </>
-                            ) : (
-                              <>
-                                <Brain className="w-4 h-4 mr-2" />
-                                Save for Social Posts
-                              </>
-                            )}
-                          </Button>
+                          {savingAnalyses.roast && (
+                            <Badge variant="secondary" className="flex items-center">
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Auto-saving...
+                            </Badge>
+                          )}
+                          {savedAnalyses.roast && !savingAnalyses.roast && (
+                            <Badge variant="default" className="flex items-center">
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                              Auto-saved
+                            </Badge>
+                          )}
                           
                           <Dialog open={showImproveDialog.roast} onOpenChange={(open) => setShowImproveDialog(prev => ({ ...prev, roast: open }))}>
                             <DialogTrigger asChild>
