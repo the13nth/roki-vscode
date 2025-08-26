@@ -23,10 +23,11 @@ import { pineconeClient, SyncStatus as SyncStatusType } from '@/lib/pineconeClie
 
 interface SyncStatusProps {
   projectId: string;
+  isOwned?: boolean;
   onSync?: () => void;
 }
 
-export default function SyncStatus({ projectId, onSync }: SyncStatusProps) {
+export default function SyncStatus({ projectId, isOwned = true, onSync }: SyncStatusProps) {
   const [syncStatus, setSyncStatus] = useState<SyncStatusType>({
     isOnline: false,
     lastSync: null,
@@ -238,8 +239,8 @@ export default function SyncStatus({ projectId, onSync }: SyncStatusProps) {
           <Button
             size="sm"
             onClick={handleSync}
-            disabled={!syncStatus.isOnline || isLoading}
-            className="flex-1 rounded-none"
+            disabled={!isOwned || !syncStatus.isOnline || isLoading}
+            className={`flex-1 rounded-none ${!isOwned ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             {isLoading ? (
               <RefreshCw className="h-4 w-4 animate-spin" />

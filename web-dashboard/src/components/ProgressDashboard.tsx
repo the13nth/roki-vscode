@@ -223,7 +223,7 @@ export function ProgressDashboard({ projectId }: ProgressDashboardProps) {
           <div className="space-y-4">
             <div>
               <div className="text-sm text-gray-600">Velocity</div>
-              <div className="text-2xl font-bold text-blue-600">{velocity.toFixed(1)}</div>
+              <div className="text-2xl font-bold text-gray-600">{velocity.toFixed(1)}</div>
               <div className="text-xs text-gray-500">tasks per day</div>
             </div>
             <div>
@@ -272,7 +272,7 @@ export function ProgressDashboard({ projectId }: ProgressDashboardProps) {
               onClick={() => setActiveTab(tab.id as any)}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
+                  ? 'border-gray-500 text-gray-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
@@ -353,7 +353,7 @@ function MilestonesTab({ milestones, onAddMilestone }: MilestonesTabProps) {
         <h3 className="text-lg font-semibold text-gray-900">Milestones</h3>
         <button
           onClick={() => setShowAddForm(true)}
-          className="bg-blue-500 text-white px-4 py-2 rounded-none text-sm hover:bg-blue-600 transition-colors"
+                        className="bg-gray-900 text-white px-4 py-2 rounded-none text-sm hover:bg-gray-800 transition-colors"
         >
           Add Milestone
         </button>
@@ -390,7 +390,7 @@ function MilestonesTab({ milestones, onAddMilestone }: MilestonesTabProps) {
             <div className="flex space-x-3">
               <button
                 type="submit"
-                className="bg-blue-500 text-white px-4 py-2 rounded-none text-sm hover:bg-blue-600 transition-colors"
+                className="bg-gray-900 text-white px-4 py-2 rounded-none text-sm hover:bg-gray-800 transition-colors"
               >
                 Add Milestone
               </button>

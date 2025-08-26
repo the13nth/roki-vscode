@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ProjectListItem, ProjectConfiguration } from '@/types';
 import { TechStackReasoningModal } from './TechStackReasoningModal';
+import { Globe, Lock } from 'lucide-react';
 
 interface ProjectCreationWizardProps {
   onClose: () => void;
@@ -312,7 +313,8 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
     uiFramework: '',
     authentication: '',
     hosting: '',
-    regulatoryCompliance: [] as string[]
+    regulatoryCompliance: [] as string[],
+    isPublic: false
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   
@@ -509,6 +511,7 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
         name: formData.name,
         description: formData.description,
         template: formData.template,
+        isPublic: formData.isPublic,
         technologyStack: formData.template !== 'business' ? {
           backend: formData.backend,
           frontend: formData.frontend,
@@ -783,6 +786,45 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
                     </p>
                   </div>
 
+                  {/* Project Visibility */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Project Visibility
+                    </label>
+                    <div className="flex items-center space-x-4">
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, isPublic: false }))}
+                        className={`flex items-center px-4 py-2 border rounded-md transition-colors ${
+                          !formData.isPublic
+                            ? 'bg-blue-50 border-blue-300 text-blue-700'
+                            : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <Lock className="w-4 h-4 mr-2" />
+                        Private
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, isPublic: true }))}
+                        className={`flex items-center px-4 py-2 border rounded-md transition-colors ${
+                          formData.isPublic
+                            ? 'bg-purple-50 border-purple-300 text-purple-700'
+                            : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <Globe className="w-4 h-4 mr-2" />
+                        Public
+                      </button>
+                    </div>
+                    <p className="mt-1 text-sm text-gray-500">
+                      {formData.isPublic 
+                        ? 'This project will be visible to everyone on the platform.'
+                        : 'This project will only be visible to you.'
+                      }
+                    </p>
+                  </div>
+
                   {/* Technology/Regulatory Stack */}
                   <div>
                     <div className="flex items-center justify-between mb-4">
@@ -1038,6 +1080,22 @@ export function ProjectCreationWizard({ onClose, onProjectCreated }: ProjectCrea
                   <div>
                     <span className="text-sm font-medium text-gray-700">AI Model:</span>
                     <span className="ml-2 text-sm text-gray-900">{formData.aiModel}</span>
+                  </div>
+                  <div>
+                    <span className="text-sm font-medium text-gray-700">Visibility:</span>
+                    <span className="ml-2 text-sm text-gray-900 flex items-center">
+                      {formData.isPublic ? (
+                        <>
+                          <Globe className="w-4 h-4 mr-1 text-purple-600" />
+                          Public
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="w-4 h-4 mr-1 text-blue-600" />
+                          Private
+                        </>
+                      )}
+                    </span>
                   </div>
                 </div>
 

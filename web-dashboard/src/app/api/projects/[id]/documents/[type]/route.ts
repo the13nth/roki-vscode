@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { ProjectService } from '@/lib/projectService';
+import { getPineconeClient } from '@/lib/pinecone';
+import { PINECONE_INDEX_NAME, PINECONE_NAMESPACE_PROJECTS } from '@/lib/pinecone';
+import { createVectorId } from '@/lib/projectService';
 
 // Helper function to parse tasks from markdown content
 function parseTasksFromMarkdown(content: string): { totalTasks: number; completedTasks: number; percentage: number } {
@@ -120,14 +123,41 @@ export async function PUT(
       );
     }
 
-    // Get project from Pinecone using ProjectService
+    // Get project from Pinecone and verify ownership
     const projectService = ProjectService.getInstance();
-    const project = await projectService.getProject(userId, projectId);
     
-    if (!project) {
+    // For document editing, we need to explicitly check ownership regardless of public status
+    const pinecone = getPineconeClient();
+    const index = pinecone.index(PINECONE_INDEX_NAME);
+    const vectorId = createVectorId('user-project', projectId);
+
+    const fetchResponse = await index.namespace(PINECONE_NAMESPACE_PROJECTS).fetch([vectorId]);
+    const record = fetchResponse.records?.[vectorId];
+
+    if (!record?.metadata) {
       return NextResponse.json(
         { error: 'Project not found' },
         { status: 404 }
+      );
+    }
+
+    // Only the owner can edit documents, regardless of public status
+    if (record.metadata.userId !== userId) {
+      return NextResponse.json(
+        { error: 'Access denied. Only the project owner can edit documents.' },
+        { status: 403 }
+      );
+    }
+
+    // Get the project data
+    let project: any;
+    try {
+      project = JSON.parse(record.metadata.projectData as string);
+    } catch (error) {
+      console.error('Failed to parse project data:', error);
+      return NextResponse.json(
+        { error: 'Project data corrupted' },
+        { status: 500 }
       );
     }
 

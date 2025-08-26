@@ -12,6 +12,7 @@ const isPublicApiRoute = createRouteMatcher([
   '/api/user-api-config(.*)',
   '/api/user-api-test(.*)',
   '/api/vscode(.*)',
+  '/api/projects/public(.*)',
 ])
 
 export default clerkMiddleware(async (auth, req) => {

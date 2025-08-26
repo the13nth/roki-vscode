@@ -7,8 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { TypewriterEffect } from '@/components/ui/typewriter-effect';
 import { SlidingText } from '@/components/ui/sliding-text';
-import { SignedIn, SignedOut, SignUpButton } from '@clerk/nextjs';
+import { SignedIn, SignedOut, SignUpButton, useUser } from '@clerk/nextjs';
 import { UnifiedNavigation } from './UnifiedNavigation';
+import { PlanSelectionModal } from './PlanSelectionModal';
 import { 
   Rocket, 
   Brain, 
@@ -90,6 +91,11 @@ const SketchArrow = ({ className = "" }: { className?: string }) => (
 export function HomePage() {
   const [waitlistEmail, setWaitlistEmail] = useState('');
   const [waitlistStatus, setWaitlistStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [showModal, setShowModal] = useState(false);
+  const [modalPlan, setModalPlan] = useState<any>(null);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { user } = useUser();
 
   const handleWaitlistSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,6 +121,42 @@ export function HomePage() {
     const waitlistSection = document.getElementById('waitlist-section');
     if (waitlistSection) {
       waitlistSection.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handlePlanSelection = (plan: any) => {
+    if (!user) {
+      // Redirect to sign up if not logged in
+      window.location.href = '/sign-up';
+      return;
+    }
+
+    setModalPlan(plan);
+    setShowModal(true);
+  };
+
+  const handleConfirmSubscription = async (planId: string, period: 'monthly' | 'yearly') => {
+    try {
+      setModalLoading(true);
+      
+      const response = await fetch('/api/user/subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'subscribe',
+          planId,
+          period
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update subscription');
+      }
+    } catch (error) {
+      console.error('Error updating subscription:', error);
+      setError('Failed to update subscription. Please try again.');
+    } finally {
+      setModalLoading(false);
     }
   };
   const features = [
@@ -162,62 +204,112 @@ export function HomePage() {
 
   const plans = [
     {
-      name: "Starter",
-      price: "Coming Soon",
-      period: "",
-      description: "Perfect for individual developers and small projects",
+      id: "free",
+      name: "Free",
+      price: 0,
+      period: "monthly",
+      description: "Perfect for getting started with AI-powered project analysis",
       features: [
-        "Up to 5 projects",
+        "500K tokens per month",
+        "2 project creations",
+        "2 analyses per section",
+        "5 social media posts",
         "Basic AI analysis (Technical, Market)",
-        "Saved analysis insights & embeddings",
-        "Social media content generation (3 platforms)",
-        "Project roasting with mitigation strategies",
-        "Technical & business templates",
-        "JSON export & cloud sync",
+        "Saved analysis insights",
+        "JSON export",
         "Email support"
       ],
+      limits: {
+        tokens: 500000,
+        projects: 2,
+        analysesPerSection: 2,
+        socialPosts: 5,
+        priority: false,
+        support: 'email'
+      },
       popular: false,
-      cta: "Join Waitlist"
+      cta: "Get Started Free"
     },
     {
-      name: "Professional",
-      price: "Coming Soon",
-      period: "",
-      description: "Ideal for professional developers and growing teams",
+      id: "starter",
+      name: "Starter",
+      price: 9.99,
+      period: "monthly",
+      description: "Ideal for individual developers and small projects",
       features: [
-        "Unlimited projects",
-        "Full AI analysis suite (Technical, Market, Financial, BMC)",
-        "Advanced saved insights & semantic embeddings",
-        "Unlimited social media content generation (all platforms)",
-        "Business Model Canvas generation",
-        "Financial projections & market analysis",
-        "AI-powered mitigation strategies",
-        "Pinecone cloud sync & spreadsheet export",
-        "VS Code extension integration",
-        "Priority support",
-        "Team collaboration features"
+        "2M tokens per month",
+        "10 projects",
+        "5 analyses per section",
+        "25 social media posts",
+        "Advanced AI analysis (Technical, Market, Financial)",
+        "Enhanced insights & embeddings",
+        "Social media generation (all platforms)",
+        "Priority support"
       ],
+      limits: {
+        tokens: 2000000,
+        projects: 10,
+        analysesPerSection: 5,
+        socialPosts: 25,
+        priority: true,
+        support: 'priority'
+      },
       popular: true,
-      cta: "Join Waitlist"
+      cta: "Start Free Trial"
     },
     {
-      name: "Enterprise",
-      price: "Coming Soon",
-      period: "",
-      description: "For teams and organizations with advanced needs",
+      id: "professional",
+      name: "Professional",
+      price: 29.99,
+      period: "monthly",
+      description: "Perfect for professional developers and growing teams",
       features: [
+        "10M tokens per month",
+        "Unlimited projects",
+        "Unlimited analyses per section",
+        "100 social media posts",
+        "Full AI analysis suite (Technical, Market, Financial, BMC)",
+        "Advanced insights & semantic embeddings",
+        "Business Model Canvas generation",
+        "Dedicated support"
+      ],
+      limits: {
+        tokens: 10000000,
+        projects: -1,
+        analysesPerSection: -1,
+        socialPosts: 100,
+        priority: true,
+        support: 'dedicated'
+      },
+      popular: false,
+      cta: "Start Free Trial"
+    },
+    {
+      id: "enterprise",
+      name: "Enterprise",
+      price: 99.99,
+      period: "monthly",
+      description: "For large teams and organizations with advanced needs",
+      features: [
+        "50M tokens per month",
+        "Unlimited projects",
+        "Unlimited analyses per section",
+        "Unlimited social media posts",
         "Everything in Professional",
         "Custom AI models & analysis types",
         "Advanced portfolio analytics",
-        "Enterprise data export & API access",
-        "White-label solutions",
-        "SSO integration & enterprise security",
-        "Dedicated success manager",
-        "Custom integrations & workflows",
-        "On-premise deployment options"
+        "Dedicated success manager"
       ],
+      limits: {
+        tokens: 50000000,
+        projects: -1,
+        analysesPerSection: -1,
+        socialPosts: -1,
+        priority: true,
+        support: 'dedicated'
+      },
       popular: false,
-      cta: "Join Waitlist"
+      cta: "Contact Sales"
     }
   ];
 
@@ -528,7 +620,7 @@ export function HomePage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
             {plans.map((plan, index) => (
               <Card key={index} className={`relative border-2 transition-all duration-300 rounded-none bg-white/60 ${plan.popular ? 'border-black' : 'border-gray-800 hover:border-black'}`}>
                 {plan.popular && (
@@ -543,13 +635,15 @@ export function HomePage() {
                 <CardHeader className="text-center pb-4">
                   <CardTitle className="text-2xl font-bold">{plan.name}</CardTitle>
                   <div className="flex items-baseline justify-center mb-2">
-                    <span className="text-4xl font-bold text-gray-900">{plan.price}</span>
-                    <span className="text-gray-600 ml-1">{plan.period}</span>
+                    <span className="text-4xl font-bold text-gray-900">
+                      {plan.price === 0 ? 'Free' : `$${plan.price}`}
+                    </span>
+                    <span className="text-gray-600 ml-1">/{plan.period}</span>
                   </div>
                   <CardDescription className="text-gray-600">{plan.description}</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <ul className="space-y-3 mb-8">
+                <CardContent className="flex flex-col h-full">
+                  <ul className="space-y-3 flex-grow">
                     {plan.features.map((feature, featureIndex) => (
                       <li key={featureIndex} className="flex items-center">
                         <Check className="h-4 w-4 text-black mr-3 flex-shrink-0" />
@@ -557,13 +651,15 @@ export function HomePage() {
                       </li>
                     ))}
                   </ul>
-                  <Button 
-                    onClick={scrollToWaitlist}
-                    className={`w-full border-2 ${plan.popular ? 'bg-black hover:bg-gray-800 text-white border-black' : 'bg-white/80 hover:bg-white/90 text-black border-gray-800'}`}
-                    size="lg"
-                  >
-                    {plan.cta}
-                  </Button>
+                  <div className="mt-6">
+                    <Button 
+                      onClick={() => handlePlanSelection(plan)}
+                      className={`w-full border-2 ${plan.popular ? 'bg-black hover:bg-gray-800 text-white border-black' : 'bg-white/80 hover:bg-white/90 text-black border-gray-800'}`}
+                      size="lg"
+                    >
+                      {plan.cta}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
@@ -592,6 +688,15 @@ export function HomePage() {
           </div>
         </div>
       </div>
+
+      {/* Plan Selection Modal */}
+      <PlanSelectionModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        selectedPlan={modalPlan}
+        onConfirm={handleConfirmSubscription}
+        loading={modalLoading}
+      />
 
       {/* Testimonials Section */}
       <div className="container mx-auto px-4 py-20 relative">

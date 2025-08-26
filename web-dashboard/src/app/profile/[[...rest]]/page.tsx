@@ -1,12 +1,25 @@
 'use client';
 
 import { UserProfile } from '@clerk/nextjs';
+import { useUser, useOrganization } from '@clerk/nextjs';
 import SecurityConfigStatus from '@/components/SecurityConfigStatus';
 import TokenUsageVisualization from '@/components/TokenUsageVisualization';
 import { UserApiSettings } from '@/components/UserApiSettings';
+import { UserSubscriptionManager } from '@/components/UserSubscriptionManager';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function ProfilePage() {
+  const { user } = useUser();
+  const { organization } = useOrganization();
+  
+  // Check if user is admin
+  const isAdmin = organization?.slug === 'binghi_admins' || 
+                 organization?.name === 'binghi_admins' ||
+                 (user?.organizationMemberships?.some((membership: any) => 
+                   membership.organization?.slug === 'binghi_admins' || 
+                   membership.organization?.name === 'binghi_admins'
+                 ));
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white py-12">
       <div className="container mx-auto px-4">
@@ -17,11 +30,12 @@ export default function ProfilePage() {
           </div>
           
           <Tabs defaultValue="account" className="space-y-8">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-5' : 'grid-cols-3'}`}>
               <TabsTrigger value="account">Account Settings</TabsTrigger>
+              <TabsTrigger value="subscription">Subscription</TabsTrigger>
               <TabsTrigger value="api">API Settings</TabsTrigger>
-              <TabsTrigger value="security">Security</TabsTrigger>
-              <TabsTrigger value="usage">Token Usage</TabsTrigger>
+              {isAdmin && <TabsTrigger value="security">Security</TabsTrigger>}
+              {isAdmin && <TabsTrigger value="usage">Token Usage</TabsTrigger>}
             </TabsList>
             
             <TabsContent value="account" className="space-y-8">
@@ -35,17 +49,25 @@ export default function ProfilePage() {
               />
             </TabsContent>
             
+            <TabsContent value="subscription" className="space-y-8">
+              <UserSubscriptionManager />
+            </TabsContent>
+            
             <TabsContent value="api" className="space-y-8">
               <UserApiSettings />
             </TabsContent>
             
-            <TabsContent value="security" className="space-y-8">
-              <SecurityConfigStatus />
-            </TabsContent>
+            {isAdmin && (
+              <TabsContent value="security" className="space-y-8">
+                <SecurityConfigStatus />
+              </TabsContent>
+            )}
             
-            <TabsContent value="usage" className="space-y-8">
-              <TokenUsageVisualization />
-            </TabsContent>
+            {isAdmin && (
+              <TabsContent value="usage" className="space-y-8">
+                <TokenUsageVisualization />
+              </TabsContent>
+            )}
           </Tabs>
         </div>
       </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useUser, useOrganization } from '@clerk/nextjs';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -66,9 +67,21 @@ interface PitchResult {
 
 interface ProjectPitchProps {
   projectId: string;
+  isOwned?: boolean;
 }
 
-export function ProjectPitch({ projectId }: ProjectPitchProps) {
+export function ProjectPitch({ projectId, isOwned = true }: ProjectPitchProps) {
+  const { user } = useUser();
+  const { organization } = useOrganization();
+  
+  // Check if user is admin
+  const isAdmin = organization?.slug === 'binghi_admins' || 
+                 organization?.name === 'binghi_admins' ||
+                 (user?.organizationMemberships?.some((membership: any) => 
+                   membership.organization?.slug === 'binghi_admins' || 
+                   membership.organization?.name === 'binghi_admins'
+                 ));
+
   const [pitchResult, setPitchResult] = useState<PitchResult | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -457,6 +470,7 @@ export function ProjectPitch({ projectId }: ProjectPitchProps) {
                 <Button
                   variant="outline"
                   size="sm"
+                  disabled={!isOwned}
                   className="flex items-center"
                 >
                   <Sparkles className="w-4 h-4 mr-2" />
@@ -495,7 +509,7 @@ export function ProjectPitch({ projectId }: ProjectPitchProps) {
                     </Button>
                     <Button
                       onClick={handleImprovePitch}
-                      disabled={isImproving || !improveDetails?.trim()}
+                      disabled={!isOwned || isImproving || !improveDetails?.trim()}
                       className="flex items-center"
                     >
                       {isImproving ? (
@@ -661,9 +675,11 @@ export function ProjectPitch({ projectId }: ProjectPitchProps) {
                     Generated at {new Date(pitchTimestamp).toLocaleString()}
                   </div>
                 )}
-                <Badge variant="secondary" className="text-xs">
-                  {pitchResult.tokenUsage.totalTokens} tokens • ${pitchResult.tokenUsage.cost.toFixed(4)}
-                </Badge>
+                {isAdmin && (
+                  <Badge variant="secondary" className="text-xs">
+                    {pitchResult.tokenUsage.totalTokens} tokens • ${pitchResult.tokenUsage.cost.toFixed(4)}
+                  </Badge>
+                )}
               </div>
             </div>
           </CardHeader>

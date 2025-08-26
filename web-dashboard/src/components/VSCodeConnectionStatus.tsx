@@ -121,13 +121,13 @@ export default function VSCodeConnectionStatus({ projectId }: VSCodeConnectionSt
       </div>
 
       {!connection.connected && (
-        <div className="mt-4 p-3 bg-blue-50 rounded-none">
+        <div className="mt-4 p-3 bg-gray-50 rounded-none">
           <div className="text-sm">
-            <p className="text-blue-800 font-medium mb-1">Connect VS Code Extension</p>
-            <p className="text-blue-700 mb-2">
+            <p className="text-gray-800 font-medium mb-1">Connect VS Code Extension</p>
+            <p className="text-gray-700 mb-2">
               Install the AI Project Manager extension and run:
             </p>
-            <code className="bg-blue-100 text-blue-800 px-2 py-1 rounded-none text-xs">
+            <code className="bg-gray-100 text-gray-800 px-2 py-1 rounded-none text-xs">
               AI Project Manager: Connect to Dashboard
             </code>
           </div>

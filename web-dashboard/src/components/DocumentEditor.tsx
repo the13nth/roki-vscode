@@ -15,6 +15,7 @@ interface DocumentEditorProps {
   documentType: 'requirements' | 'design' | 'tasks';
   title: string;
   description: string;
+  isOwned?: boolean;
   onDocumentSaved?: () => void; // Callback when document is saved
 }
 
@@ -24,6 +25,7 @@ export function DocumentEditor({
   documentType, 
   title, 
   description,
+  isOwned = true,
   onDocumentSaved
 }: DocumentEditorProps) {
   const [isLoading, setIsLoading] = useState(true);
@@ -249,6 +251,7 @@ export function DocumentEditor({
           autoSaveDelay={2000}
           showPreview={true}
           height="100%"
+          isOwned={isOwned}
           additionalToolbarButtons={
             <>
               {/* Add Task Dialog - only show for tasks document */}
@@ -256,6 +259,7 @@ export function DocumentEditor({
                 <AddTaskDialog
                   projectId={projectId}
                   onTaskAdded={handleTaskAdded}
+                  isOwned={isOwned}
                 />
               )}
               
@@ -264,6 +268,7 @@ export function DocumentEditor({
                 <AddRequirementDialog
                   projectId={projectId}
                   onRequirementAdded={handleRequirementAdded}
+                  isOwned={isOwned}
                 />
               )}
               
@@ -272,6 +277,7 @@ export function DocumentEditor({
                 <TransitionRequirementDialog
                   projectId={projectId}
                   onTaskAdded={handleTaskAdded}
+                  isOwned={isOwned}
                 />
               )}
             </>

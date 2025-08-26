@@ -15,6 +15,7 @@ interface MarkdownEditorProps extends EditorProps {
   height?: string;
   onImproveWithAI?: () => Promise<void>;
   isImprovingWithAI?: boolean;
+  isOwned?: boolean;
   additionalToolbarButtons?: React.ReactNode;
 }
 
@@ -28,6 +29,7 @@ export function MarkdownEditor({
   height = '600px',
   onImproveWithAI,
   isImprovingWithAI = false,
+  isOwned = true,
   additionalToolbarButtons
 }: MarkdownEditorProps) {
   const [editorContent, setEditorContent] = useState(content);
@@ -179,9 +181,9 @@ export function MarkdownEditor({
           {onImproveWithAI && (
             <Button
               onClick={onImproveWithAI}
-              disabled={isImprovingWithAI}
+              disabled={!isOwned || isImprovingWithAI}
               size="sm"
-              className="bg-purple-600 hover:bg-purple-700 text-white rounded-none ml-2"
+              className="bg-gray-900 hover:bg-gray-800 text-white rounded-none ml-2"
             >
               {isImprovingWithAI ? (
                 <>

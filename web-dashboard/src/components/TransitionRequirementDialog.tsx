@@ -16,10 +16,11 @@ interface Requirement {
 
 interface TransitionRequirementDialogProps {
   projectId: string;
+  isOwned?: boolean;
   onTaskAdded?: () => void;
 }
 
-export default function TransitionRequirementDialog({ projectId, onTaskAdded }: TransitionRequirementDialogProps) {
+export default function TransitionRequirementDialog({ projectId, isOwned = true, onTaskAdded }: TransitionRequirementDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingRequirements, setLoadingRequirements] = useState(false);
@@ -128,7 +129,7 @@ export default function TransitionRequirementDialog({ projectId, onTaskAdded }: 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
+        <Button variant="outline" size="sm" className="gap-2" disabled={!isOwned}>
           <ArrowRight className="h-4 w-4" />
           Transition
         </Button>
@@ -136,7 +137,7 @@ export default function TransitionRequirementDialog({ projectId, onTaskAdded }: 
       <DialogContent className="max-w-4xl w-full">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <ArrowRight className="h-5 w-5 text-blue-500" />
+                            <ArrowRight className="h-5 w-5 text-gray-500" />
             Transition Requirement to Task
           </DialogTitle>
           <DialogDescription>

@@ -24,6 +24,7 @@ interface ProjectNavigationProps {
   activeTab: string;
   progress: ProgressData;
   onNavigate?: () => void;
+  isOwned?: boolean;
 }
 
 interface NavItem {
@@ -34,8 +35,8 @@ interface NavItem {
   description: string;
 }
 
-export function ProjectNavigation({ projectId, activeTab, progress, onNavigate }: ProjectNavigationProps) {
-  const navItems: NavItem[] = [
+export function ProjectNavigation({ projectId, activeTab, progress, onNavigate, isOwned = true }: ProjectNavigationProps) {
+  const allNavItems: NavItem[] = [
     {
       id: 'overview',
       name: 'Overview',
@@ -114,6 +115,20 @@ export function ProjectNavigation({ projectId, activeTab, progress, onNavigate }
       icon: <Code2 className="w-5 h-5" />
     }
   ];
+
+  // Filter navigation items based on ownership
+  const navItems = allNavItems.filter(item => {
+    // Always show overview
+    if (item.id === 'overview') return true;
+    
+    // For non-owners, show read-only tabs plus analysis and social
+    if (!isOwned) {
+      return ['requirements', 'design', 'tasks', 'context', 'visualization', 'analysis', 'social'].includes(item.id);
+    }
+    
+    // For owners, show all tabs
+    return true;
+  });
 
   return (
     <Card className="rounded-none">

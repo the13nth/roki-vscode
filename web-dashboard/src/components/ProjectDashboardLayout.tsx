@@ -96,7 +96,7 @@ export function ProjectDashboardLayout({
           </p>
           <Link
             href="/"
-            className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-gray-900 hover:bg-gray-800"
           >
             Back to Projects
           </Link>
@@ -120,11 +120,13 @@ export function ProjectDashboardLayout({
                 projectId={projectId} 
                 activeTab={activeTab}
                 progress={project.progress}
+                isOwned={(project as any).isOwned ?? true}
               />
               
               {/* Sync Status */}
               <SyncStatus 
                 projectId={projectId}
+                isOwned={project.isOwned}
                 onSync={loadProject}
               />
             </div>
@@ -147,6 +149,7 @@ export function ProjectDashboardLayout({
                       documentType="requirements"
                       title="Requirements"
                       description="Define project requirements and user stories"
+                      isOwned={project.isOwned}
                     />
                   )}
                   
@@ -157,6 +160,7 @@ export function ProjectDashboardLayout({
                       documentType="design"
                       title="Design"
                       description="System architecture and design documentation"
+                      isOwned={project.isOwned}
                     />
                   )}
                   
@@ -167,12 +171,13 @@ export function ProjectDashboardLayout({
                       documentType="tasks"
                       title="Tasks"
                       description="Implementation tasks and checklist"
+                      isOwned={project.isOwned}
                       onDocumentSaved={loadProject}
                     />
                   )}
                   
                                   {activeTab === 'context' && (
-                  <ContextDocumentManager projectId={projectId} />
+                  <ContextDocumentManager projectId={projectId} isOwned={project.isOwned} />
                 )}
                 
                 {activeTab === 'api' && (
@@ -180,7 +185,7 @@ export function ProjectDashboardLayout({
                 )}
                 
                 {activeTab === 'analysis' && (
-                  <ProjectAnalysis projectId={projectId} />
+                  <ProjectAnalysis projectId={projectId} isOwned={(project as any).isOwned ?? true} />
                 )}
                 
                 {activeTab === 'progress' && (
@@ -216,7 +221,7 @@ export function ProjectDashboardLayout({
                         </p>
                       </div>
                       
-                      <SocialPostsGenerator projectId={projectId} />
+                      <SocialPostsGenerator projectId={projectId} isOwned={(project as any).isOwned ?? true} />
                     </div>
                   </div>
                 )}

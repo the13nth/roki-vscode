@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AdminCharts } from './AdminCharts';
 import { 
   Users, 
@@ -17,8 +19,24 @@ import {
   Zap,
   Database,
   FileText,
-  Target
+  Target,
+  AlertTriangle,
+  Shield,
+  DollarSign,
+  TrendingDown,
+  Eye,
+  Settings
 } from 'lucide-react';
+
+interface TokenAlert {
+  userId: string;
+  type: 'daily_limit' | 'monthly_limit' | 'burst_limit' | 'cost_threshold';
+  message: string;
+  timestamp: string;
+  severity: 'warning' | 'critical';
+  currentUsage: number;
+  limit: number;
+}
 
 interface AdminStats {
   totalUsers: number;
@@ -36,30 +54,50 @@ interface AdminStats {
   pricingTiers?: Record<string, any>;
   recentActivity: Array<{ type: string; user: string; project: string; timestamp: string }>;
   projectsByUser: Array<{ userId: string; userName: string; email: string; projectCount: number }>;
-  allUsers?: Array<{ 
+  allUsers?: Array<{
+    plan: string;
+    subscriptionStatus: string;
+    trialEnd: any; 
     userId: string; 
     userName: string; 
     email: string; 
     createdAt: string; 
     projectCount: number; 
     tokenUsage: number; 
-    cost: number 
+    cost: number;
+    dailyUsage?: number;
+    monthlyProjection?: number;
+    rateLimitStatus?: 'normal' | 'warning' | 'critical';
   }>;
+  tokenAlerts?: TokenAlert[];
+  rateLimitStats?: {
+    usersAtLimit: number;
+    usersNearLimit: number;
+    totalRateLimitViolations: number;
+  };
+  costTrends?: {
+    dailyAverage: number;
+    weeklyGrowth: number;
+    monthlyProjection: number;
+    costPerToken: number;
+  };
 }
 
 export function AdminDashboard() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [timeRange, setTimeRange] = useState('30d');
+  const [alertFilter, setAlertFilter] = useState<'all' | 'warning' | 'critical'>('all');
 
   useEffect(() => {
     fetchAdminStats();
-  }, []);
+  }, [timeRange]);
 
   const fetchAdminStats = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/stats');
+      const response = await fetch(`/api/admin/stats?timeRange=${timeRange}`);
       if (!response.ok) {
         throw new Error('Failed to fetch admin statistics');
       }
@@ -70,6 +108,26 @@ export function AdminDashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getAlertIcon = (severity: string) => {
+    return severity === 'critical' ? <AlertTriangle className="h-4 w-4 text-red-500" /> : <AlertTriangle className="h-4 w-4 text-yellow-500" />;
+  };
+
+  const getRateLimitStatusColor = (status?: string) => {
+    switch (status) {
+      case 'critical': return 'bg-red-100 text-red-800';
+      case 'warning': return 'bg-yellow-100 text-yellow-800';
+      default: return 'bg-green-100 text-green-800';
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2
+    }).format(amount);
   };
 
   if (loading) {
@@ -99,9 +157,13 @@ export function AdminDashboard() {
     );
   }
 
+  const filteredAlerts = stats.tokenAlerts?.filter(alert => 
+    alertFilter === 'all' || alert.severity === alertFilter
+  ) || [];
+
   return (
     <div className="space-y-6">
-      {/* Overview Cards */}
+      {/* Enhanced Overview Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -148,17 +210,134 @@ export function AdminDashboard() {
             <Zap className="h-3 w-3 md:h-4 md:w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-lg md:text-2xl font-bold">${stats.totalCost?.toFixed(2) || '0.00'}</div>
+            <div className="text-lg md:text-2xl font-bold">{formatCurrency(stats.totalCost || 0)}</div>
             <p className="text-xs text-muted-foreground">
-              ${stats.costPerUser?.toFixed(2) || '0.00'}/user
+              {formatCurrency(stats.costPerUser || 0)}/user
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Detailed Analytics */}
+      {/* New: Token Alerts Section */}
+      {stats.tokenAlerts && stats.tokenAlerts.length > 0 && (
+        <Card className="border-red-200 bg-red-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-red-800">
+              <AlertTriangle className="h-5 w-5" />
+              Token Usage Alerts ({filteredAlerts.length})
+            </CardTitle>
+            <CardDescription className="text-red-700">
+              Users approaching or exceeding token limits
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-2 mb-4">
+              <Select value={alertFilter} onValueChange={(value: any) => setAlertFilter(value)}>
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Alerts</SelectItem>
+                  <SelectItem value="warning">Warnings</SelectItem>
+                  <SelectItem value="critical">Critical</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="sm" onClick={fetchAdminStats}>
+                <Eye className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+            </div>
+            <div className="space-y-3 max-h-64 overflow-y-auto">
+              {filteredAlerts.map((alert, index) => (
+                <div key={index} className={`flex items-center justify-between p-3 rounded-lg ${
+                  alert.severity === 'critical' ? 'bg-red-100 border border-red-200' : 'bg-yellow-100 border border-yellow-200'
+                }`}>
+                  <div className="flex items-center gap-3">
+                    {getAlertIcon(alert.severity)}
+                    <div>
+                      <p className="font-medium text-sm">{alert.message}</p>
+                      <p className="text-xs text-gray-600">
+                        {new Date(alert.timestamp).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <Badge variant={alert.severity === 'critical' ? 'destructive' : 'secondary'}>
+                      {alert.severity}
+                    </Badge>
+                    <p className="text-xs text-gray-600 mt-1">
+                      {alert.currentUsage.toLocaleString()} / {alert.limit.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* New: Rate Limiting Status */}
+      {stats.rateLimitStats && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Rate Limit Status</CardTitle>
+              <Shield className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm">Users at Limit</span>
+                  <Badge variant="destructive">{stats.rateLimitStats.usersAtLimit}</Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm">Near Limit</span>
+                  <Badge variant="secondary">{stats.rateLimitStats.usersNearLimit}</Badge>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm">Violations</span>
+                  <Badge variant="outline">{stats.rateLimitStats.totalRateLimitViolations}</Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Cost Trends */}
+          {stats.costTrends && (
+            <>
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Daily Average</CardTitle>
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatCurrency(stats.costTrends.dailyAverage)}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {stats.costTrends.weeklyGrowth > 0 ? '+' : ''}{stats.costTrends.weeklyGrowth.toFixed(1)}% from last week
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Monthly Projection</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{formatCurrency(stats.costTrends.monthlyProjection)}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {formatCurrency(stats.costTrends.costPerToken)} per token
+                  </p>
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Enhanced Analytics Tabs */}
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3 md:grid-cols-7 h-auto">
+        <TabsList className="grid w-full grid-cols-4 md:grid-cols-8 h-auto">
           <TabsTrigger value="overview" className="text-xs md:text-sm">Overview</TabsTrigger>
           <TabsTrigger value="users" className="text-xs md:text-sm">Users</TabsTrigger>
           <TabsTrigger value="projects" className="text-xs md:text-sm">Projects</TabsTrigger>
@@ -166,6 +345,7 @@ export function AdminDashboard() {
           <TabsTrigger value="charts" className="text-xs md:text-sm">Charts</TabsTrigger>
           <TabsTrigger value="pricing" className="text-xs md:text-sm">Pricing</TabsTrigger>
           <TabsTrigger value="activity" className="text-xs md:text-sm">Activity</TabsTrigger>
+          <TabsTrigger value="alerts" className="text-xs md:text-sm">Alerts</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -216,23 +396,28 @@ export function AdminDashboard() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="h-5 w-5" />
-                  User Management
+                  Enhanced User Management
                 </CardTitle>
                 <CardDescription>
-                  Complete list of users with email addresses and activity details
+                  Complete list of users with token usage, rate limiting status, and cost analytics
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[800px]">
+                  <table className="w-full min-w-[1000px]">
                     <thead>
                       <tr className="border-b">
                         <th className="text-left p-2 md:p-3 font-medium text-xs md:text-sm">User</th>
                         <th className="text-left p-2 md:p-3 font-medium text-xs md:text-sm">Email</th>
+                        <th className="text-left p-2 md:p-3 font-medium text-xs md:text-sm">Plan</th>
+                        <th className="text-left p-2 md:p-3 font-medium text-xs md:text-sm">Status</th>
+                        <th className="text-left p-2 md:p-3 font-medium text-xs md:text-sm">Trial Ends</th>
                         <th className="text-left p-2 md:p-3 font-medium text-xs md:text-sm">Joined</th>
                         <th className="text-left p-2 md:p-3 font-medium text-xs md:text-sm">Projects</th>
                         <th className="text-left p-2 md:p-3 font-medium text-xs md:text-sm">Tokens</th>
                         <th className="text-left p-2 md:p-3 font-medium text-xs md:text-sm">Cost</th>
+                        <th className="text-left p-2 md:p-3 font-medium text-xs md:text-sm">Daily Usage</th>
+                        <th className="text-left p-2 md:p-3 font-medium text-xs md:text-sm">Rate Limit</th>
                         <th className="text-left p-2 md:p-3 font-medium text-xs md:text-sm">ID</th>
                       </tr>
                     </thead>
@@ -255,6 +440,23 @@ export function AdminDashboard() {
                             <span className="text-sm text-gray-600">{user.email}</span>
                           </td>
                           <td className="p-3">
+                            <Badge variant="outline">{user.plan || 'Free'}</Badge>
+                          </td>
+                          <td className="p-3">
+                            <Badge className={
+                              user.subscriptionStatus === 'trialing' ? 'bg-blue-100 text-blue-700' :
+                              user.subscriptionStatus === 'active' ? 'bg-green-100 text-green-700' :
+                              'bg-gray-100 text-gray-700'
+                            }>
+                              {user.subscriptionStatus || 'Free'}
+                            </Badge>
+                          </td>
+                          <td className="p-3">
+                            <span className="text-sm text-gray-600">
+                              {user.trialEnd ? new Date(user.trialEnd).toLocaleDateString() : 'N/A'}
+                            </span>
+                          </td>
+                          <td className="p-3">
                             <span className="text-sm text-gray-600">{user.createdAt}</span>
                           </td>
                           <td className="p-3">
@@ -264,7 +466,15 @@ export function AdminDashboard() {
                             <span className="text-sm">{user.tokenUsage.toLocaleString()}</span>
                           </td>
                           <td className="p-3">
-                            <span className="text-sm font-medium">${user.cost.toFixed(2)}</span>
+                            <span className="text-sm font-medium">{formatCurrency(user.cost)}</span>
+                          </td>
+                          <td className="p-3">
+                            <span className="text-sm">{user.dailyUsage?.toLocaleString() || '0'}</span>
+                          </td>
+                          <td className="p-3">
+                            <Badge className={getRateLimitStatusColor(user.rateLimitStatus)}>
+                              {user.rateLimitStatus || 'normal'}
+                            </Badge>
                           </td>
                           <td className="p-3">
                             <span className="text-xs text-gray-500 font-mono">{user.userId.slice(-8)}</span>
@@ -576,6 +786,79 @@ export function AdminDashboard() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="alerts" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" />
+                Token Usage Alerts & Monitoring
+              </CardTitle>
+              <CardDescription>
+                Comprehensive view of all token usage alerts and rate limiting violations
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Alert Statistics */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="text-center p-4 bg-red-50 rounded-lg">
+                    <div className="text-2xl font-bold text-red-600">
+                      {stats.tokenAlerts?.filter(a => a.severity === 'critical').length || 0}
+                    </div>
+                    <p className="text-sm text-red-700">Critical Alerts</p>
+                  </div>
+                  <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                    <div className="text-2xl font-bold text-yellow-600">
+                      {stats.tokenAlerts?.filter(a => a.severity === 'warning').length || 0}
+                    </div>
+                    <p className="text-sm text-yellow-700">Warnings</p>
+                  </div>
+                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {stats.rateLimitStats?.usersAtLimit || 0}
+                    </div>
+                    <p className="text-sm text-blue-700">Users at Limit</p>
+                  </div>
+                  <div className="text-center p-4 bg-green-50 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">
+                      {stats.totalUsers - (stats.rateLimitStats?.usersAtLimit || 0)}
+                    </div>
+                    <p className="text-sm text-green-700">Users Normal</p>
+                  </div>
+                </div>
+
+                {/* Alert History */}
+                <div>
+                  <h4 className="font-medium mb-3">Recent Alert History</h4>
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {stats.tokenAlerts?.map((alert, index) => (
+                      <div key={index} className={`p-3 rounded-lg border ${
+                        alert.severity === 'critical' ? 'border-red-200 bg-red-50' : 'border-yellow-200 bg-yellow-50'
+                      }`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {getAlertIcon(alert.severity)}
+                            <span className="font-medium">{alert.type.replace('_', ' ')}</span>
+                          </div>
+                          <span className="text-sm text-gray-600">
+                            {new Date(alert.timestamp).toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="text-sm mt-1">{alert.message}</p>
+                        <div className="flex items-center gap-4 mt-2 text-xs">
+                          <span>Usage: {alert.currentUsage.toLocaleString()}</span>
+                          <span>Limit: {alert.limit.toLocaleString()}</span>
+                          <span>Percentage: {Math.round((alert.currentUsage / alert.limit) * 100)}%</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Edit2, X, Check } from 'lucide-react';
+import { Edit2, X, Check, Globe, Lock } from 'lucide-react';
 
 interface ProjectMetadataProps {
   project: ProjectDashboard;
@@ -21,6 +21,8 @@ export function ProjectMetadata({ project, onUpdate }: ProjectMetadataProps) {
     name: '',
     description: ''
   });
+  const [isPublic, setIsPublic] = useState(false);
+  const [isTogglingVisibility, setIsTogglingVisibility] = useState(false);
 
   const handleEditStart = () => {
     // Initialize form with current project data
@@ -59,6 +61,35 @@ export function ProjectMetadata({ project, onUpdate }: ProjectMetadataProps) {
       }
     } catch (error) {
       console.error('Failed to update project:', error);
+    }
+  };
+
+  const handleToggleVisibility = async () => {
+    try {
+      setIsTogglingVisibility(true);
+      const newVisibility = !isPublic;
+      
+      const response = await fetch(`/api/projects/${project.projectId}/visibility`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          isPublic: newVisibility
+        }),
+      });
+
+      if (response.ok) {
+        setIsPublic(newVisibility);
+        // Show success message
+        console.log(`Project is now ${newVisibility ? 'public' : 'private'}`);
+      } else {
+        console.error('Failed to update project visibility');
+      }
+    } catch (error) {
+      console.error('Failed to update project visibility:', error);
+    } finally {
+      setIsTogglingVisibility(false);
     }
   };
 
@@ -138,7 +169,7 @@ export function ProjectMetadata({ project, onUpdate }: ProjectMetadataProps) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Name</dt>
-                <dd className="text-sm font-medium">{project.projectId}</dd>
+                <dd className="text-sm font-medium">{project.name}</dd>
               </div>
               
               <div>
@@ -160,6 +191,28 @@ export function ProjectMetadata({ project, onUpdate }: ProjectMetadataProps) {
                   </Badge>
                 </dd>
               </div>
+            </div>
+            
+            <div>
+              <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Visibility</dt>
+              <dd className="mt-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleToggleVisibility}
+                  disabled={isTogglingVisibility}
+                  className="flex items-center gap-2"
+                >
+                  {isTogglingVisibility ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                  ) : isPublic ? (
+                    <Globe className="h-4 w-4" />
+                  ) : (
+                    <Lock className="h-4 w-4" />
+                  )}
+                  {isPublic ? 'Public' : 'Private'}
+                </Button>
+              </dd>
             </div>
             
             <div>

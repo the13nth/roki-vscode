@@ -10,10 +10,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface AddTaskDialogProps {
   projectId: string;
+  isOwned?: boolean;
   onTaskAdded?: () => void;
 }
 
-export default function AddTaskDialog({ projectId, onTaskAdded }: AddTaskDialogProps) {
+export default function AddTaskDialog({ projectId, isOwned = true, onTaskAdded }: AddTaskDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +79,7 @@ export default function AddTaskDialog({ projectId, onTaskAdded }: AddTaskDialogP
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
+        <Button variant="outline" size="sm" className="gap-2" disabled={!isOwned}>
           <Plus className="h-4 w-4" />
           Add Task
         </Button>
@@ -86,7 +87,7 @@ export default function AddTaskDialog({ projectId, onTaskAdded }: AddTaskDialogP
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-blue-500" />
+                            <Sparkles className="h-5 w-5 text-gray-500" />
             Add New Task with AI
           </DialogTitle>
           <DialogDescription>

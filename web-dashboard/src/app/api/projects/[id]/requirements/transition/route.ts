@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getGoogleAIConfig, validateSecureConfig } from '@/lib/secureConfig';
+import { ProjectService } from '@/lib/projectService';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { auth } from '@clerk/nextjs/server';
@@ -273,6 +274,26 @@ export async function POST(
     }
 
     const { id } = await params;
+    
+    // Check project ownership before allowing requirement transition
+    const projectService = ProjectService.getInstance();
+    const project = await projectService.getProject(userId, id);
+    
+    if (!project) {
+      return NextResponse.json(
+        { error: 'Project not found' },
+        { status: 404 }
+      );
+    }
+    
+    // Only project owners can transition requirements
+    if (project.userId !== userId) {
+      return NextResponse.json(
+        { error: 'Only project owners can transition requirements' },
+        { status: 403 }
+      );
+    }
+    
     const { requirementNumber }: TransitionRequirementRequest = await request.json();
 
     if (!requirementNumber) {

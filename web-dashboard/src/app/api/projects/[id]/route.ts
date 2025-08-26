@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { ProjectService } from '@/lib/projectService';
 import { ProjectDashboard } from '@/types';
+import { getPineconeClient } from '@/lib/pinecone';
+import { PINECONE_INDEX_NAME, PINECONE_NAMESPACE_PROJECTS } from '@/lib/pinecone';
+import { createVectorId } from '@/lib/projectService';
 
 // Helper function to parse tasks from markdown content
 function parseTasksFromMarkdown(content: string): { totalTasks: number; completedTasks: number; percentage: number } {
@@ -36,19 +39,46 @@ export async function GET(
 ): Promise<NextResponse> {
   try {
     const { userId } = await auth();
-    if (!userId) {
+    const { id: projectId } = await params;
+    
+    // Get project data and metadata from Pinecone
+    const pinecone = getPineconeClient();
+    const index = pinecone.index(PINECONE_INDEX_NAME);
+    const vectorId = createVectorId('user-project', projectId);
+
+    const fetchResponse = await index.namespace(PINECONE_NAMESPACE_PROJECTS).fetch([vectorId]);
+    const record = fetchResponse.records?.[vectorId];
+
+    if (!record?.metadata) {
       return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
+        { error: 'Project not found' },
+        { status: 404 }
       );
     }
 
-    const { id: projectId } = await params;
-    console.log('Loading project:', projectId, 'for user:', userId);
+    // Check if user can access this project
+    const isPublic = record.metadata.isPublic as boolean || false;
+    const projectOwnerId = record.metadata.userId as string;
+    
+    // If not public and user is not the owner, deny access
+    if (!isPublic && (!userId || projectOwnerId !== userId)) {
+      return NextResponse.json(
+        { error: 'Project not found' },
+        { status: 404 }
+      );
+    }
 
-    // Use ProjectService to get project from Pinecone
-    const projectService = ProjectService.getInstance();
-    const project = await projectService.getProject(userId, projectId);
+    // Parse project data
+    let project;
+    try {
+      project = JSON.parse(record.metadata.projectData as string);
+    } catch (error) {
+      console.error('Failed to parse project data:', error);
+      return NextResponse.json(
+        { error: 'Project data corrupted' },
+        { status: 500 }
+      );
+    }
 
     if (!project) {
       return NextResponse.json(
@@ -78,8 +108,9 @@ export async function GET(
     });
 
     // Convert to ProjectDashboard format with accurate task counts
-    const projectDashboard: ProjectDashboard = {
+    const projectDashboard: ProjectDashboard & { isOwned?: boolean; isPublic?: boolean } = {
       projectId: project.projectId,
+      name: project.name || project.projectId, // Use name if available, fallback to projectId
       projectPath: '', // Cloud-only projects don't have local paths
       documents: {
         requirements: project.requirements || '',
@@ -87,7 +118,9 @@ export async function GET(
         tasks: tasksContent
       },
       progress: progressData,
-      contextDocs: []
+      contextDocs: [],
+      isOwned: userId ? projectOwnerId === userId : false,
+      isPublic: isPublic
     };
 
     return NextResponse.json(projectDashboard);

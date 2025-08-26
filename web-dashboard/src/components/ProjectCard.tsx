@@ -4,9 +4,10 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { ProjectListItem } from '@/types';
 import { CornerBrackets } from '@/components/ui/corner-brackets';
+import { Globe } from 'lucide-react';
 
 interface ProjectCardProps {
-  project: ProjectListItem;
+  project: ProjectListItem & { isOwned?: boolean };
   onDelete?: (projectId: string) => void;
 }
 
@@ -92,6 +93,12 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
                 </p>
               </div>
               <div className="ml-4 flex-shrink-0 flex items-center gap-2">
+                {project.isPublic && (
+                  <div className="inline-flex items-center px-2 py-0.5 rounded-none text-xs font-medium bg-purple-100 text-purple-800">
+                    <Globe className="w-3 h-3 mr-1" />
+                    Public
+                  </div>
+                )}
                 <div className={`inline-flex items-center px-2.5 py-0.5 rounded-none text-xs font-medium ${
                   project.progress === 100 
                     ? 'bg-green-100 text-green-800' 
@@ -99,7 +106,7 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
                 }`}>
                   {getProgressText(project.progress)}
                 </div>
-                {onDelete && (
+                {onDelete && project.isOwned !== false && (
                   <button
                     onClick={handleDeleteClick}
                     className="p-1 text-gray-400 hover:text-red-600 transition-colors duration-200"
@@ -135,7 +142,7 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
               </svg>
               <span>Updated {formatDate(project.lastModified)}</span>
             </div>
-            <div className="flex items-center text-blue-600 hover:text-blue-700">
+            <div className="flex items-center text-gray-600 hover:text-gray-700">
               <span className="mr-1">Open</span>
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />

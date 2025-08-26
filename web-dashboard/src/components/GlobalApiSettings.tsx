@@ -167,12 +167,12 @@ export function GlobalApiSettings() {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
+      {/* <DialogTrigger asChild>
         <Button variant="ghost" size="sm" className="flex items-center">
           <Settings className="mr-2 h-4 w-4" />
-          AI Settings
+          AI Settingsa
         </Button>
-      </DialogTrigger>
+      </DialogTrigger> */}
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center">

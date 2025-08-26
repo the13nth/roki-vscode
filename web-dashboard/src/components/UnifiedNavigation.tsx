@@ -66,15 +66,15 @@ export function UnifiedNavigation({
       case 'project':
         return {
           header: "bg-card/90 border-b flex-shrink-0",
-          logo: "bg-gradient-to-r from-blue-600 to-purple-600 p-2 rounded-lg",
-          logoText: "font-semibold text-lg bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent",
+          logo: "bg-gray-900 p-2 rounded-lg",
+          logoText: "font-semibold text-lg text-gray-900",
           container: "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
         };
       default: // global
         return {
           header: "border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60",
-          logo: "bg-gradient-to-r from-blue-600 to-purple-600 p-2 rounded-lg",
-          logoText: "font-semibold text-lg bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent",
+          logo: "bg-gray-900 p-2 rounded-lg",
+          logoText: "font-semibold text-lg text-gray-900",
           container: "container mx-auto px-4 py-3"
         };
     }
@@ -109,7 +109,7 @@ export function UnifiedNavigation({
             href="/projects"
             className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
-            Projects1
+            Projects
           </Link>
           <ChevronRight className="w-4 h-4 text-muted-foreground" />
           <span className="text-sm font-medium truncate max-w-xs">
@@ -147,7 +147,7 @@ export function UnifiedNavigation({
             </Link>
             {/* <Link href="/projects" className="flex items-center text-gray-600 hover:text-gray-900">
               <FolderOpen className="mr-1 h-4 w-4" />
-              Projects2
+              Projects
             </Link> */}
           </nav>
           
@@ -253,7 +253,7 @@ export function UnifiedNavigation({
                 className="block py-2 text-gray-600 hover:text-gray-900"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                Projects3
+                Projects
               </Link>
             </>
           ) : (
@@ -268,7 +268,7 @@ export function UnifiedNavigation({
                 <Link href="/projects" onClick={() => setIsMobileMenuOpen(false)}>
                   <Button variant="ghost" size="sm" className="w-full justify-start">
                     <FolderOpen className="mr-2 h-4 w-4" />
-                    Projects4
+                    Projects
                   </Button>
                 </Link>
                 <Link href="/profile" onClick={() => setIsMobileMenuOpen(false)}>
@@ -363,7 +363,7 @@ export function UnifiedNavigation({
                 ) : (
                   <div className="flex items-center space-x-2">
                     {isAdmin && (
-                      <Badge variant="secondary" className="hidden sm:flex items-center gap-1 bg-purple-100 text-purple-800 border-purple-200">
+                      <Badge variant="secondary" className="hidden sm:flex items-center gap-1 bg-gray-100 text-gray-800 border-gray-200">
                         <Shield className="h-3 w-3" />
                         Admin
                       </Badge>

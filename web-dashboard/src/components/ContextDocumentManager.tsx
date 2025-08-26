@@ -7,6 +7,7 @@ import { DeleteConfirmationModal } from '@/components/ui/delete-confirmation-mod
 
 interface ContextDocumentManagerProps {
   projectId: string;
+  isOwned?: boolean;
 }
 
 interface ContextDocumentFormData {
@@ -17,7 +18,7 @@ interface ContextDocumentFormData {
   url?: string;
 }
 
-export function ContextDocumentManager({ projectId }: ContextDocumentManagerProps) {
+export function ContextDocumentManager({ projectId, isOwned = true }: ContextDocumentManagerProps) {
   const [documents, setDocuments] = useState<ContextDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -617,7 +618,7 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
             
             {/* Action Buttons */}
             <div className={`flex gap-2 ${isMobile ? 'flex-col' : 'flex-row'}`}>
-              <label className={`px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 cursor-pointer text-center ${isMobile ? 'w-full' : 'flex-1'}`}>
+              <label className={`px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 cursor-pointer text-center ${isMobile ? 'w-full' : 'flex-1'} ${!isOwned ? 'opacity-50 cursor-not-allowed' : ''}`}>
                 📁 Upload File
                 <input
                   type="file"
@@ -625,14 +626,18 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
                   accept=".md,.txt,.json"
                   onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
                   className="hidden"
+                  disabled={!isOwned}
                 />
               </label>
               <button
                 onClick={() => {
-                  startCreating();
-                  if (isMobile) setSidebarOpen(false);
+                  if (isOwned) {
+                    startCreating();
+                    if (isMobile) setSidebarOpen(false);
+                  }
                 }}
-                className={`px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 ${isMobile ? 'w-full' : 'flex-1'}`}
+                disabled={!isOwned}
+                className={`px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 ${isMobile ? 'w-full' : 'flex-1'} ${!isOwned ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 ✏️ New Document
               </button>
@@ -1009,7 +1014,7 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
                         type="button"
                         onClick={() => formData.url && handleUrlPreview(formData.url, false)}
                         disabled={!formData.url || urlLoading}
-                        className="px-3 py-2 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1 md:flex-none"
+                        className="px-3 py-2 bg-gray-900 text-white rounded text-sm hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex-1 md:flex-none"
                       >
                         📰 Load Full Article
                       </button>
@@ -1049,7 +1054,7 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
                         type="button"
                         onClick={() => handleGenerateTags()}
                         disabled={!formData.content || formData.content.trim().length < 50 || isGeneratingTags}
-                        className={`px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed ${isMobile ? 'text-xs' : ''}`}
+                        className={`px-2 py-1 bg-gray-900 text-white rounded text-xs hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed ${isMobile ? 'text-xs' : ''}`}
                       >
                         {isGeneratingTags ? (
                           <div className="flex items-center">
@@ -1199,6 +1204,7 @@ export function ContextDocumentManager({ projectId }: ContextDocumentManagerProp
                     language="markdown"
                     onImproveWithAI={handleImproveCurrentDocument}
                     isImprovingWithAI={improvementInProgress}
+                    isOwned={isOwned}
                   />
                 </div>
               </div>

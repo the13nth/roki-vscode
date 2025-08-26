@@ -53,7 +53,7 @@ export function RealtimeSyncStatus({ projectPath, className = '' }: RealtimeSync
             <button
               onClick={startSync}
               disabled={syncStatus.isLoading}
-              className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-3 py-1 text-xs bg-gray-900 text-white rounded hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {syncStatus.isLoading ? 'Starting...' : 'Start Sync'}
             </button>
@@ -114,7 +114,7 @@ export function RealtimeSyncStatus({ projectPath, className = '' }: RealtimeSync
                   <button
                     onClick={() => resolveConflict(conflict.id, 'local')}
                     disabled={conflictsLoading}
-                    className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                    className="px-2 py-1 text-xs bg-gray-900 text-white rounded hover:bg-gray-800 disabled:opacity-50"
                   >
                     Keep Local
                   </button>
@@ -132,7 +132,7 @@ export function RealtimeSyncStatus({ projectPath, className = '' }: RealtimeSync
                       alert(`Open conflict resolution dialog for ${conflict.id}`);
                     }}
                     disabled={conflictsLoading}
-                    className="px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
+                    className="px-2 py-1 text-xs bg-gray-900 text-white rounded hover:bg-gray-800 disabled:opacity-50"
                   >
                     Resolve
                   </button>

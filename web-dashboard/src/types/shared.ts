@@ -61,6 +61,7 @@ export interface ProjectConfiguration {
   requirements?: string; // Generated requirements document
   design?: string; // Generated design document
   tasks?: string; // Generated tasks document
+  isPublic?: boolean; // Whether the project is visible to everyone
   tokenTracking?: {
     totalTokens: number;
     totalCost: number;
@@ -124,10 +125,13 @@ export interface FileWatcher {
 // Web Dashboard specific interfaces
 export interface ProjectDashboard {
   projectId: string;
+  name: string;
   projectPath: string;
   documents: ProjectDocuments;
   progress: ProgressData;
   contextDocs: ContextDocument[];
+  isOwned?: boolean;
+  isPublic?: boolean;
 }
 
 export interface VSCodeExtension {

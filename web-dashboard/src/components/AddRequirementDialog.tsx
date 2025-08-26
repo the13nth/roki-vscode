@@ -10,10 +10,11 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface AddRequirementDialogProps {
   projectId: string;
+  isOwned?: boolean;
   onRequirementAdded?: () => void;
 }
 
-export default function AddRequirementDialog({ projectId, onRequirementAdded }: AddRequirementDialogProps) {
+export default function AddRequirementDialog({ projectId, isOwned = true, onRequirementAdded }: AddRequirementDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +76,7 @@ export default function AddRequirementDialog({ projectId, onRequirementAdded }: 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
+        <Button variant="outline" size="sm" className="gap-2" disabled={!isOwned}>
           <Plus className="h-4 w-4" />
           Add Requirement
         </Button>

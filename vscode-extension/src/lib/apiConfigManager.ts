@@ -11,13 +11,7 @@ interface ApiConfiguration {
   apiKey: string;
   model: string;
   baseUrl?: string;
-  source?: string;
-  usePersonalApiKey?: boolean;
-}
-
-interface ApiKeySelection {
-  usePersonalApiKey: boolean;
-  lastUpdated: string;
+  source?: 'personal' | 'system';
 }
 
 export class ApiConfigManager {

@@ -115,9 +115,10 @@ interface AnalysisResult {
 
 interface ProjectAnalysisProps {
   projectId: string;
+  isOwned?: boolean;
 }
 
-export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
+export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisProps) {
   const [context, setContext] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResults, setAnalysisResults] = useState<Record<string, AnalysisResult>>({});
@@ -714,10 +715,19 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                 </Button>
                 {!isAnalysisOptionsCollapsed && (
                 <div className="space-y-2 mt-3">
+                  {/* Read-only notice for non-owners */}
+                  {!isOwned && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                      <div className="flex items-center gap-2 text-sm text-blue-700">
+                        <Eye className="w-4 h-4" />
+                        <span>Read-only view: You can view existing analysis results but cannot generate new analyses.</span>
+                      </div>
+                    </div>
+                  )}
                   <Button
                     variant="outline"
                     onClick={() => handleAnalyze('technical')}
-                    disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
+                    disabled={!isOwned || isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
                     className="justify-start rounded-none border-gray-300 hover:border-blue-300 hover:bg-blue-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
                   >
                     <Lightbulb className="w-4 h-4 mr-2 flex-shrink-0" />
@@ -727,7 +737,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                   <Button
                     variant="outline"
                     onClick={() => handleAnalyze('market')}
-                    disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
+                    disabled={!isOwned || isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
                     className="justify-start rounded-none border-gray-300 hover:border-purple-300 hover:bg-purple-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
                   >
                     <TrendingUp className="w-4 h-4 mr-2 flex-shrink-0" />
@@ -737,7 +747,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                   <Button
                     variant="outline"
                     onClick={() => handleAnalyze('differentiation')}
-                    disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
+                    disabled={!isOwned || isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
                     className="justify-start rounded-none border-gray-300 hover:border-indigo-300 hover:bg-indigo-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
                   >
                     <Zap className="w-4 h-4 mr-2 flex-shrink-0" />
@@ -747,7 +757,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                   <Button
                     variant="outline"
                     onClick={() => handleAnalyze('financial')}
-                    disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
+                    disabled={!isOwned || isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
                     className="justify-start rounded-none border-gray-300 hover:border-yellow-300 hover:bg-yellow-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
                   >
                     <DollarSign className="w-4 h-4 mr-2 flex-shrink-0" />
@@ -757,7 +767,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                   <Button
                     variant="outline"
                     onClick={() => handleAnalyze('bmc')}
-                    disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
+                    disabled={!isOwned || isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
                     className="justify-start rounded-none border-blue-200 text-blue-700 hover:bg-blue-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
                   >
                     <Grid3X3 className="w-4 h-4 mr-2 flex-shrink-0" />
@@ -767,7 +777,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                   <Button
                     variant="outline"
                     onClick={() => handleRoastClick()}
-                    disabled={isAnalyzing || !roastAnalysesComplete}
+                    disabled={!isOwned || isAnalyzing || !roastAnalysesComplete}
                     className="justify-start rounded-none border-red-200 text-red-700 hover:bg-red-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
                   >
                     <Flame className="w-4 h-4 mr-2 flex-shrink-0" />
@@ -782,7 +792,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                   <Button
                     variant="outline"
                     onClick={() => setShowPitchModal(true)}
-                    disabled={isAnalyzing || !allAnalysesComplete}
+                    disabled={!isOwned || isAnalyzing || !allAnalysesComplete}
                     className="justify-start rounded-none border-purple-200 text-purple-700 hover:bg-purple-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
                   >
                     <Presentation className="w-4 h-4 mr-2 flex-shrink-0" />
@@ -958,7 +968,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                     Processing project data and generating insights. This may take 30 seconds to 2 minutes.
                   </p>
                   <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg max-w-md mx-auto">
-                    <p className="text-xs text-blue-600">
+                    <p className="text-xs text-gray-600">
                       ⏱️ <strong>Expected time:</strong> 30s - 2min<br/>
                       🧠 <strong>AI is processing:</strong> Documents, requirements, and generating insights<br/>
                       💡 <strong>Tip:</strong> Larger projects may take longer
@@ -1045,11 +1055,11 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                           <Card key={type} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setActiveAnalysisTab(type)}>
                             <CardContent className="p-3 sm:p-4 text-center">
                               <div className="flex items-center justify-center mb-2">
-                                {type === 'technical' && <Lightbulb className="w-6 h-6 text-blue-600" />}
+                                {type === 'technical' && <Lightbulb className="w-6 h-6 text-gray-600" />}
                                 {type === 'market' && <TrendingUp className="w-6 h-6 text-purple-600" />}
                                 {type === 'differentiation' && <Zap className="w-6 h-6 text-indigo-600" />}
                                 {type === 'financial' && <DollarSign className="w-6 h-6 text-green-600" />}
-                                {type === 'bmc' && <Grid3X3 className="w-6 h-6 text-blue-600" />}
+                                {type === 'bmc' && <Grid3X3 className="w-6 h-6 text-gray-600" />}
                                 {type === 'roast' && <Flame className="w-6 h-6 text-red-600" />}
                               </div>
                               <h4 className="font-medium text-xs sm:text-sm capitalize">{type} Analysis</h4>
@@ -1070,7 +1080,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                     <Card className="analysis-card">
                       <CardHeader>
                         <CardTitle className="text-lg font-semibold flex items-center">
-                          <Lightbulb className="w-5 h-5 mr-2 text-blue-600" />
+                          <Lightbulb className="w-5 h-5 mr-2 text-gray-600" />
                           Technical Analysis
                         </CardTitle>
                       </CardHeader>
@@ -1123,7 +1133,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                       <div className="flex gap-2">
                         <Button
                           onClick={() => saveAnalysis('technical')}
-                          disabled={savingAnalyses.technical || (savedAnalyses.technical && !hasUnsavedChanges.technical)}
+                          disabled={!isOwned || savingAnalyses.technical || (savedAnalyses.technical && !hasUnsavedChanges.technical)}
                           variant="outline"
                           size="sm"
                           className="flex items-center"
@@ -1156,6 +1166,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                             <Button
                               variant="outline"
                               size="sm"
+                              disabled={!isOwned}
                               className="flex items-center"
                             >
                               <Sparkles className="w-4 h-4 mr-2" />
@@ -1194,7 +1205,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                                 </Button>
                                 <Button
                                   onClick={() => handleImproveAnalysis('technical')}
-                                  disabled={improvingAnalyses.technical || !improveDetails.technical?.trim()}
+                                  disabled={!isOwned || improvingAnalyses.technical || !improveDetails.technical?.trim()}
                                   className="flex items-center"
                                 >
                                   {improvingAnalyses.technical ? (
@@ -1246,7 +1257,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                       <div className="flex gap-2">
                         <Button
                           onClick={() => saveAnalysis('market')}
-                          disabled={savingAnalyses.market || (savedAnalyses.market && !hasUnsavedChanges.market)}
+                          disabled={!isOwned || savingAnalyses.market || (savedAnalyses.market && !hasUnsavedChanges.market)}
                           variant="outline"
                           size="sm"
                           className="flex items-center"
@@ -1279,6 +1290,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                             <Button
                               variant="outline"
                               size="sm"
+                              disabled={!isOwned}
                               className="flex items-center"
                             >
                               <Sparkles className="w-4 h-4 mr-2" />
@@ -1317,7 +1329,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                                 </Button>
                                 <Button
                                   onClick={() => handleImproveAnalysis('market')}
-                                  disabled={improvingAnalyses.market || !improveDetails.market?.trim()}
+                                  disabled={!isOwned || improvingAnalyses.market || !improveDetails.market?.trim()}
                                   className="flex items-center"
                                 >
                                   {improvingAnalyses.market ? (
@@ -1369,7 +1381,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                       <div className="flex gap-2">
                         <Button
                           onClick={() => saveAnalysis('differentiation')}
-                          disabled={savingAnalyses.differentiation || (savedAnalyses.differentiation && !hasUnsavedChanges.differentiation)}
+                          disabled={!isOwned || savingAnalyses.differentiation || (savedAnalyses.differentiation && !hasUnsavedChanges.differentiation)}
                           variant="outline"
                           size="sm"
                           className="flex items-center"
@@ -1402,6 +1414,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                             <Button
                               variant="outline"
                               size="sm"
+                              disabled={!isOwned}
                               className="flex items-center"
                             >
                               <Sparkles className="w-4 h-4 mr-2" />
@@ -1440,7 +1453,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                                 </Button>
                                 <Button
                                   onClick={() => handleImproveAnalysis('differentiation')}
-                                  disabled={improvingAnalyses.differentiation || !improveDetails.differentiation?.trim()}
+                                  disabled={!isOwned || improvingAnalyses.differentiation || !improveDetails.differentiation?.trim()}
                                   className="flex items-center"
                                 >
                                   {improvingAnalyses.differentiation ? (
@@ -1492,7 +1505,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                       <div className="flex gap-2">
                         <Button
                           onClick={() => saveAnalysis('financial')}
-                          disabled={savingAnalyses.financial || (savedAnalyses.financial && !hasUnsavedChanges.financial)}
+                          disabled={!isOwned || savingAnalyses.financial || (savedAnalyses.financial && !hasUnsavedChanges.financial)}
                           variant="outline"
                           size="sm"
                           className="flex items-center"
@@ -1525,6 +1538,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                             <Button
                               variant="outline"
                               size="sm"
+                              disabled={!isOwned}
                               className="flex items-center"
                             >
                               <Sparkles className="w-4 h-4 mr-2" />
@@ -1563,7 +1577,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                                 </Button>
                                 <Button
                                   onClick={() => handleImproveAnalysis('financial')}
-                                  disabled={improvingAnalyses.financial || !improveDetails.financial?.trim()}
+                                  disabled={!isOwned || improvingAnalyses.financial || !improveDetails.financial?.trim()}
                                   className="flex items-center"
                                 >
                                   {improvingAnalyses.financial ? (
@@ -1595,7 +1609,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                         {/* Header */}
                         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 p-6 rounded-lg mb-6">
                           <div className="flex items-center mb-3">
-                            <Grid3X3 className="w-6 h-6 text-blue-600 mr-3" />
+                            <Grid3X3 className="w-6 h-6 text-gray-600 mr-3" />
                             <h3 className="text-2xl font-bold text-blue-800">Business Model Canvas</h3>
                           </div>
                           <p className="text-blue-700 mb-2">
@@ -1719,8 +1733,8 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                           </div>
                           <div className="flex gap-2">
                             <Button
-                              onClick={() => saveAnalysis('bmc')}
-                              disabled={savingAnalyses.bmc || (savedAnalyses.bmc && !hasUnsavedChanges.bmc)}
+                                                        onClick={() => saveAnalysis('bmc')}
+                          disabled={!isOwned || savingAnalyses.bmc || (savedAnalyses.bmc && !hasUnsavedChanges.bmc)}
                               variant="outline"
                               size="sm"
                               className="flex items-center"
@@ -1753,6 +1767,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                                 <Button
                                   variant="outline"
                                   size="sm"
+                                  disabled={!isOwned}
                                   className="flex items-center"
                                 >
                                   <Sparkles className="w-4 h-4 mr-2" />
@@ -1790,8 +1805,8 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                                       Cancel
                                     </Button>
                                     <Button
-                                      onClick={() => handleImproveAnalysis('bmc')}
-                                      disabled={improvingAnalyses.bmc || !improveDetails.bmc?.trim()}
+                                                                        onClick={() => handleImproveAnalysis('bmc')}
+                                  disabled={!isOwned || improvingAnalyses.bmc || !improveDetails.bmc?.trim()}
                                       className="flex items-center"
                                     >
                                       {improvingAnalyses.bmc ? (
@@ -1862,7 +1877,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                                     variant="outline"
                                     size="sm"
                                     onClick={() => handleGenerateMitigation(criticism, 'brutallyCritical')}
-                                    disabled={mitigation?.isGenerating}
+                                    disabled={!isOwned || mitigation?.isGenerating}
                                     className="ml-3 text-xs px-2 py-1 h-auto border-gray-300 text-gray-700 hover:bg-gray-50"
                                   >
                                     {mitigation?.isGenerating ? (
@@ -1897,8 +1912,8 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                         </div>
                         <div className="flex gap-2">
                           <Button
-                            onClick={() => saveAnalysis('roast')}
-                            disabled={savingAnalyses.roast || (savedAnalyses.roast && !hasUnsavedChanges.roast)}
+                                                      onClick={() => saveAnalysis('roast')}
+                          disabled={!isOwned || savingAnalyses.roast || (savedAnalyses.roast && !hasUnsavedChanges.roast)}
                             variant="outline"
                             size="sm"
                             className="flex items-center"
@@ -1931,6 +1946,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                               <Button
                                 variant="outline"
                                 size="sm"
+                                disabled={!isOwned}
                                 className="flex items-center"
                               >
                                 <Sparkles className="w-4 h-4 mr-2" />
@@ -1968,8 +1984,8 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                                     Cancel
                                   </Button>
                                   <Button
-                                    onClick={() => handleImproveAnalysis('roast')}
-                                    disabled={improvingAnalyses.roast || !improveDetails.roast?.trim()}
+                                                                      onClick={() => handleImproveAnalysis('roast')}
+                                  disabled={!isOwned || improvingAnalyses.roast || !improveDetails.roast?.trim()}
                                     className="flex items-center"
                                   >
                                     {improvingAnalyses.roast ? (
@@ -1996,7 +2012,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
 
                 <TabsContent value="pitch" className="space-y-6">
                   {allAnalysesComplete ? (
-                    <ProjectPitch projectId={projectId} />
+                    <ProjectPitch projectId={projectId} isOwned={isOwned} />
                   ) : (
                     <div className="text-center py-12">
                       <Presentation className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
@@ -2018,6 +2034,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                         </div>
                         <Button
                           onClick={() => setShowPitchModal(true)}
+                          disabled={!isOwned}
                           variant="outline"
                           className="w-full"
                         >
@@ -2060,7 +2077,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                     </div>
                     <div className="w-full bg-purple-200 rounded-full h-2">
                       <div
-                        className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                        className="bg-gray-600 h-2 rounded-full transition-all duration-300"
                         style={{ width: `${(Object.keys(analysisResults).length / allAnalysisTypes.length) * 100}%` }}
                       />
                     </div>
@@ -2098,7 +2115,7 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                                 setShowPitchModal(false);
                                 handleAnalyze(type);
                               }}
-                              disabled={isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
+                              disabled={!isOwned || isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
                               className="text-xs h-6 px-2"
                             >
                               {getAnalysisTypeIcon(type)}
@@ -2119,7 +2136,8 @@ export function ProjectAnalysis({ projectId }: ProjectAnalysisProps) {
                           setShowPitchModal(false);
                           setActiveAnalysisTab('pitch');
                         }}
-                        className="mt-3 w-full bg-purple-600 hover:bg-purple-700"
+                        disabled={!isOwned}
+                        className="mt-3 w-full bg-gray-900 hover:bg-gray-800"
                       >
                         <Presentation className="w-4 h-4 mr-2" />
                         Generate Pitch

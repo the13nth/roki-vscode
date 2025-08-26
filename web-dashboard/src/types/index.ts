@@ -19,4 +19,5 @@ export interface ProjectListItem {
   description: string;
   lastModified: Date;
   progress: number;
+  isPublic?: boolean;
 }

@@ -72,9 +72,10 @@ interface AnalysisResult {
 
 interface SocialPostsGeneratorProps {
   projectId: string;
+  isOwned?: boolean;
 }
 
-export function SocialPostsGenerator({ projectId }: SocialPostsGeneratorProps) {
+export function SocialPostsGenerator({ projectId, isOwned = true }: SocialPostsGeneratorProps) {
   // Social Posts state
   const [socialPostsResult, setSocialPostsResult] = useState<SocialPostsResult | null>(null);
   const [isGeneratingSocial, setIsGeneratingSocial] = useState(false);
@@ -436,6 +437,16 @@ export function SocialPostsGenerator({ projectId }: SocialPostsGeneratorProps) {
 
   return (
     <div className="space-y-6">
+      {/* Read-only notice for non-owners */}
+      {!isOwned && (
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+          <div className="flex items-center gap-2 text-sm text-blue-700">
+            <Share2 className="w-4 h-4" />
+            <span>Read-only view: You can view existing social posts but cannot generate new ones.</span>
+          </div>
+        </div>
+      )}
+      
       {/* Analysis Data Status */}
       <Card>
         <CardHeader>
@@ -520,6 +531,7 @@ export function SocialPostsGenerator({ projectId }: SocialPostsGeneratorProps) {
                     id={platform.id}
                     checked={selectedPlatforms.includes(platform.id)}
                     onCheckedChange={(checked) => handlePlatformToggle(platform.id, checked as boolean)}
+                    disabled={!isOwned}
                   />
                   <div className="flex-1">
                     <Label htmlFor={platform.id} className="text-sm font-medium cursor-pointer">
@@ -543,6 +555,7 @@ export function SocialPostsGenerator({ projectId }: SocialPostsGeneratorProps) {
               onChange={(e) => setPostBackground(e.target.value)}
               placeholder="e.g., I remember when I needed to buy this and couldn't find it..."
               className="min-h-[80px]"
+              disabled={!isOwned}
             />
             <p className="text-xs text-gray-500 mt-1">
               Provide context or a personal story that AI can use as inspiration for your posts
@@ -561,12 +574,13 @@ export function SocialPostsGenerator({ projectId }: SocialPostsGeneratorProps) {
                 value={numberOfPosts}
                 onChange={(e) => setNumberOfPosts(parseInt(e.target.value) || 1)}
                 className="w-full"
+                disabled={!isOwned}
               />
             </div>
             
             <div>
               <Label className="text-sm font-medium mb-2 block">Tone</Label>
-              <Select value={socialTone} onValueChange={(value: 'professional' | 'casual' | 'enthusiastic' | 'technical') => setSocialTone(value)}>
+              <Select value={socialTone} onValueChange={(value: 'professional' | 'casual' | 'enthusiastic' | 'technical') => setSocialTone(value)} disabled={!isOwned}>
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
@@ -585,6 +599,7 @@ export function SocialPostsGenerator({ projectId }: SocialPostsGeneratorProps) {
                   id="include-hashtags"
                   checked={includeHashtags}
                   onCheckedChange={(checked) => setIncludeHashtags(checked as boolean)}
+                  disabled={!isOwned}
                 />
                 <Label htmlFor="include-hashtags" className="text-sm flex items-center">
                   <Hash className="w-3 h-3 mr-1" />
@@ -596,6 +611,7 @@ export function SocialPostsGenerator({ projectId }: SocialPostsGeneratorProps) {
                   id="include-emojis"
                   checked={includeEmojis}
                   onCheckedChange={(checked) => setIncludeEmojis(checked as boolean)}
+                  disabled={!isOwned}
                 />
                 <Label htmlFor="include-emojis" className="text-sm flex items-center">
                   <Smile className="w-3 h-3 mr-1" />
@@ -608,7 +624,7 @@ export function SocialPostsGenerator({ projectId }: SocialPostsGeneratorProps) {
           {/* Generate Button */}
           <Button 
             onClick={handleGenerateSocialPosts} 
-            disabled={isGeneratingSocial || selectedPlatforms.length === 0}
+            disabled={!isOwned || isGeneratingSocial || selectedPlatforms.length === 0}
             className="w-full"
           >
             {isGeneratingSocial ? (
@@ -692,7 +708,7 @@ export function SocialPostsGenerator({ projectId }: SocialPostsGeneratorProps) {
                                       size="sm"
                                       variant="outline"
                                       onClick={() => handleSavePost(platform, index, post, 'not-yet-posted')}
-                                      disabled={isSaving}
+                                      disabled={!isOwned || isSaving}
                                       className="flex items-center"
                                     >
                                       {isSaving ? (
@@ -705,7 +721,7 @@ export function SocialPostsGenerator({ projectId }: SocialPostsGeneratorProps) {
                                     <Button
                                       size="sm"
                                       onClick={() => handleSavePost(platform, index, post, 'posted')}
-                                      disabled={isSaving}
+                                      disabled={!isOwned || isSaving}
                                       className="flex items-center"
                                     >
                                       {isSaving ? (
@@ -727,6 +743,7 @@ export function SocialPostsGenerator({ projectId }: SocialPostsGeneratorProps) {
                                   size="sm"
                                   variant="outline"
                                   onClick={() => togglePostExpansion(postId)}
+                                  disabled={!isOwned}
                                   className="flex items-center"
                                 >
                                   <Edit3 className="w-3 h-3 mr-1" />
@@ -782,14 +799,14 @@ export function SocialPostsGenerator({ projectId }: SocialPostsGeneratorProps) {
                                       onChange={(e) => handleImproveDetailsChange(postId, e.target.value)}
                                       placeholder="e.g., Make it more engaging, add a call-to-action, focus on benefits, make it shorter, add more technical details..."
                                       className="min-h-[60px] text-xs"
-                                      disabled={isImproving}
+                                      disabled={!isOwned || isImproving}
                                     />
                                   </div>
                                   <div className="flex items-center space-x-2">
                                     <Button
                                       size="sm"
                                       onClick={() => handleImprovePost(platform, index, post.content)}
-                                      disabled={isImproving || !improveText.trim()}
+                                      disabled={!isOwned || isImproving || !improveText.trim()}
                                       className="flex items-center"
                                     >
                                       {isImproving ? (
@@ -828,7 +845,7 @@ export function SocialPostsGenerator({ projectId }: SocialPostsGeneratorProps) {
               })}
 
               {/* Token Usage */}
-              {socialPostsResult.tokenUsage && (
+              {/* {socialPostsResult.tokenUsage && (
                 <div className="pt-4 border-t">
                   <h4 className="font-medium text-sm mb-2">Generation Stats</h4>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -850,7 +867,7 @@ export function SocialPostsGenerator({ projectId }: SocialPostsGeneratorProps) {
                     </div>
                   </div>
                 </div>
-              )}
+              )} */}
             </div>
           </CardContent>
         </Card>

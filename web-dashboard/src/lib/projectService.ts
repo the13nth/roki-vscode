@@ -56,7 +56,7 @@ async function generateEmbedding(text: string): Promise<number[]> {
   }
 }
 
-function createVectorId(type: string, id: string): string {
+export function createVectorId(type: string, id: string): string {
   return `${type}:${id}`;
 }
 
@@ -86,6 +86,7 @@ export class ProjectService {
       userId,
       createdAt: now,
       lastModified: now,
+      isPublic: projectData.isPublic || false, // Use the value from projectData
       tokenTracking: {
         totalTokens: 0,
         totalCost: 0,
@@ -121,6 +122,7 @@ export class ProjectService {
           template: project.template,
           createdAt: now,
           lastModified: now,
+          isPublic: project.isPublic || false,
           type: 'user-project',
           projectData: JSON.stringify(project)
         }
@@ -160,7 +162,46 @@ export class ProjectService {
         name: metadata.name as string,
         description: metadata.description as string,
         lastModified: new Date(metadata.lastModified as string),
-        progress: 0 // TODO: Calculate from project data
+        progress: 0, // TODO: Calculate from project data
+        isPublic: metadata.isPublic as boolean || false
+      };
+    }).filter(Boolean) as ProjectListItem[] || [];
+  }
+
+  async getPublicProjects(excludeUserId?: string): Promise<ProjectListItem[]> {
+    // Query all public projects
+    const pinecone = getPineconeClient();
+    const index = pinecone.index(PINECONE_INDEX_NAME);
+
+    // Build filter to exclude projects owned by the specified user
+    const filter: any = {
+      isPublic: { $eq: true },
+      type: { $eq: 'user-project' }
+    };
+    
+    // If excludeUserId is provided, exclude projects owned by that user
+    if (excludeUserId) {
+      filter.userId = { $ne: excludeUserId };
+    }
+
+    const queryResponse = await index.namespace(PINECONE_NAMESPACE_PROJECTS).query({
+      vector: new Array(1024).fill(0), // Placeholder query vector (match Pinecone index dimension)
+      filter,
+      topK: 100,
+      includeMetadata: true
+    });
+
+    return queryResponse.matches?.map((match: any) => {
+      const metadata = match.metadata;
+      if (!metadata) return null;
+
+      return {
+        id: metadata.projectId as string,
+        name: metadata.name as string,
+        description: metadata.description as string,
+        lastModified: new Date(metadata.lastModified as string),
+        progress: 0, // TODO: Calculate from project data
+        isPublic: metadata.isPublic as boolean || false
       };
     }).filter(Boolean) as ProjectListItem[] || [];
   }
@@ -177,8 +218,9 @@ export class ProjectService {
       return null;
     }
 
-    // Verify user ownership
-    if (record.metadata.userId !== userId) {
+    // Check if project is public or user owns it
+    const isPublic = record.metadata.isPublic as boolean || false;
+    if (!isPublic && record.metadata.userId !== userId) {
       return null;
     }
 
@@ -192,8 +234,29 @@ export class ProjectService {
   }
 
   async updateProject(userId: string, projectId: string, updates: Partial<UserProject>): Promise<boolean> {
-    const existingProject = await this.getProject(userId, projectId);
-    if (!existingProject) {
+    // For updates, we need to explicitly check ownership regardless of public status
+    const updatePinecone = getPineconeClient();
+    const updateIndex = updatePinecone.index(PINECONE_INDEX_NAME);
+    const updateVectorId = createVectorId('user-project', projectId);
+
+    const fetchResponse = await updateIndex.namespace(PINECONE_NAMESPACE_PROJECTS).fetch([updateVectorId]);
+    const record = fetchResponse.records?.[updateVectorId];
+
+    if (!record?.metadata) {
+      return false;
+    }
+
+    // Only the owner can update the project, regardless of public status
+    if (record.metadata.userId !== userId) {
+      return false;
+    }
+
+    // Get the existing project data
+    let existingProject: UserProject;
+    try {
+      existingProject = JSON.parse(record.metadata.projectData as string) as UserProject;
+    } catch (error) {
+      console.error('Failed to parse project data:', error);
       return false;
     }
 
@@ -259,13 +322,9 @@ export class ProjectService {
       console.log('✅ Using fallback embedding for project update');
     }
 
-    const pinecone = getPineconeClient();
-    const index = pinecone.index(PINECONE_INDEX_NAME);
-    const vectorId = createVectorId('user-project', projectId);
-
-    await index.namespace(PINECONE_NAMESPACE_PROJECTS).upsert([
+    await updateIndex.namespace(PINECONE_NAMESPACE_PROJECTS).upsert([
       {
-        id: vectorId,
+        id: updateVectorId,
         values: embedding,
         metadata: {
           userId,
@@ -275,6 +334,7 @@ export class ProjectService {
           template: updatedProject.template,
           createdAt: updatedProject.createdAt,
           lastModified: updatedProject.lastModified,
+          isPublic: updatedProject.isPublic || false,
           type: 'user-project',
           projectData: JSON.stringify(updatedProject)
         }
@@ -285,16 +345,24 @@ export class ProjectService {
   }
 
   async deleteProject(userId: string, projectId: string): Promise<boolean> {
-    const existingProject = await this.getProject(userId, projectId);
-    if (!existingProject) {
+    // For deletion, we need to explicitly check ownership regardless of public status
+    const deletePinecone = getPineconeClient();
+    const deleteIndex = deletePinecone.index(PINECONE_INDEX_NAME);
+    const deleteVectorId = createVectorId('user-project', projectId);
+
+    const fetchResponse = await deleteIndex.namespace(PINECONE_NAMESPACE_PROJECTS).fetch([deleteVectorId]);
+    const record = fetchResponse.records?.[deleteVectorId];
+
+    if (!record?.metadata) {
       return false;
     }
 
-    const pinecone = getPineconeClient();
-    const index = pinecone.index(PINECONE_INDEX_NAME);
-    const vectorId = createVectorId('user-project', projectId);
+    // Only the owner can delete the project, regardless of public status
+    if (record.metadata.userId !== userId) {
+      return false;
+    }
 
-    await index.namespace(PINECONE_NAMESPACE_PROJECTS).deleteOne(vectorId);
+    await deleteIndex.namespace(PINECONE_NAMESPACE_PROJECTS).deleteOne(deleteVectorId);
     return true;
   }
 }

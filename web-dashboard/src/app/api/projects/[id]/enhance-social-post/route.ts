@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server';
 import { PineconeSyncServiceInstance } from '@/lib/pineconeSyncService';
 import { getGoogleAIConfig, validateSecureConfig } from '@/lib/secureConfig';
 import { TokenTrackingService } from '@/lib/tokenTrackingService';
+import { ProjectService } from '@/lib/projectService';
 import { promises as fs } from 'fs';
 import path from 'path';
 
@@ -65,6 +66,26 @@ export async function POST(
     }
 
     const { id: projectId } = await params;
+    
+    // Check project ownership before allowing social post enhancement
+    const projectService = ProjectService.getInstance();
+    const project = await projectService.getProject(userId, projectId);
+    
+    if (!project) {
+      return NextResponse.json(
+        { success: false, error: 'Project not found' },
+        { status: 404 }
+      );
+    }
+    
+    // Only project owners can enhance social posts
+    if (project.userId !== userId) {
+      return NextResponse.json(
+        { success: false, error: 'Only project owners can enhance social posts' },
+        { status: 403 }
+      );
+    }
+    
     const body: EnhanceSocialPostRequest = await request.json();
     console.log('🔍 DEBUG - Request body:', JSON.stringify(body, null, 2));
     

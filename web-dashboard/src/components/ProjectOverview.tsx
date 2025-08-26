@@ -8,6 +8,7 @@ import { SearchAndFilter } from './SearchAndFilter';
 
 export function ProjectOverview() {
   const [projects, setProjects] = useState<ProjectListItem[]>([]);
+  const [publicProjects, setPublicProjects] = useState<ProjectListItem[]>([]);
   const [filteredProjects, setFilteredProjects] = useState<ProjectListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateWizard, setShowCreateWizard] = useState(false);
@@ -15,7 +16,7 @@ export function ProjectOverview() {
   const [showProjectChoice, setShowProjectChoice] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'lastModified' | 'progress'>('lastModified');
-  const [filterBy, setFilterBy] = useState<'all' | 'active' | 'completed'>('all');
+  const [filterBy, setFilterBy] = useState<'all' | 'active' | 'completed' | 'public'>('all');
 
   useEffect(() => {
     loadProjects();
@@ -23,15 +24,24 @@ export function ProjectOverview() {
 
   useEffect(() => {
     filterAndSortProjects();
-  }, [projects, searchQuery, sortBy, filterBy]);
+  }, [projects, publicProjects, searchQuery, sortBy, filterBy]);
 
   const loadProjects = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/projects');
-      if (response.ok) {
-        const projectsData = await response.json();
-        setProjects(projectsData);
+      
+      // Load user's projects
+      const userResponse = await fetch('/api/projects');
+      if (userResponse.ok) {
+        const userProjectsData = await userResponse.json();
+        setProjects(userProjectsData);
+      }
+      
+      // Load public projects
+      const publicResponse = await fetch('/api/projects/public');
+      if (publicResponse.ok) {
+        const publicProjectsData = await publicResponse.json();
+        setPublicProjects(publicProjectsData);
       }
     } catch (error) {
       console.error('Failed to load projects:', error);
@@ -41,13 +51,21 @@ export function ProjectOverview() {
   };
 
   const filterAndSortProjects = () => {
-    let filtered = projects.filter(project => {
+    // Combine user projects and public projects, marking public projects
+    // The backend now handles deduplication, so we can safely combine the lists
+    const allProjects = [
+      ...projects.map(project => ({ ...project, isOwned: true })),
+      ...publicProjects.map(project => ({ ...project, isOwned: false }))
+    ];
+    
+    let filtered = allProjects.filter(project => {
       const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            project.description.toLowerCase().includes(searchQuery.toLowerCase());
       
       const matchesFilter = filterBy === 'all' || 
                            (filterBy === 'completed' && project.progress === 100) ||
-                           (filterBy === 'active' && project.progress < 100);
+                           (filterBy === 'active' && project.progress < 100) ||
+                           (filterBy === 'public' && project.isPublic);
       
       return matchesSearch && matchesFilter;
     });
@@ -278,7 +296,7 @@ export function ProjectOverview() {
             </div>
             <button
               onClick={() => setShowProjectChoice(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 md:px-6 py-2 md:py-3 rounded-none font-medium transition-colors duration-200 flex items-center gap-2 text-sm md:text-base self-start sm:self-auto"
+              className="bg-gray-900 hover:bg-gray-800 text-white px-4 md:px-6 py-2 md:py-3 rounded-none font-medium transition-colors duration-200 flex items-center gap-2 text-sm md:text-base self-start sm:self-auto"
             >
               <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -311,7 +329,7 @@ export function ProjectOverview() {
                 <p className="mt-2 text-gray-500">Get started by creating your first project.</p>
                 <button
                   onClick={() => setShowCreateWizard(true)}
-                  className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-none font-medium transition-colors duration-200"
+                  className="mt-4 bg-gray-900 hover:bg-gray-800 text-white px-4 py-2 rounded-none font-medium transition-colors duration-200"
                 >
                   Create Project
                 </button>
@@ -354,8 +372,8 @@ export function ProjectOverview() {
                   onClick={handleCreateNew}
                   className="w-full flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                 >
-                  <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
-                    <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <div className="flex-shrink-0 w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center mr-4">
+              <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                   </div>
@@ -428,7 +446,7 @@ export function ProjectOverview() {
                 <button
                   type="button"
                   onClick={handleBrowseFolder}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 flex items-center space-x-2"
+                  className="px-4 py-2 bg-gray-900 text-white rounded-md hover:bg-gray-800 flex items-center space-x-2"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-5l-2-2H5a2 2 0 00-2 2z" />

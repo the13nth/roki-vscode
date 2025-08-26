@@ -317,7 +317,7 @@ function CompletionDistribution({ activities }: CompletionDistributionProps) {
         
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <div className="w-4 h-4 bg-purple-500 rounded mr-3"></div>
+            <div className="w-4 h-4 bg-gray-500 rounded mr-3"></div>
             <span className="text-sm text-gray-700">Auto-detected</span>
           </div>
           <div className="text-right">
@@ -334,7 +334,7 @@ function CompletionDistribution({ activities }: CompletionDistributionProps) {
               style={{ width: `${distribution.manual.percentage}%` }}
             />
             <div 
-              className="bg-purple-500 h-full"
+              className="bg-gray-500 h-full"
               style={{ width: `${distribution.autoDetected.percentage}%` }}
             />
           </div>

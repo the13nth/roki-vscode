@@ -3,6 +3,9 @@ import { auth } from '@clerk/nextjs/server';
 import { ContextDocument } from '@/types';
 import { PineconeSyncServiceInstance } from '@/lib/pineconeSyncService';
 import { ProjectService } from '@/lib/projectService';
+import { getPineconeClient } from '@/lib/pinecone';
+import { PINECONE_NAMESPACE_PROJECTS } from '@/lib/pinecone';
+import { createVectorId } from '@/lib/projectService';
 
 // GET /api/projects/[id]/context/[docId] - Get specific context document from Pinecone
 export async function GET(
@@ -80,14 +83,41 @@ export async function PUT(
 
     console.log(`🔄 Updating context document in Pinecone - Project: ${id}, Document: ${docId}`);
 
-    // Verify project exists
+    // Verify project exists and user owns it
     const projectService = ProjectService.getInstance();
-    const project = await projectService.getProject(userId, id);
+    
+    // For context document updates, we need to explicitly check ownership regardless of public status
+    const pinecone = getPineconeClient();
+    const index = pinecone.index(process.env.NEXT_PUBLIC_PINECONE_INDEX_NAME || 'roki');
+    const vectorId = createVectorId('user-project', id);
 
-    if (!project) {
+    const fetchResponse = await index.namespace(PINECONE_NAMESPACE_PROJECTS).fetch([vectorId]);
+    const record = fetchResponse.records?.[vectorId];
+
+    if (!record?.metadata) {
       return NextResponse.json(
         { error: 'Project not found' },
         { status: 404 }
+      );
+    }
+
+    // Only the owner can update context documents, regardless of public status
+    if (record.metadata.userId !== userId) {
+      return NextResponse.json(
+        { error: 'Access denied. Only the project owner can update context documents.' },
+        { status: 403 }
+      );
+    }
+
+    // Get the project data
+    let project: any;
+    try {
+      project = JSON.parse(record.metadata.projectData as string);
+    } catch (error) {
+      console.error('Failed to parse project data:', error);
+      return NextResponse.json(
+        { error: 'Project data corrupted' },
+        { status: 500 }
       );
     }
 
@@ -152,14 +182,41 @@ export async function DELETE(
 
     console.log(`🗑️ Deleting context document from Pinecone - Project: ${id}, Document: ${docId}`);
 
-    // Verify project exists
+    // Verify project exists and user owns it
     const projectService = ProjectService.getInstance();
-    const project = await projectService.getProject(userId, id);
+    
+    // For context document deletion, we need to explicitly check ownership regardless of public status
+    const pinecone = getPineconeClient();
+    const index = pinecone.index(process.env.NEXT_PUBLIC_PINECONE_INDEX_NAME || 'roki');
+    const vectorId = createVectorId('user-project', id);
 
-    if (!project) {
+    const fetchResponse = await index.namespace(PINECONE_NAMESPACE_PROJECTS).fetch([vectorId]);
+    const record = fetchResponse.records?.[vectorId];
+
+    if (!record?.metadata) {
       return NextResponse.json(
         { error: 'Project not found' },
         { status: 404 }
+      );
+    }
+
+    // Only the owner can delete context documents, regardless of public status
+    if (record.metadata.userId !== userId) {
+      return NextResponse.json(
+        { error: 'Access denied. Only the project owner can delete context documents.' },
+        { status: 403 }
+      );
+    }
+
+    // Get the project data
+    let project: any;
+    try {
+      project = JSON.parse(record.metadata.projectData as string);
+    } catch (error) {
+      console.error('Failed to parse project data:', error);
+      return NextResponse.json(
+        { error: 'Project data corrupted' },
+        { status: 500 }
       );
     }
 

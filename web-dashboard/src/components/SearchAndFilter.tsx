@@ -5,8 +5,8 @@ interface SearchAndFilterProps {
   onSearchChange: (query: string) => void;
   sortBy: 'name' | 'lastModified' | 'progress';
   onSortChange: (sort: 'name' | 'lastModified' | 'progress') => void;
-  filterBy: 'all' | 'active' | 'completed';
-  onFilterChange: (filter: 'all' | 'active' | 'completed') => void;
+  filterBy: 'all' | 'active' | 'completed' | 'public';
+  onFilterChange: (filter: 'all' | 'active' | 'completed' | 'public') => void;
 }
 
 export function SearchAndFilter({
@@ -55,12 +55,13 @@ export function SearchAndFilter({
         <div className="sm:w-40">
           <select
             value={filterBy}
-            onChange={(e) => onFilterChange(e.target.value as 'all' | 'active' | 'completed')}
+            onChange={(e) => onFilterChange(e.target.value as 'all' | 'active' | 'completed' | 'public')}
             className="block w-full px-3 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
           >
             <option value="all">All Projects</option>
             <option value="active">Active</option>
             <option value="completed">Completed</option>
+            <option value="public">Public</option>
           </select>
         </div>
       </div>

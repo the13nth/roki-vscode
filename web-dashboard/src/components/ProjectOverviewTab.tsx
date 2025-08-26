@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import React from 'react';
 import { ProjectDashboard } from '@/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,11 +17,13 @@ import {
   Clock,
   File,
   Sparkles,
-  Loader2
+  Loader2,
+  Globe,
+  Lock
 } from 'lucide-react';
 
 interface ProjectOverviewTabProps {
-  project: ProjectDashboard;
+  project: ProjectDashboard & { isOwned?: boolean; isPublic?: boolean };
   onUpdate: (updatedProject: Partial<ProjectDashboard>) => void;
 }
 
@@ -28,6 +31,27 @@ export function ProjectOverviewTab({ project, onUpdate }: ProjectOverviewTabProp
   const [isGeneratingSpecs, setIsGeneratingSpecs] = useState(false);
   const [specsError, setSpecsError] = useState<string | null>(null);
   const [specsSuccess, setSpecsSuccess] = useState<string | null>(null);
+  const [isPublic, setIsPublic] = useState(false);
+  const [isTogglingVisibility, setIsTogglingVisibility] = useState(false);
+
+  // Load project visibility status on component mount
+  useEffect(() => {
+    const loadProjectVisibility = async () => {
+      try {
+        const response = await fetch(`/api/projects/${project.projectId}`);
+        if (response.ok) {
+          const projectData = await response.json();
+          // Check if the project data includes isPublic field
+          // For now, we'll assume it's false if not present
+          setIsPublic(projectData.isPublic || false);
+        }
+      } catch (error) {
+        console.error('Failed to load project visibility:', error);
+      }
+    };
+
+    loadProjectVisibility();
+  }, [project.projectId]);
 
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat('en-US', {
@@ -41,7 +65,7 @@ export function ProjectOverviewTab({ project, onUpdate }: ProjectOverviewTabProp
 
   const getProgressColor = (percentage: number) => {
     if (percentage === 100) return 'text-green-600 bg-green-100';
-    if (percentage >= 75) return 'text-blue-600 bg-blue-100';
+    if (percentage >= 75) return 'text-gray-600 bg-gray-100';
     if (percentage >= 50) return 'text-yellow-600 bg-yellow-100';
     if (percentage >= 25) return 'text-orange-600 bg-orange-100';
     return 'text-red-600 bg-red-100';
@@ -84,6 +108,41 @@ export function ProjectOverviewTab({ project, onUpdate }: ProjectOverviewTabProp
     }
   };
 
+  const handleToggleVisibility = async () => {
+    try {
+      setIsTogglingVisibility(true);
+      const newVisibility = !isPublic;
+      
+      const response = await fetch(`/api/projects/${project.projectId}/visibility`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          isPublic: newVisibility
+        }),
+      });
+
+      if (response.ok) {
+        setIsPublic(newVisibility);
+        // Show success message
+        console.log(`Project is now ${newVisibility ? 'public' : 'private'}`);
+      } else {
+        console.error('Failed to update project visibility');
+      }
+    } catch (error) {
+      console.error('Failed to update project visibility:', error);
+    } finally {
+      setIsTogglingVisibility(false);
+    }
+  };
+
+  // Helper function to check if specs are empty
+  const areSpecsEmpty = () => {
+    const { requirements, design, tasks } = project.documents;
+    return !requirements?.trim() && !design?.trim() && !tasks?.trim();
+  };
+
   const quickActions = [
     {
       name: 'Edit Requirements',
@@ -120,47 +179,49 @@ export function ProjectOverviewTab({ project, onUpdate }: ProjectOverviewTabProp
         </p>
       </div>
 
-      {/* Specs Generation Section */}
-      <Card className="mb-8 rounded-none border-blue-200 bg-blue-50">
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Sparkles className="w-5 h-5 mr-2 text-blue-600" />
-            AI-Powered Specifications
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-700 mb-2">
-                Generate comprehensive project specifications using AI. This will create requirements, design, and tasks documents.
-              </p>
-              {specsError && (
-                <p className="text-sm text-red-600 mb-2">{specsError}</p>
-              )}
-              {specsSuccess && (
-                <p className="text-sm text-green-600 mb-2">{specsSuccess}</p>
-              )}
+      {/* Specs Generation Section - Only show for project owners when specs are empty */}
+      {project.isOwned && areSpecsEmpty() && (
+        <Card className="mb-8 rounded-none border-gray-200 bg-gray-50">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Sparkles className="w-5 h-5 mr-2 text-gray-600" />
+              AI-Powered Specifications
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-700 mb-2">
+                  Generate comprehensive project specifications using AI. This will create requirements, design, and tasks documents.
+                </p>
+                {specsError && (
+                  <p className="text-sm text-red-600 mb-2">{specsError}</p>
+                )}
+                {specsSuccess && (
+                  <p className="text-sm text-green-600 mb-2">{specsSuccess}</p>
+                )}
+              </div>
+              <Button
+                onClick={handleGenerateSpecs}
+                disabled={isGeneratingSpecs}
+                className="bg-gray-900 hover:bg-gray-800 text-white"
+              >
+                {isGeneratingSpecs ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Generate Specs
+                  </>
+                )}
+              </Button>
             </div>
-            <Button
-              onClick={handleGenerateSpecs}
-              disabled={isGeneratingSpecs}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {isGeneratingSpecs ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Generate Specs
-                </>
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Project Info */}
       <Card className="mb-8 rounded-none">
@@ -171,7 +232,7 @@ export function ProjectOverviewTab({ project, onUpdate }: ProjectOverviewTabProp
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div>
               <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Name</dt>
-              <dd className="text-sm font-medium">{project.projectId}</dd>
+              <dd className="text-sm font-medium">{project.name}</dd>
             </div>
             
             <div>
@@ -205,33 +266,99 @@ export function ProjectOverviewTab({ project, onUpdate }: ProjectOverviewTabProp
               <dd className="text-sm font-medium">{formatDate(project.progress.lastUpdated)}</dd>
             </div>
           </div>
+          
+          {/* Visibility Toggle - Only show for project owners */}
+          {project.isOwned && (
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Visibility</dt>
+              <dd className="mt-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleToggleVisibility}
+                  disabled={isTogglingVisibility}
+                  className="flex items-center gap-2"
+                >
+                  {isTogglingVisibility ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                  ) : isPublic ? (
+                    <Globe className="h-4 w-4" />
+                  ) : (
+                    <Lock className="h-4 w-4" />
+                  )}
+                  {isPublic ? 'Public' : 'Private'}
+                </Button>
+                <p className="mt-1 text-xs text-gray-500">
+                  {isPublic 
+                    ? 'This project is visible to everyone on the platform.'
+                    : 'This project is only visible to you.'
+                  }
+                </p>
+              </dd>
+            </div>
+          )}
+          
+          {/* Read-only notice for non-owners */}
+          {!project.isOwned && project.isPublic && (
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Lock className="h-4 w-4" />
+                <span>This is a public project. You can view it but cannot make changes.</span>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Quick Actions */}
-      <div className="mb-8">
-        <h2 className="text-xl font-semibold mb-6">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {quickActions.map((action) => (
-            <Card key={action.name} className="hover:shadow-md transition-shadow rounded-none">
-              <CardContent className="p-6">
-                <div className="flex items-center space-x-3 mb-3">
-                  <div className="text-blue-600">
-                    {action.icon}
+      {/* Quick Actions - Only show for project owners */}
+      {project.isOwned && (
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold mb-6">Quick Actions</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {quickActions.map((action) => (
+              <Card key={action.name} className="hover:shadow-md transition-shadow rounded-none">
+                <CardContent className="p-6">
+                  <div className="flex items-center space-x-3 mb-3">
+                    <div className="text-gray-600">
+                      {action.icon}
+                    </div>
+                    <h3 className="font-medium">{action.name}</h3>
                   </div>
-                  <h3 className="font-medium">{action.name}</h3>
-                </div>
-                <p className="text-sm text-muted-foreground mb-4">{action.description}</p>
-                <Button variant="outline" size="sm" asChild className="w-full">
-                  <Link href={action.href}>
-                    Open <ArrowRight className="w-4 h-4 ml-1" />
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+                  <p className="text-sm text-muted-foreground mb-4">{action.description}</p>
+                  <Button variant="outline" size="sm" asChild className="w-full">
+                    <Link href={action.href}>
+                      Open <ArrowRight className="w-4 h-4 ml-1" />
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+      
+      {/* Read-only notice for non-owners */}
+      {!project.isOwned && project.isPublic && (
+        <div className="mb-8">
+          <Card className="rounded-none border-blue-200 bg-blue-50">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3">
+                <div className="flex-shrink-0">
+                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-blue-900">Read-Only View</h3>
+                  <p className="text-sm text-blue-700 mt-1">
+                    This is a public project shared by another user. You can view the project details and documents, but cannot make any changes.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Recent Activity */}
       <div className="mb-8">
@@ -287,7 +414,7 @@ export function ProjectOverviewTab({ project, onUpdate }: ProjectOverviewTabProp
               </div>
               <Link
                 href={`/project/${project.projectId}/requirements`}
-                className="text-xs text-blue-600 hover:text-blue-700"
+                className="text-xs text-gray-600 hover:text-gray-700"
               >
                 Edit
               </Link>
@@ -302,7 +429,7 @@ export function ProjectOverviewTab({ project, onUpdate }: ProjectOverviewTabProp
               </div>
               <Link
                 href={`/project/${project.projectId}/design`}
-                className="text-xs text-blue-600 hover:text-blue-700"
+                className="text-xs text-gray-600 hover:text-gray-700"
               >
                 Edit
               </Link>
@@ -317,7 +444,7 @@ export function ProjectOverviewTab({ project, onUpdate }: ProjectOverviewTabProp
               </div>
               <Link
                 href={`/project/${project.projectId}/tasks`}
-                className="text-xs text-blue-600 hover:text-blue-700"
+                className="text-xs text-gray-600 hover:text-gray-700"
               >
                 Edit
               </Link>
@@ -332,7 +459,7 @@ export function ProjectOverviewTab({ project, onUpdate }: ProjectOverviewTabProp
               </div>
               <Link
                 href={`/project/${project.projectId}/context`}
-                className="text-xs text-blue-600 hover:text-blue-700"
+                className="text-xs text-gray-600 hover:text-gray-700"
               >
                 Manage
               </Link>

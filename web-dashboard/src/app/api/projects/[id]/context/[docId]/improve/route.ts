@@ -318,6 +318,25 @@ export async function POST(
 
     const { id: projectId, docId } = await params;
 
+    // Check project ownership before allowing document improvement
+    const projectService = ProjectService.getInstance();
+    const project = await projectService.getProject(userId, projectId);
+
+    if (!project) {
+      return NextResponse.json(
+        { error: 'Project not found' },
+        { status: 404 }
+      );
+    }
+
+    // Only project owners can improve documents
+    if (project.userId !== userId) {
+      return NextResponse.json(
+        { error: 'Only project owners can improve documents' },
+        { status: 403 }
+      );
+    }
+
     // Parse request body to get current document content
     const body = await request.json();
     const { title, content, category, tags } = body;
@@ -330,10 +349,6 @@ export async function POST(
     }
 
     console.log('🔄 Improving document using Pinecone-based project context');
-
-    // Get project from Pinecone-based database
-    const projectService = ProjectService.getInstance();
-    const project = await projectService.getProject(userId, projectId);
 
     if (!project) {
       return NextResponse.json(
