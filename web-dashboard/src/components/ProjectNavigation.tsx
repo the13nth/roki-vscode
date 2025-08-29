@@ -72,13 +72,13 @@ export function ProjectNavigation({ projectId, activeTab, progress, onNavigate, 
       description: 'Context documents and references',
       icon: <FolderOpen className="w-5 h-5" />
     },
-    {
-      id: 'api',
-      name: 'API',
-      href: `/project/${projectId}/api`,
-      description: 'AI provider configuration and API settings',
-      icon: <Settings className="w-5 h-5" />
-    },
+    // {
+    //   id: 'api',
+    //   name: 'API',
+    //   href: `/project/${projectId}/api`,
+    //   description: 'AI provider configuration and API settings',
+    //   icon: <Settings className="w-5 h-5" />
+    // },
     {
       id: 'analysis',
       name: 'Analysis',
