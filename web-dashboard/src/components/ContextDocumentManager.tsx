@@ -906,7 +906,7 @@ ${analysisContent}`;
                       )}
                       {!isMobile && (
                         <p className="text-xs text-gray-600 mt-1.5 line-clamp-1">
-                          {doc.content.substring(0, 80)}...
+                          {doc.content ? doc.content.substring(0, 80) : 'No content available'}...
                         </p>
                       )}
                     </div>
@@ -1369,8 +1369,8 @@ ${analysisContent}`;
                     
                     <div className={`overflow-y-auto ${isMobile ? 'max-h-24 text-xs' : 'max-h-32 text-sm'}`}>
                       <pre className="whitespace-pre-wrap font-sans">
-                        {previewData.content.substring(0, isMobile ? 300 : 500)}
-                        {previewData.content.length > (isMobile ? 300 : 500) && '...'}
+                        {previewData.content ? previewData.content.substring(0, isMobile ? 300 : 500) : 'No content available'}
+                        {previewData.content && previewData.content.length > (isMobile ? 300 : 500) && '...'}
                       </pre>
                     </div>
                   </div>

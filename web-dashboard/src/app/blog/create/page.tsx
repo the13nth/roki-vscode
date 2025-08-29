@@ -395,7 +395,7 @@ export default function CreateBlogPostPage() {
                     {Object.keys(analysisData).length > 0 ? (
                       Object.entries(analysisData).map(([type, analysis]) => (
                         <div key={type} className="text-sm">
-                          <span className="font-medium capitalize">{type}:</span> {analysis.summary.substring(0, 100)}...
+                          <span className="font-medium capitalize">{type}:</span> {analysis && analysis.summary ? analysis.summary.substring(0, 100) : 'No summary available'}...
                         </div>
                       ))
                     ) : (
