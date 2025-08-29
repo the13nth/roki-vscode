@@ -39,7 +39,6 @@ export async function GET(
       createdAt: match.metadata?.createdAt || '',
       updatedAt: match.metadata?.updatedAt || '',
       readTime: match.metadata?.readTime || 0,
-      likes: parseInt(String(match.metadata?.likes || '0')),
       views: parseInt(String(match.metadata?.views || '0'))
     };
 
@@ -165,7 +164,6 @@ export async function PUT(
       createdAt: existingPost.metadata?.createdAt || '',
       updatedAt: now,
       readTime,
-      likes: parseInt(String(existingPost.metadata?.likes || '0')),
       views: parseInt(String(existingPost.metadata?.views || '0'))
     };
 

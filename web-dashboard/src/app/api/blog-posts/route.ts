@@ -34,7 +34,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       createdAt: match.metadata?.createdAt || '',
       updatedAt: match.metadata?.updatedAt || '',
       readTime: match.metadata?.readTime || 0,
-      likes: parseInt(String(match.metadata?.likes || '0')),
       views: parseInt(String(match.metadata?.views || '0'))
     })) || [];
     
@@ -158,7 +157,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           createdAt: now,
           updatedAt: now,
           readTime,
-          likes: 0,
           views: 0,
           documentType: 'blog-post'
         },
@@ -181,7 +179,6 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       createdAt: now,
       updatedAt: now,
       readTime,
-      likes: 0,
       views: 0
     };
 

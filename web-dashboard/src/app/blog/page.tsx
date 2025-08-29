@@ -37,7 +37,6 @@ interface BlogPost {
   createdAt: string;
   updatedAt: string;
   readTime: number;
-  likes: number;
   views: number;
 }
 
@@ -292,10 +291,6 @@ export default function BlogPage() {
                     <div className="flex items-center gap-1">
                       <Eye className="h-3 w-3" />
                       {post.views} views
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span>❤️</span>
-                      {post.likes} likes
                     </div>
                   </div>
                 </div>

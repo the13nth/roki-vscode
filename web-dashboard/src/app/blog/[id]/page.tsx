@@ -15,7 +15,6 @@ import {
   Calendar, 
   Edit, 
   Trash2,
-  Heart,
   Share2
 } from 'lucide-react';
 
@@ -35,7 +34,6 @@ interface BlogPost {
   createdAt: string;
   updatedAt: string;
   readTime: number;
-  likes: number;
   views: number;
 }
 
@@ -99,25 +97,35 @@ export default function BlogPostPage() {
     }
   };
 
-  const handleLike = async () => {
-    if (!post) return;
-    
-    // TODO: Implement like functionality
-    console.log('Like functionality to be implemented');
-  };
+
 
   const handleShare = async () => {
     if (!post) return;
     
+    const shareData = {
+      title: post.title,
+      text: post.excerpt,
+      url: window.location.href,
+    };
+    
     try {
-      await navigator.share({
-        title: post.title,
-        text: post.excerpt,
-        url: window.location.href,
-      });
+      // Try native sharing first (mobile devices)
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        // Fallback: copy to clipboard
+        await navigator.clipboard.writeText(window.location.href);
+        alert('Link copied to clipboard!');
+      }
     } catch (error) {
-      // Fallback: copy to clipboard
-      navigator.clipboard.writeText(window.location.href);
+      // If native sharing fails or is cancelled, try clipboard
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        alert('Link copied to clipboard!');
+      } catch (clipboardError) {
+        console.error('Failed to copy to clipboard:', clipboardError);
+        alert('Failed to share. Please copy the URL manually.');
+      }
     }
   };
 
@@ -280,15 +288,6 @@ export default function BlogPostPage() {
             <div className="border-t mt-8 pt-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleLike}
-                    className="flex items-center gap-2"
-                  >
-                    <Heart className="h-4 w-4" />
-                    {post.likes} likes
-                  </Button>
                   <Button 
                     variant="outline" 
                     size="sm" 
