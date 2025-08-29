@@ -193,12 +193,12 @@ export default function BlogPage() {
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredPosts.map((post) => (
-            <Card key={post.id} className="hover:shadow-lg transition-shadow">
+            <Card key={post.id} className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <CardTitle className="line-clamp-2 mb-2">
-                      <Link href={`/blog/${post.id}`} className="hover:text-primary">
+                      <Link href={`/blog/${post.id}`} className="hover:text-primary transition-colors">
                         {post.title}
                       </Link>
                     </CardTitle>
@@ -292,6 +292,16 @@ export default function BlogPage() {
                       <Eye className="h-3 w-3" />
                       {post.views} views
                     </div>
+                  </div>
+
+                  {/* Read Button */}
+                  <div className="pt-2">
+                    <Link href={`/blog/${post.id}`}>
+                      <Button className="w-full" size="sm" variant="default">
+                        <BookOpen className="h-4 w-4 mr-2" />
+                        Read Post
+                      </Button>
+                    </Link>
                   </div>
                 </div>
               </CardContent>
