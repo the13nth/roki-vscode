@@ -16,7 +16,9 @@ import {
   Menu,
   X,
   LogIn,
-  UserPlus
+  UserPlus,
+  BookOpen,
+  FileText
 } from 'lucide-react';
 import { GlobalApiSettings } from './GlobalApiSettings';
 import { SignedIn, SignedOut, UserButton, SignInButton, SignUpButton, useUser, useOrganization } from '@clerk/nextjs';
@@ -123,10 +125,12 @@ export function UnifiedNavigation({
   const renderMainNavigation = () => {
     const baseNavItems = [
       { href: "/", label: "Home", icon: null as any },
+      { href: "/blog", label: "Blog", icon: BookOpen },
     ];
 
     const authenticatedNavItems = [
       { href: "/projects", label: "Projects", icon: FolderOpen },
+      { href: "/applications", label: "Applications", icon: FileText },
       { href: "/profile", label: "Profile", icon: User },
     ];
 
@@ -264,11 +268,24 @@ export function UnifiedNavigation({
                 </Button>
               </Link>
               
+              <Link href="/blog" onClick={() => setIsMobileMenuOpen(false)}>
+                <Button variant="ghost" size="sm" className="w-full justify-start">
+                  <BookOpen className="mr-2 h-4 w-4" />
+                  Blog
+                </Button>
+              </Link>
+              
               <SignedIn>
                 <Link href="/projects" onClick={() => setIsMobileMenuOpen(false)}>
                   <Button variant="ghost" size="sm" className="w-full justify-start">
                     <FolderOpen className="mr-2 h-4 w-4" />
                     Projects
+                  </Button>
+                </Link>
+                <Link href="/applications" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button variant="ghost" size="sm" className="w-full justify-start">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Applications
                   </Button>
                 </Link>
                 <Link href="/profile" onClick={() => setIsMobileMenuOpen(false)}>

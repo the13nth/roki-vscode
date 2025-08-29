@@ -325,14 +325,97 @@ export function ContextDocumentManager({ projectId, isOwned = true }: ContextDoc
   };
 
   const handleUrlPreview = async (url: string, previewOnly = false) => {
-    if (!url || (!formData.category.includes('news-article') && !formData.category.includes('social-media-post'))) {
+    if (!url) {
       return;
     }
 
     try {
       setUrlLoading(true);
       
-      const response = await fetch(`/api/url-preview`, {
+      // Try the new URL context feature first (Google Gemini)
+      let response = await fetch(`/api/url-context`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          url,
+          analysisType: 'summary',
+          includeMetadata: true 
+        }),
+      });
+
+      let data;
+      let useUrlContext = false;
+
+      if (response.ok) {
+        // URL context feature worked
+        data = await response.json();
+        useUrlContext = true;
+        console.log('✅ Used Google Gemini URL context feature');
+      } else {
+        // Fallback to traditional URL preview
+        console.log('⚠️ URL context feature failed, falling back to traditional preview');
+        
+        // Only restrict to news/social categories for traditional preview
+        if (!formData.category.includes('news-article') && !formData.category.includes('social-media-post')) {
+          // For other categories, just show an error message instead of throwing
+          setError('URL preview is only available for news articles and social media posts with traditional preview. Try using AI analysis instead.');
+          return;
+        }
+
+        response = await fetch(`/api/url-preview`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            url,
+            includeMetadata: true 
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch URL content');
+        }
+
+        data = await response.json();
+        useUrlContext = false;
+      }
+      
+      if (previewOnly) {
+        setPreviewData({
+          ...data,
+          useUrlContext,
+          source: useUrlContext ? 'Google Gemini URL Context' : 'Traditional Web Scraping'
+        });
+      } else {
+        // Auto-fill title and content from the URL preview
+        setFormData(prev => ({
+          ...prev,
+          title: prev.title || data.title || '',
+          content: useUrlContext ? data.content : (data.content || data.description || '')
+        }));
+        setPreviewData(null);
+      }
+      
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load URL preview');
+    } finally {
+      setUrlLoading(false);
+    }
+  };
+
+  const handleLoadArticleWithAnalysis = async (url: string) => {
+    if (!url) {
+      return;
+    }
+
+    try {
+      setUrlLoading(true);
+      
+      // First, get the article content
+      const articleResponse = await fetch(`/api/url-preview`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -343,26 +426,60 @@ export function ContextDocumentManager({ projectId, isOwned = true }: ContextDoc
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch URL content');
+      if (!articleResponse.ok) {
+        throw new Error('Failed to fetch article content');
       }
 
-      const data = await response.json();
+      const articleData = await articleResponse.json();
       
-      if (previewOnly) {
-        setPreviewData(data);
+      // Now get AI analysis
+      const analysisResponse = await fetch(`/api/url-context`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          url,
+          analysisType: 'summary',
+          includeMetadata: true 
+        }),
+      });
+
+      let analysisContent = '';
+      let analysisSource = 'Traditional Web Scraping';
+      
+      if (analysisResponse.ok) {
+        const analysisData = await analysisResponse.json();
+        analysisContent = analysisData.content;
+        analysisSource = 'Google Gemini AI Analysis';
       } else {
-      // Auto-fill title and content from the URL preview
+        console.warn('AI analysis failed, using fallback');
+        analysisContent = 'AI analysis was not available for this URL.';
+      }
+
+      // Combine article content with analysis
+      const combinedContent = `${articleData.content || articleData.description || ''}
+
+---
+
+## 🤖 AI Analysis
+
+**Source:** ${analysisSource}
+
+${analysisContent}`;
+
+      // Update form with combined content
       setFormData(prev => ({
         ...prev,
-        title: prev.title || data.title || '',
-        content: data.content || data.description || ''
+        title: prev.title || articleData.title || '',
+        content: combinedContent
       }));
-        setPreviewData(null);
-      }
+
+      // Generate tags for the content
+      handleGenerateTags(combinedContent, articleData.title);
       
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load URL preview');
+      setError(err instanceof Error ? err.message : 'Failed to load article with analysis');
     } finally {
       setUrlLoading(false);
     }
@@ -380,6 +497,8 @@ export function ContextDocumentManager({ projectId, isOwned = true }: ContextDoc
       handleGenerateTags(previewData.content, previewData.title);
     }
   };
+
+
 
   const handleGenerateTags = async (content?: string, title?: string) => {
     const textContent = content || formData.content;
@@ -996,29 +1115,69 @@ export function ContextDocumentManager({ projectId, isOwned = true }: ContextDoc
                     />
                     </div>
                     
-                    {/* Preview and Load Buttons */}
-                    <div className="flex gap-2">
-                    <button
-                      type="button"
-                        onClick={() => formData.url && handleUrlPreview(formData.url, true)}
-                      disabled={!formData.url || urlLoading}
-                        className="px-3 py-2 bg-gray-600 text-white rounded text-sm hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex-1 md:flex-none"
-                    >
-                      {urlLoading ? (
-                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>
-                      ) : (
-                          '👁️ Preview'
-                      )}
-                    </button>
-                      <button
-                        type="button"
-                        onClick={() => formData.url && handleUrlPreview(formData.url, false)}
-                        disabled={!formData.url || urlLoading}
-                        className="px-3 py-2 bg-gray-900 text-white rounded text-sm hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed flex-1 md:flex-none"
-                      >
-                        📰 Load Full Article
-                      </button>
+                    {/* URL Analysis Options */}
+                    <div className="space-y-2">
+                      <div className="text-xs text-gray-600 font-medium">🤖 AI-Powered URL Analysis (Google Gemini)</div>
+                      
+                      {/* Quick Actions */}
+                      <div className="flex gap-2 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => formData.url && handleUrlPreview(formData.url, true)}
+                          disabled={!formData.url || urlLoading}
+                          className="px-3 py-2 bg-gray-600 text-white rounded text-sm hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {urlLoading ? (
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          ) : (
+                            '👁️ Preview'
+                          )}
+                        </button>
+                        
+                        <button
+                          type="button"
+                          onClick={() => formData.url && handleLoadArticleWithAnalysis(formData.url)}
+                          disabled={!formData.url || urlLoading}
+                          className="px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          📰 Load Article + AI Analysis
+                        </button>
+                      </div>
+                    </div>
                   </div>
+              )}
+
+              {/* URL field for any category (enhanced with AI analysis) */}
+              {formData.category !== 'news-article' && formData.category !== 'social-media-post' && (
+                <div className="space-y-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    🔗 URL (Optional - AI Analysis Available)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      value={formData.url}
+                      onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Any URL for AI analysis"
+                    />
+                  </div>
+                  
+                  {formData.url && (
+                    <div className="space-y-2">
+                      <div className="text-xs text-gray-600 font-medium">🤖 AI-Powered URL Analysis</div>
+                      <div className="flex gap-2 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={() => formData.url && handleLoadArticleWithAnalysis(formData.url)}
+                          disabled={!formData.url || urlLoading}
+                          className="px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          📰 Load Content + AI Analysis
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1143,6 +1302,11 @@ export function ContextDocumentManager({ projectId, isOwned = true }: ContextDoc
                     <div className={`flex items-center justify-between mb-3 ${isMobile ? 'flex-col gap-2' : 'flex-row'}`}>
                       <h4 className={`font-medium text-gray-900 ${isMobile ? 'text-sm' : 'text-base'}`}>
                         📄 Content Preview
+                        {previewData.useUrlContext && (
+                          <span className="ml-2 inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
+                            🤖 AI-Powered
+                          </span>
+                        )}
                       </h4>
                       <div className={`flex gap-2 ${isMobile ? 'w-full' : ''}`}>
                         <button
@@ -1159,31 +1323,50 @@ export function ContextDocumentManager({ projectId, isOwned = true }: ContextDoc
                         </button>
                       </div>
                     </div>
+                    
+                    {/* Source Information */}
                     <div className={`text-gray-600 mb-2 ${isMobile ? 'text-xs' : 'text-sm'}`}>
-                      <div className="flex flex-wrap gap-1">
-                        <span>📊 {previewData.contentLength} chars</span>
+                      <div className="flex flex-wrap gap-1 items-center">
+                        <span className="font-medium">
+                          {previewData.useUrlContext ? '🤖 Google Gemini URL Context' : '🌐 Traditional Web Scraping'}
+                        </span>
                         <span>•</span>
-                        <span>📖 Full Article</span>
-                        {previewData.author && (
+                        <span>📊 {previewData.contentLength || previewData.content?.length || 0} chars</span>
+                        
+                        {!previewData.useUrlContext && (
                           <>
                             <span>•</span>
-                            <span>✍️ {previewData.author}</span>
+                            <span>📖 Full Article</span>
+                            {previewData.author && (
+                              <>
+                                <span>•</span>
+                                <span>✍️ {previewData.author}</span>
+                              </>
+                            )}
+                            {previewData.published && (
+                              <>
+                                <span>•</span>
+                                <span>📅 {new Date(previewData.published).toLocaleDateString()}</span>
+                              </>
+                            )}
+                            {previewData.ttr > 0 && (
+                              <>
+                                <span>•</span>
+                                <span>⏱️ {Math.ceil(previewData.ttr / 60)} min</span>
+                              </>
+                            )}
                           </>
                         )}
-                        {previewData.published && (
+                        
+                        {previewData.useUrlContext && previewData.tokenUsage && (
                           <>
                             <span>•</span>
-                            <span>📅 {new Date(previewData.published).toLocaleDateString()}</span>
-                          </>
-                        )}
-                        {previewData.ttr > 0 && (
-                          <>
-                            <span>•</span>
-                            <span>⏱️ {Math.ceil(previewData.ttr / 60)} min</span>
+                            <span>🧠 {previewData.tokenUsage.totalTokenCount || 0} tokens</span>
                           </>
                         )}
                       </div>
                     </div>
+                    
                     <div className={`overflow-y-auto ${isMobile ? 'max-h-24 text-xs' : 'max-h-32 text-sm'}`}>
                       <pre className="whitespace-pre-wrap font-sans">
                         {previewData.content.substring(0, isMobile ? 300 : 500)}

@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CornerBrackets } from '@/components/ui/corner-brackets';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ProjectPitch } from './ProjectPitch';
+import { PitchDeckGenerator } from './PitchDeckGenerator';
 import {
   Dialog,
   DialogContent,
@@ -1944,7 +1944,7 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
 
                 <TabsContent value="pitch" className="space-y-6">
                   {allAnalysesComplete ? (
-                    <ProjectPitch projectId={projectId} isOwned={isOwned} />
+                    <PitchDeckGenerator projectId={projectId} isOwned={isOwned} />
                   ) : (
                     <div className="text-center py-12">
                       <Presentation className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />

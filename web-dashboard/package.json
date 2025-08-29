@@ -43,6 +43,7 @@
     "marked": "^16.1.2",
     "monaco-editor": "^0.52.2",
     "next": "15.4.6",
+    "pptxgenjs": "^4.0.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-markdown": "^10.1.0",

@@ -1,7 +1,7 @@
 import { getPineconeClient, PINECONE_INDEX_NAME } from './pinecone';
 
 // Helper function for embeddings (same as in projectService)
-async function generateEmbedding(text: string, dimensions: number = 1024): Promise<number[]> {
+async function generateEmbedding(text: string): Promise<number[]> {
   try {
     // Use Gemini for embeddings
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${process.env.GOOGLE_AI_API_KEY}`, {
@@ -184,8 +184,8 @@ export class TokenTrackingService {
     // Check burst limit (default: 10k tokens per minute)
     const burstLimit = 10000;
     const oneMinuteAgo = now - 60000;
-    const recentRequests = userLimit.requests.filter(time => time > oneMinuteAgo);
-    const recentTokens = recentRequests.reduce((sum, time) => sum + tokens, 0);
+    const recentRequests = userLimit.requests.filter(_time => _time > oneMinuteAgo);
+    const recentTokens = recentRequests.reduce((sum, _time) => sum + tokens, 0);
     
     if (recentTokens > burstLimit) {
       return { allowed: false, reason: 'Burst limit exceeded' };
@@ -226,7 +226,7 @@ export class TokenTrackingService {
       const index = pinecone.index(PINECONE_INDEX_NAME);
 
       const content = `Token alert for user ${alert.userId}: ${alert.message}`;
-      const embedding = await generateEmbedding(content, 1024);
+      const embedding = await generateEmbedding(content);
 
       const vectorId = `token_alert_${alert.userId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -255,7 +255,7 @@ export class TokenTrackingService {
     projectId: string,
     inputTokens: number,
     outputTokens: number,
-    analysisType: string,
+    _analysisType: string,
     userId?: string,
     provider: string = 'google-gemini',
     model?: string,
@@ -295,7 +295,7 @@ export class TokenTrackingService {
         timestamp,
         projectId,
         userId,
-        analysisType,
+        analysisType: _analysisType,
         sessionId: this.sessionId,
         provider,
         model,
@@ -328,7 +328,7 @@ export class TokenTrackingService {
 
       // Create a simple embedding for the token usage data
       const content = `Token usage for ${tokenUsage.analysisType} analysis in project ${tokenUsage.projectId}`;
-      const embedding = await generateEmbedding(content, 1024);
+      const embedding = await generateEmbedding(content);
 
       const vectorId = `token_usage_${tokenUsage.projectId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -414,7 +414,7 @@ export class TokenTrackingService {
 
       const alerts = queryResponse.matches
         .map(match => match.metadata)
-        .filter((metadata): metadata is Record<string, any> => metadata !== undefined)
+        .filter((metadata): metadata is Record<string, string | number | boolean> => metadata !== undefined)
         .map(metadata => ({
           userId: metadata.userId,
           type: metadata.alertType,
@@ -698,7 +698,7 @@ export class TokenTrackingService {
   }
 
   // New: Check if user can perform analysis
-  async canPerformAnalysis(userId: string, analysisType: string): Promise<{ allowed: boolean; reason?: string }> {
+  async canPerformAnalysis(userId: string): Promise<{ allowed: boolean; reason?: string }> {
     try {
       const pinecone = getPineconeClient();
       const index = pinecone.index(PINECONE_INDEX_NAME);
