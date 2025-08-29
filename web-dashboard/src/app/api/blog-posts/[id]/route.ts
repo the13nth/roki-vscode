@@ -8,27 +8,21 @@ export async function GET(
 ): Promise<NextResponse> {
   try {
     const { id } = await params;
+    
     const pinecone = getPineconeClient();
     const index = pinecone.index(PINECONE_INDEX_NAME);
 
-    // Get specific blog post from Pinecone
-    const response = await index.namespace('blog-posts').query({
-      vector: new Array(1024).fill(0.1),
-      filter: {
-        id: { $eq: id }
-      },
-      topK: 1,
-      includeMetadata: true
-    });
+    // Get specific blog post from Pinecone using fetch
+    const response = await index.namespace('blog-posts').fetch([id]);
 
-    if (!response.matches || response.matches.length === 0) {
+    if (!response.records || !response.records[id]) {
       return NextResponse.json(
         { success: false, error: 'Blog post not found' },
         { status: 404 }
       );
     }
 
-    const match = response.matches[0];
+    const match = response.records[id];
     const post = {
       id: match.id,
       title: match.metadata?.title || '',
@@ -58,8 +52,8 @@ export async function GET(
           metadata: {
             ...match.metadata,
             views: (parseInt(String(match.metadata?.views || '0')) + 1).toString()
-          },
-        },
+          }
+        }
       ]);
     } catch (error) {
       console.warn('Failed to increment view count:', error);
@@ -108,23 +102,16 @@ export async function PUT(
     const index = pinecone.index(PINECONE_INDEX_NAME);
 
     // First, get the existing post to check ownership
-    const existingResponse = await index.namespace('blog-posts').query({
-      vector: new Array(1024).fill(0.1),
-      filter: {
-        id: { $eq: id }
-      },
-      topK: 1,
-      includeMetadata: true
-    });
+    const existingResponse = await index.namespace('blog-posts').fetch([id]);
 
-    if (!existingResponse.matches || existingResponse.matches.length === 0) {
+    if (!existingResponse.records || !existingResponse.records[id]) {
       return NextResponse.json(
         { success: false, error: 'Blog post not found' },
         { status: 404 }
       );
     }
 
-    const existingPost = existingResponse.matches[0];
+    const existingPost = existingResponse.records[id];
     
     // Check if user owns the post
     if (existingPost.metadata?.authorId !== userId) {
@@ -148,18 +135,18 @@ export async function PUT(
       {
         id: existingPost.id,
         values: existingPost.values,
-                  metadata: {
-            ...existingPost.metadata,
-            title: title.substring(0, 200),
-            content: content.substring(0, 40000), // Pinecone metadata limit
-            excerpt: excerpt.substring(0, 500),
-            tags: JSON.stringify(tags),
-            fundingStatus: fundingStatus,
-            resourceNeeded: resourceNeeded,
-            updatedAt: now,
-            readTime
-          },
-      },
+        metadata: {
+          ...existingPost.metadata,
+          title: title.substring(0, 200),
+          content: content.substring(0, 40000), // Pinecone metadata limit
+          excerpt: excerpt.substring(0, 500),
+          tags: JSON.stringify(tags),
+          fundingStatus: fundingStatus,
+          resourceNeeded: resourceNeeded,
+          updatedAt: now,
+          readTime
+        }
+      }
     ]);
 
     const updatedPost = {
@@ -222,23 +209,16 @@ export async function DELETE(
     const index = pinecone.index(PINECONE_INDEX_NAME);
 
     // First, get the existing post to check ownership
-    const existingResponse = await index.namespace('blog-posts').query({
-      vector: new Array(1024).fill(0.1),
-      filter: {
-        id: { $eq: id }
-      },
-      topK: 1,
-      includeMetadata: true
-    });
+    const existingResponse = await index.namespace('blog-posts').fetch([id]);
 
-    if (!existingResponse.matches || existingResponse.matches.length === 0) {
+    if (!existingResponse.records || !existingResponse.records[id]) {
       return NextResponse.json(
         { success: false, error: 'Blog post not found' },
         { status: 404 }
       );
     }
 
-    const existingPost = existingResponse.matches[0];
+    const existingPost = existingResponse.records[id];
     
     // Check if user owns the post
     if (existingPost.metadata?.authorId !== userId) {

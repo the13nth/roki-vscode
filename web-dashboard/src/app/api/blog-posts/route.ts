@@ -4,6 +4,7 @@ import { getPineconeClient, PINECONE_INDEX_NAME } from '@/lib/pinecone';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
+    console.log('📝 Fetching all blog posts...');
     const pinecone = getPineconeClient();
     const index = pinecone.index(PINECONE_INDEX_NAME);
 
@@ -36,6 +37,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       likes: parseInt(String(match.metadata?.likes || '0')),
       views: parseInt(String(match.metadata?.views || '0'))
     })) || [];
+    
+    console.log(`📝 Found ${posts.length} blog posts`);
+    console.log(`📝 Post IDs:`, posts.map(p => p.id));
 
     // Sort by published date (newest first)
     posts.sort((a, b) => new Date(String(b.publishedAt)).getTime() - new Date(String(a.publishedAt)).getTime());
