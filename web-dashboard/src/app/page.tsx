@@ -8,7 +8,7 @@ const HomePage = dynamic(() => import('@/components/HomePage').then(mod => ({ de
     <div className="min-h-screen bg-white/30 flex items-center justify-center">
       <div className="text-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900 mx-auto mb-4"></div>
-        <p className="text-gray-600">Loading AI Project Manager...</p>
+        <p className="text-gray-600">Loading ROKI Project Manager...</p>
       </div>
     </div>
   )

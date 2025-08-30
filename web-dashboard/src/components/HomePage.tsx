@@ -318,7 +318,7 @@ export function HomePage() {
       name: "Germain R.",
       role: "CTO",
       company: "HarakaPlus",
-      content: "AI Project Manager transformed how we approach project planning. The BMC analysis feature alone saved us HOURS of research.",
+      content: "ROKI transformed how we approach project planning. The BMC analysis feature alone saved us HOURS of research.",
       avatar: "GR"
     },
     {
@@ -708,7 +708,7 @@ export function HomePage() {
             Loved by Teams Worldwide
           </h2>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            See how AI Project Manager is transforming how teams build and launch successful projects.
+            See how ROKI is transforming how teams build and launch successful projects.
           </p>
         </div>
 
@@ -766,7 +766,7 @@ export function HomePage() {
                   <Brain className="h-5 w-5 text-black" />
                 </div>
                 <span className="font-semibold text-lg text-white">
-                  AI Project Manager
+                  ROKI Project Manager
                 </span>
               </Link>
               <p className="text-gray-400 text-sm max-w-md">
@@ -832,7 +832,7 @@ export function HomePage() {
           {/* Copyright */}
           <div className="pt-8 mt-8 border-t border-gray-800 text-center">
             <p className="text-gray-400 text-sm">
-              © {new Date().getFullYear()} AI Project Manager. All rights reserved. 
+              © {new Date().getFullYear()} ROKI Project Manager. All rights reserved. 
               <span className="ml-2">Built with intelligence, designed for success.</span>
           </p>
         </div>

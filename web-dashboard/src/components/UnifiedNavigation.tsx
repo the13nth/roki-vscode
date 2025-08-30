@@ -90,7 +90,7 @@ export function UnifiedNavigation({
         <Brain className="h-5 w-5 text-white" />
       </div>
       <span className={styles.logoText}>
-        AI Project Manager
+      ROKI Project Manager
       </span>
     </Link>
   );

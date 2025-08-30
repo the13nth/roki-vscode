@@ -23,7 +23,7 @@ async function generatePowerPointPresentation(
   const pres = new pptxgen();
   
   // Set presentation properties
-  pres.author = 'Roki AI Project Manager';
+  pres.author = 'Roki Project Manager';
   pres.company = 'Roki';
   pres.title = `${projectName} - Pitch Deck`;
   pres.subject = `Pitch deck for ${audience} audience`;

@@ -289,7 +289,7 @@ export function ProjectOverview() {
         <div className="mb-6 md:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">AI Project Manager</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">ROKI Project Manager</h1>
               <p className="mt-1 md:mt-2 text-sm md:text-base text-gray-600">
                 Manage your development projects with AI-powered assistance
               </p>

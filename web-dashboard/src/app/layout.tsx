@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Project Manager",
+  title: "ROKI Project Manager",
   description: "Manage your development projects with AI-powered assistance",
 };
 
