@@ -403,10 +403,22 @@ export function HomePage() {
                   </Button>
                 </Link>
               </SignedIn>
-              <Button variant="outline" size="lg" className="text-lg px-8 py-4 border-2 border-gray-800 text-black hover:bg-gray-100">
-                <Play className="mr-2 h-5 w-5" />
-                Watch Demo
-              </Button>
+            </div>
+            
+            {/* YouTube Video Demo */}
+            <div className="flex justify-center mb-12">
+              <div className="w-full max-w-4xl">
+                <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                  <iframe
+                    className="absolute top-0 left-0 w-full h-full border-2 border-gray-800 rounded-none"
+                    src="https://www.youtube.com/embed/WzumphMONDw?vq=hd720"
+                    title="ROKI Project Manager Demo"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  ></iframe>
+                </div>
+              </div>
             </div>
             
             {/* Social Proof */}
