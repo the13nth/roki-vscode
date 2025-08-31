@@ -34,6 +34,9 @@ export async function GET(
     }
 
     const projectMetadata = projectQuery.matches[0].metadata;
+    if (!projectMetadata) {
+      return NextResponse.json({ error: 'Project metadata not found' }, { status: 404 });
+    }
     const projectOwnerId = projectMetadata.userId;
     const isOwner = projectOwnerId === userId;
 
@@ -54,6 +57,9 @@ export async function GET(
 
     const applications = applicationsQuery.matches.map(match => {
       const metadata = match.metadata;
+      if (!metadata) {
+        return null;
+      }
       return {
         id: metadata.applicationId,
         projectId: metadata.projectId,
@@ -69,10 +75,10 @@ export async function GET(
         reviewedAt: metadata.reviewedAt || null,
         reviewerNotes: metadata.reviewerNotes || null
       };
-    });
+    }).filter((app): app is NonNullable<typeof app> => app !== null);
 
     // Sort by creation date (newest first)
-    applications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    applications.sort((a, b) => new Date(String(b.createdAt)).getTime() - new Date(String(a.createdAt)).getTime());
 
     return NextResponse.json({
       success: true,
@@ -142,6 +148,10 @@ export async function POST(
     }
 
     const projectMetadata = projectQuery.matches[0].metadata;
+    if (!projectMetadata) {
+      return NextResponse.json({ error: 'Project metadata not found' }, { status: 404 });
+    }
+    
     const applicationId = uuidv4();
     const now = new Date().toISOString();
 
@@ -167,8 +177,8 @@ export async function POST(
           contribution,
           status: 'pending',
           createdAt: now,
-          reviewedAt: null,
-          reviewerNotes: null
+          reviewedAt: '',
+          reviewerNotes: ''
         }
       }
     ]);

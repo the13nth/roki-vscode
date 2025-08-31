@@ -45,6 +45,9 @@ export async function PATCH(
     }
 
     const projectMetadata = projectQuery.matches[0].metadata;
+    if (!projectMetadata) {
+      return NextResponse.json({ error: 'Project metadata not found' }, { status: 404 });
+    }
     const projectOwnerId = projectMetadata.userId;
     const isOwner = projectOwnerId === userId;
 
@@ -79,8 +82,8 @@ export async function PATCH(
         metadata: {
           ...applicationMetadata,
           status,
-          reviewedAt: status === 'pending' ? null : now,
-          reviewerNotes: reviewerNotes || null
+          reviewedAt: status === 'pending' ? '' : now,
+          reviewerNotes: reviewerNotes || ''
         }
       }
     ]);

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -33,6 +33,7 @@ interface ProjectWithRequirements {
 }
 
 export default function JobsPage() {
+  const router = useRouter();
   const [projects, setProjects] = useState<ProjectWithRequirements[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -201,9 +202,12 @@ export default function JobsPage() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <CardTitle className="line-clamp-2 mb-2">
-                      <Link href={`/project/${project.projectId}`} className="hover:text-primary transition-colors">
+                      <button 
+                        onClick={() => router.push(`/blog/${project.blogId}`)} 
+                        className="hover:text-primary transition-colors text-left"
+                      >
                         {project.name}
-                      </Link>
+                      </button>
                     </CardTitle>
                     <CardDescription className="line-clamp-3">
                       {project.description}
@@ -272,12 +276,15 @@ export default function JobsPage() {
 
                   {/* Action Buttons */}
                   <div className="flex flex-col gap-2 pt-2">
-                    <Link href={`/blog/${project.blogId}`}>
-                      <Button className="w-full" size="sm" variant="outline">
-                        <Eye className="h-4 w-4 mr-2" />
-                        View Project
-                      </Button>
-                    </Link>
+                    <Button 
+                      className="w-full" 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => router.push(`/blog/${project.blogId}`)}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      View Project
+                    </Button>
                     {project.fundingStatus === 'funding needed' && (
                       <RequirementApplicationModal
                         projectId={project.projectId}
