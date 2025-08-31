@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import RequirementApplicationModal from '@/components/RequirementApplicationModal';
 import { 
   Plus, 
   Eye, 
@@ -273,16 +274,34 @@ export default function BlogPage() {
                   {/* Funding and Resource Status */}
                   <div className="flex flex-wrap gap-2">
                     {post.fundingStatus !== 'N/A' && (
-                      <Badge variant={post.fundingStatus === 'fully funded' ? 'default' : 'secondary'} className="text-xs">
-                        {post.fundingStatus === 'fully funded' ? '💰 Funded' : '💸 Funding Needed'}
-                      </Badge>
+                      post.fundingStatus === 'funding needed' ? (
+                        <RequirementApplicationModal
+                          projectId={post.projectId}
+                          projectName={post.projectName}
+                          requirementType="funding needed"
+                        >
+                          <Badge variant="secondary" className="text-xs cursor-pointer hover:bg-secondary/80 transition-colors">
+                            💸 Funding Needed
+                          </Badge>
+                        </RequirementApplicationModal>
+                      ) : (
+                        <Badge variant="default" className="text-xs">
+                          💰 Funded
+                        </Badge>
+                      )
                     )}
                     {post.resourceNeeded !== 'N/A' && (
-                      <Badge variant="outline" className="text-xs">
-                        {post.resourceNeeded === 'cofounder needed' ? '👥 Cofounder' :
-                         post.resourceNeeded === 'dev needed' ? '💻 Developer' :
-                         post.resourceNeeded === 'business manager needed' ? '📊 Business Manager' : post.resourceNeeded}
-                      </Badge>
+                      <RequirementApplicationModal
+                        projectId={post.projectId}
+                        projectName={post.projectName}
+                        requirementType={post.resourceNeeded}
+                      >
+                        <Badge variant="outline" className="text-xs cursor-pointer hover:bg-accent transition-colors">
+                          {post.resourceNeeded === 'cofounder needed' ? '👥 Cofounder' :
+                           post.resourceNeeded === 'dev needed' ? '💻 Developer' :
+                           post.resourceNeeded === 'business manager needed' ? '📊 Business Manager' : post.resourceNeeded}
+                        </Badge>
+                      </RequirementApplicationModal>
                     )}
                   </div>
 

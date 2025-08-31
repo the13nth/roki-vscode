@@ -16,7 +16,8 @@ import {
   BarChart3,
   Network,
   Share2,
-  Code2
+  Code2,
+  Users
 } from 'lucide-react';
 
 interface ProjectNavigationProps {
@@ -113,6 +114,13 @@ export function ProjectNavigation({ projectId, activeTab, progress, onNavigate, 
       href: `/project/${projectId}/prompts`,
       description: 'View AI prompts used for analysis and content generation',
       icon: <Code2 className="w-5 h-5" />
+    },
+    {
+      id: 'applications',
+      name: 'Applications',
+      href: `/project/${projectId}/applications`,
+      description: 'View applications for project requirements',
+      icon: <Users className="w-5 h-5" />
     }
   ];
 
@@ -124,6 +132,11 @@ export function ProjectNavigation({ projectId, activeTab, progress, onNavigate, 
     // For non-owners, show read-only tabs plus analysis and social
     if (!isOwned) {
       return ['requirements', 'design', 'tasks', 'context', 'visualization', 'analysis', 'social'].includes(item.id);
+    }
+    
+    // For owners, show all tabs except applications if they don't own the project
+    if (item.id === 'applications' && !isOwned) {
+      return false;
     }
     
     // For owners, show all tabs

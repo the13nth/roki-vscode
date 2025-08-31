@@ -14,6 +14,7 @@ import { ApiConfiguration } from './ApiConfiguration';
 import { ProjectAnalysis } from './ProjectAnalysis';
 import { SocialPostsGenerator } from './SocialPostsGenerator';
 import { PromptsViewer } from './PromptsViewer';
+import ProjectApplicationsView from './ProjectApplicationsView';
 
 import SyncStatus from './SyncStatus';
 import { EmbeddingsVisualization } from './EmbeddingsVisualization';
@@ -22,7 +23,7 @@ import { Card, CardContent } from '@/components/ui/card';
 
 interface ProjectDashboardLayoutProps {
   projectId: string;
-  activeTab?: 'overview' | 'requirements' | 'design' | 'tasks' | 'context' | 'api' | 'analysis' | 'enhanced-analysis' | 'progress' | 'visualization' | 'social' | 'prompts';
+  activeTab?: 'overview' | 'requirements' | 'design' | 'tasks' | 'context' | 'api' | 'analysis' | 'enhanced-analysis' | 'progress' | 'visualization' | 'social' | 'prompts' | 'applications';
 }
 
 export function ProjectDashboardLayout({ 
@@ -229,6 +230,21 @@ export function ProjectDashboardLayout({
                 {activeTab === 'prompts' && (
                   <div className="p-6">
                     <PromptsViewer projectId={projectId} />
+                  </div>
+                )}
+                
+                {activeTab === 'applications' && (
+                  <div className="p-6">
+                    <div className="space-y-6">
+                      <div>
+                        <h1 className="text-2xl font-bold">Project Applications</h1>
+                        <p className="text-gray-600">
+                          Review applications from people interested in contributing to your project requirements.
+                        </p>
+                      </div>
+                      
+                      <ProjectApplicationsView projectId={projectId} isOwned={project.isOwned} />
+                    </div>
                   </div>
                 )}
                 </CardContent>

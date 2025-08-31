@@ -18,7 +18,8 @@ import {
   LogIn,
   UserPlus,
   BookOpen,
-  FileText
+  FileText,
+  Briefcase
 } from 'lucide-react';
 import { GlobalApiSettings } from './GlobalApiSettings';
 import { SignedIn, SignedOut, UserButton, SignInButton, SignUpButton, useUser, useOrganization } from '@clerk/nextjs';
@@ -125,11 +126,12 @@ export function UnifiedNavigation({
   const renderMainNavigation = () => {
     const baseNavItems = [
       { href: "/", label: "Home", icon: null as any },
+      { href: "/projects", label: "Projects", icon: FolderOpen },
       { href: "/blog", label: "Blog", icon: BookOpen },
+      { href: "/jobs", label: "Jobs", icon: Briefcase },
     ];
 
     const authenticatedNavItems = [
-      { href: "/projects", label: "Projects", icon: FolderOpen },
       { href: "/applications", label: "Applications", icon: FileText },
       { href: "/profile", label: "Profile", icon: User },
     ];
@@ -143,16 +145,32 @@ export function UnifiedNavigation({
       return (
         <>
           <nav className="hidden md:flex items-center space-x-6">
+            {baseNavItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link key={item.href} href={item.href} className="flex items-center text-gray-600 hover:text-gray-900">
+                  {Icon && <Icon className="mr-1 h-4 w-4" />}
+                  {item.label}
+                </Link>
+              );
+            })}
             <Link href="#features" className="text-gray-600 hover:text-gray-900">
               Features
             </Link>
             <Link href="#pricing" className="text-gray-600 hover:text-gray-900">
               Pricing
             </Link>
-            {/* <Link href="/projects" className="flex items-center text-gray-600 hover:text-gray-900">
-              <FolderOpen className="mr-1 h-4 w-4" />
-              Projects
-            </Link> */}
+            <SignedIn>
+              {authenticatedNavItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link key={item.href} href={item.href} className="flex items-center text-gray-600 hover:text-gray-900">
+                    <Icon className="mr-1 h-4 w-4" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </SignedIn>
           </nav>
           
           {/* Mobile menu button for homepage */}
