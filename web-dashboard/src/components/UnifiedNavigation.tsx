@@ -257,6 +257,50 @@ export function UnifiedNavigation({
           {variant === 'homepage' ? (
             <>
               <Link 
+                href="/" 
+                className="block py-2 text-gray-600 hover:text-gray-900"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Home
+              </Link>
+              <Link 
+                href="/projects" 
+                className="block py-2 text-gray-600 hover:text-gray-900"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Projects
+              </Link>
+              <Link 
+                href="/blog" 
+                className="block py-2 text-gray-600 hover:text-gray-900"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Blog
+              </Link>
+              <Link 
+                href="/jobs" 
+                className="block py-2 text-gray-600 hover:text-gray-900"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Jobs
+              </Link>
+              <SignedIn>
+                <Link 
+                  href="/applications" 
+                  className="block py-2 text-gray-600 hover:text-gray-900"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Applications
+                </Link>
+                <Link 
+                  href="/profile" 
+                  className="block py-2 text-gray-600 hover:text-gray-900"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Profile
+                </Link>
+              </SignedIn>
+              <Link 
                 href="#features" 
                 className="block py-2 text-gray-600 hover:text-gray-900"
                 onClick={() => setIsMobileMenuOpen(false)}
@@ -270,19 +314,19 @@ export function UnifiedNavigation({
               >
                 Pricing
               </Link>
-              <Link 
-                href="/projects" 
-                className="block py-2 text-gray-600 hover:text-gray-900"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                Projects
-              </Link>
             </>
           ) : (
             <>
               <Link href="/" onClick={() => setIsMobileMenuOpen(false)}>
                 <Button variant="ghost" size="sm" className="w-full justify-start">
                   Home
+                </Button>
+              </Link>
+              
+              <Link href="/projects" onClick={() => setIsMobileMenuOpen(false)}>
+                <Button variant="ghost" size="sm" className="w-full justify-start">
+                  <FolderOpen className="mr-2 h-4 w-4" />
+                  Projects
                 </Button>
               </Link>
               
@@ -293,13 +337,14 @@ export function UnifiedNavigation({
                 </Button>
               </Link>
               
+              <Link href="/jobs" onClick={() => setIsMobileMenuOpen(false)}>
+                <Button variant="ghost" size="sm" className="w-full justify-start">
+                  <Briefcase className="mr-2 h-4 w-4" />
+                  Jobs
+                </Button>
+              </Link>
+              
               <SignedIn>
-                <Link href="/projects" onClick={() => setIsMobileMenuOpen(false)}>
-                  <Button variant="ghost" size="sm" className="w-full justify-start">
-                    <FolderOpen className="mr-2 h-4 w-4" />
-                    Projects
-                  </Button>
-                </Link>
                 <Link href="/applications" onClick={() => setIsMobileMenuOpen(false)}>
                   <Button variant="ghost" size="sm" className="w-full justify-start">
                     <FileText className="mr-2 h-4 w-4" />
