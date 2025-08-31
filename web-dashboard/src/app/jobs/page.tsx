@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useUser } from '@clerk/nextjs';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,18 +9,13 @@ import { Input } from '@/components/ui/input';
 import RequirementApplicationModal from '@/components/RequirementApplicationModal';
 import { 
   Search,
-  Filter,
-  MapPin,
   Calendar,
   Users,
   Briefcase,
   Eye,
-  BookOpen,
   Loader2,
-  AlertCircle,
-  DollarSign
+  AlertCircle
 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 
 interface ProjectWithRequirements {
   projectId: string;
@@ -39,7 +33,6 @@ interface ProjectWithRequirements {
 }
 
 export default function JobsPage() {
-  const { user, isSignedIn } = useUser();
   const [projects, setProjects] = useState<ProjectWithRequirements[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,35 +71,7 @@ export default function JobsPage() {
     });
   };
 
-  const getRequirementIcon = (type: string) => {
-    switch (type) {
-      case 'funding needed':
-        return '💸';
-      case 'cofounder needed':
-        return '👥';
-      case 'dev needed':
-        return '💻';
-      case 'business manager needed':
-        return '📊';
-      default:
-        return '🎯';
-    }
-  };
 
-  const getRequirementTitle = (type: string) => {
-    switch (type) {
-      case 'funding needed':
-        return 'Funding Needed';
-      case 'cofounder needed':
-        return 'Cofounder Needed';
-      case 'dev needed':
-        return 'Developer Needed';
-      case 'business manager needed':
-        return 'Business Manager Needed';
-      default:
-        return type;
-    }
-  };
 
   // Get all unique tags from projects
   const allTags = Array.from(new Set(projects.flatMap(project => project.tags))).sort();

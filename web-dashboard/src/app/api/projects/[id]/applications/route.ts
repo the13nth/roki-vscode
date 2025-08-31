@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs';
+import { auth } from '@clerk/nextjs/server';
 import { getPineconeClient, PINECONE_INDEX_NAME } from '@/lib/pinecone';
 import { v4 as uuidv4 } from 'uuid';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -14,7 +14,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const projectId = params.id;
+    const { id: projectId } = await params;
 
     // Check if user owns the project
     const pinecone = getPineconeClient();
@@ -90,11 +90,11 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { userId } = await auth();
-    const projectId = params.id;
+    const { id: projectId } = await params;
     const body = await request.json();
 
     const {

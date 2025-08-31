@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs';
+import { auth } from '@clerk/nextjs/server';
 import { getPineconeClient, PINECONE_INDEX_NAME } from '@/lib/pinecone';
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string; applicationId: string } }
+  { params }: { params: Promise<{ id: string; applicationId: string }> }
 ) {
   try {
     const { userId } = await auth();
@@ -13,8 +13,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const projectId = params.id;
-    const applicationId = params.applicationId;
+    const { id: projectId, applicationId } = await params;
     const body = await request.json();
 
     const { status, reviewerNotes } = body;
