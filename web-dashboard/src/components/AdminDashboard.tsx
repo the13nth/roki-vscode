@@ -25,7 +25,10 @@ import {
   DollarSign,
   TrendingDown,
   Eye,
-  Settings
+  Settings,
+  Mail,
+  RefreshCw,
+  Download
 } from 'lucide-react';
 
 interface TokenAlert {
@@ -89,10 +92,19 @@ export function AdminDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [timeRange, setTimeRange] = useState('30d');
   const [alertFilter, setAlertFilter] = useState<'all' | 'warning' | 'critical'>('all');
+  
+  // Waitlist emails state
+  const [waitlistEmails, setWaitlistEmails] = useState<string[]>([]);
+  const [loadingWaitlistEmails, setLoadingWaitlistEmails] = useState(false);
+  const [waitlistEmailsError, setWaitlistEmailsError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAdminStats();
   }, [timeRange]);
+
+  useEffect(() => {
+    fetchWaitlistEmails();
+  }, []);
 
   const fetchAdminStats = async () => {
     try {
@@ -107,6 +119,26 @@ export function AdminDashboard() {
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchWaitlistEmails = async () => {
+    try {
+      setLoadingWaitlistEmails(true);
+      setWaitlistEmailsError(null);
+      
+      const response = await fetch('/api/waitlist/list');
+      if (!response.ok) {
+        throw new Error('Failed to fetch waitlist emails');
+      }
+      
+      const data = await response.json();
+      setWaitlistEmails(data.emails || []);
+    } catch (err) {
+      setWaitlistEmailsError('Failed to load waitlist emails.');
+      console.error('Error fetching waitlist emails:', err);
+    } finally {
+      setLoadingWaitlistEmails(false);
     }
   };
 
@@ -346,6 +378,7 @@ export function AdminDashboard() {
           <TabsTrigger value="pricing" className="text-xs md:text-sm">Pricing</TabsTrigger>
           <TabsTrigger value="activity" className="text-xs md:text-sm">Activity</TabsTrigger>
           <TabsTrigger value="alerts" className="text-xs md:text-sm">Alerts</TabsTrigger>
+          <TabsTrigger value="waitlist" className="text-xs md:text-sm">Waitlist</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -858,6 +891,111 @@ export function AdminDashboard() {
                       </div>
                     ))}
                   </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="waitlist" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="h-5 w-5" />
+                VS Code Extension Waitlist
+              </CardTitle>
+              <CardDescription>
+                View and manage emails from users who joined the VS Code extension waitlist
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Waitlist Statistics */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">
+                      {waitlistEmails.length}
+                    </div>
+                    <p className="text-sm text-blue-700">Total Emails</p>
+                  </div>
+                  <div className="text-center p-4 bg-green-50 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">
+                      {waitlistEmails.filter(email => email.includes('@')).length}
+                    </div>
+                    <p className="text-sm text-green-700">Valid Emails</p>
+                  </div>
+                  <div className="text-center p-4 bg-purple-50 rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600">
+                      {new Date().toLocaleDateString()}
+                    </div>
+                    <p className="text-sm text-purple-700">Last Updated</p>
+                  </div>
+                </div>
+
+                {/* Waitlist Actions */}
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={fetchWaitlistEmails} 
+                    disabled={loadingWaitlistEmails}
+                    variant="outline"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    {loadingWaitlistEmails ? 'Refreshing...' : 'Refresh List'}
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      const csvContent = 'data:text/csv;charset=utf-8,' + 
+                        'Email\n' + 
+                        waitlistEmails.join('\n');
+                      const encodedUri = encodeURI(csvContent);
+                      const link = document.createElement('a');
+                      link.setAttribute('href', encodedUri);
+                      link.setAttribute('download', 'vscode-waitlist.csv');
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    }}
+                    variant="outline"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export CSV
+                  </Button>
+                </div>
+
+                {/* Waitlist Emails List */}
+                <div>
+                  <h4 className="font-medium mb-3">Waitlist Emails ({waitlistEmails.length})</h4>
+                  {waitlistEmailsError && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg mb-4">
+                      <p className="text-red-700 text-sm">{waitlistEmailsError}</p>
+                    </div>
+                  )}
+                  {loadingWaitlistEmails ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-4"></div>
+                      <p className="text-gray-600">Loading waitlist emails...</p>
+                    </div>
+                  ) : waitlistEmails.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <Mail className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                      <p>No emails in the waitlist yet</p>
+                    </div>
+                  ) : (
+                    <div className="max-h-96 overflow-y-auto">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {waitlistEmails.map((email, index) => (
+                          <div key={index} className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm font-medium text-gray-900">{email}</span>
+                              <Badge variant="secondary" className="text-xs">
+                                #{index + 1}
+                              </Badge>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardContent>

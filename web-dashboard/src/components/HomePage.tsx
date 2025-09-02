@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -90,12 +90,17 @@ const SketchArrow = ({ className = "" }: { className?: string }) => (
 
 export function HomePage() {
   const [waitlistEmail, setWaitlistEmail] = useState('');
+  const [vscodeWaitlistEmail, setVscodeWaitlistEmail] = useState('');
   const [waitlistStatus, setWaitlistStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [vscodeWaitlistStatus, setVscodeWaitlistStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
   const [showModal, setShowModal] = useState(false);
   const [modalPlan, setModalPlan] = useState<any>(null);
   const [modalLoading, setModalLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const { user } = useUser();
+
+
 
   const handleWaitlistSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -116,6 +121,66 @@ export function HomePage() {
       setTimeout(() => setWaitlistStatus('idle'), 3000);
     }
   };
+
+  const handleVscodeWaitlistSubmit = async () => {
+    if (!vscodeWaitlistEmail || vscodeWaitlistStatus === 'submitting') return;
+
+    setVscodeWaitlistStatus('submitting');
+    
+    try {
+      // Add email to Pinecone waitlist
+      const response = await fetch('/api/waitlist/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: vscodeWaitlistEmail,
+          type: 'vscode-extension'
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add email to waitlist');
+      }
+
+      setVscodeWaitlistStatus('success');
+      setVscodeWaitlistEmail('');
+      
+      // Reset status after 3 seconds
+      setTimeout(() => setVscodeWaitlistStatus('idle'), 3000);
+    } catch (error) {
+      setVscodeWaitlistStatus('error');
+      setTimeout(() => setVscodeWaitlistStatus('idle'), 3000);
+    }
+  };
+
+  // Countdown timer for VS Code extension release
+  useEffect(() => {
+    const targetDate = new Date('2025-10-01T00:00:00Z');
+    
+    const updateCountdown = () => {
+      const now = new Date().getTime();
+      const distance = targetDate.getTime() - now;
+      
+      if (distance > 0) {
+        const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+        
+        setCountdown({ days, hours, minutes, seconds });
+      } else {
+        setCountdown({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+      }
+    };
+    
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  // Fetch waitlist emails when component mounts
+
 
   const scrollToWaitlist = () => {
     const waitlistSection = document.getElementById('waitlist-section');
@@ -199,6 +264,16 @@ export function HomePage() {
       icon: <Download className="h-8 w-8" />,
       title: "Complete Data Portability & Cloud Sync",
       description: "Your data, your choice. Export all analysis to JSON, sync to Pinecone cloud, integrate with spreadsheets, or share via VS Code extension. Zero vendor lock-in, ever."
+    },
+    {
+      icon: <Code className="h-8 w-8" />,
+      title: "VS Code Extension Integration",
+      description: "Seamlessly integrate ROKI into your development workflow with our powerful VS Code extension. Manage projects, track progress, and access AI insights without leaving your editor."
+    },
+    {
+      icon: <MessageSquare className="h-8 w-8" />,
+      title: "Local Language Support",
+      description: "Prompt in your own language with full support for Kiswahili and Kinyarwanda, making ROKI accessible to East African users."
     }
   ];
 
@@ -217,6 +292,7 @@ export function HomePage() {
         "Basic AI analysis (Technical, Market)",
         "Saved analysis insights",
         "JSON export",
+        "VS Code extension access",
         "Email support"
       ],
       limits: {
@@ -244,6 +320,7 @@ export function HomePage() {
         "Advanced AI analysis (Technical, Market, Financial)",
         "Enhanced insights & embeddings",
         "Social media generation (all platforms)",
+        "VS Code extension with cloud sync",
         "Priority support"
       ],
       limits: {
@@ -271,6 +348,7 @@ export function HomePage() {
         "Full AI analysis suite (Technical, Market, Financial, BMC)",
         "Advanced insights & semantic embeddings",
         "Business Model Canvas generation",
+        "VS Code extension with advanced features",
         "Dedicated support"
       ],
       limits: {
@@ -298,6 +376,7 @@ export function HomePage() {
         "Everything in Professional",
         "Custom AI models & analysis types",
         "Advanced portfolio analytics",
+        "VS Code extension with enterprise features",
         "Dedicated success manager"
       ],
       limits: {
@@ -325,7 +404,7 @@ export function HomePage() {
       name: "Marcus Rodriguez",
       role: "Product Manager",
       company: "StartupLab",
-      content: "The step-by-step project setup is incredible. We went from idea to structured project plan in minutes, not days.",
+      content: "The step-by-step project setup is incredible. We went from idea to structured project plan in minutes, not days. The VS Code extension keeps our dev team perfectly synced.",
       avatar: "MR"
     },
     {
@@ -384,7 +463,8 @@ export function HomePage() {
             <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 mb-6 md:mb-8 max-w-4xl mx-auto leading-relaxed px-4">
               The complete AI-powered platform for <strong>technical development</strong> and <strong>business initiatives</strong>. 
               Get comprehensive analysis, saved insights, social media content generation, and brutally honest feedback with AI-powered mitigation strategies. 
-              From concept to launch, with intelligent project management that adapts to your needs.
+              From concept to launch, with intelligent project management that adapts to your needs. 
+              <strong>Plus, integrate directly into VS Code</strong> for seamless development workflow integration.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
               <SignedOut>
@@ -499,6 +579,226 @@ export function HomePage() {
           ))}
         </div>
 
+        {/* VS Code Extension Section */}
+        <div className="bg-white/50 border-2 border-gray-800 p-8 mb-20 rounded-none relative">
+          <SketchLine className="top-4 left-4 text-gray-400" />
+          <CircuitDiagram className="bottom-4 right-4 text-gray-300" />
+          
+          <div className="text-center mb-12">
+            <h3 className="text-3xl font-bold text-gray-900 mb-4">
+              VS Code Extension - Development Made Seamless
+            </h3>
+            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+              Integrate ROKI directly into your development workflow with our powerful VS Code extension. 
+              Manage projects, track progress, and access AI insights without leaving your editor.
+            </p>
+          </div>
+          
+          <div className="grid md:grid-cols-2 gap-8 mb-8">
+            {/* Core Features */}
+            <Card className="border-2 border-gray-800 bg-white/60 rounded-none relative">
+              <MeasurementLines className="top-2 right-2 text-gray-400" />
+              <CardContent className="p-6">
+                <div className="flex items-center mb-4">
+                  <Code className="h-8 w-8 text-black mr-3" />
+                  <h4 className="text-xl font-semibold text-gray-900">Core Development Features</h4>
+                </div>
+                <ul className="space-y-3 text-sm">
+                  <li className="flex items-center">
+                    <CheckCircle className="h-4 w-4 text-black mr-2" />
+                    Interactive Project Dashboard with real-time sync
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="h-4 w-4 text-black mr-2" />
+                    Smart task management with AI-powered insights
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="h-4 w-4 text-black mr-2" />
+                    Requirements and design document management
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="h-4 w-4 text-black mr-2" />
+                    Cloud project synchronization and backup
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="h-4 w-4 text-black mr-2" />
+                    AI context injection for enhanced development
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            {/* Advanced Capabilities */}
+            <Card className="border-2 border-gray-800 bg-white/60 rounded-none relative">
+              <SketchArrow className="top-2 left-2 text-gray-300 rotate-45" />
+              <CardContent className="p-6">
+                <div className="flex items-center mb-4">
+                  <Zap className="h-8 w-8 text-black mr-3" />
+                  <h4 className="text-xl font-semibold text-gray-900">Advanced Capabilities</h4>
+                </div>
+                <ul className="space-y-3 text-sm">
+                  <li className="flex items-center">
+                    <CheckCircle className="h-4 w-4 text-black mr-2" />
+                    Intelligent progress tracking and analytics
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="h-4 w-4 text-black mr-2" />
+                    Automated project state updates
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="h-4 w-4 text-black mr-2" />
+                    Conflict resolution and merge management
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="h-4 w-4 text-black mr-2" />
+                    File watcher for real-time project monitoring
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="h-4 w-4 text-black mr-2" />
+                    Seamless integration with web dashboard
+                  </li>
+                </ul>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Extension Benefits */}
+          <div className="grid md:grid-cols-3 gap-6">
+            <div className="text-center">
+              <div className="bg-gray-100 w-16 h-16 rounded-none border-2 border-gray-800 flex items-center justify-center mx-auto mb-4">
+                <Users className="h-8 w-8 text-black" />
+              </div>
+              <h4 className="font-semibold text-gray-900 mb-2">Team Collaboration</h4>
+              <p className="text-sm text-gray-600">Real-time sync keeps your team aligned with cloud-based project management</p>
+            </div>
+            
+            <div className="text-center">
+              <div className="bg-gray-100 w-16 h-16 rounded-none border-2 border-gray-800 flex items-center justify-center mx-auto mb-4">
+                <TrendingUp className="h-8 w-8 text-black" />
+              </div>
+              <h4 className="font-semibold text-gray-900 mb-2">Performance Optimized</h4>
+              <p className="text-sm text-gray-600">Smart refresh system reduces unnecessary API calls by 60-80%</p>
+            </div>
+            
+            <div className="text-center">
+              <div className="bg-gray-100 w-16 h-16 rounded-none border-2 border-gray-800 flex items-center justify-center mx-auto mb-4">
+                <Shield className="h-8 w-8 text-black" />
+              </div>
+              <h4 className="font-semibold text-gray-900 mb-2">Enterprise Ready</h4>
+              <p className="text-sm text-gray-600">secure authentication and data sync</p>
+            </div>
+          </div>
+
+          {/* Local Language Support */}
+          <div className="bg-gray-100 border-2 border-gray-800 p-6 mb-8 rounded-none relative">
+            <SketchLine className="top-2 left-2 text-gray-400" />
+            <div className="text-center mb-6">
+              <h4 className="text-xl font-semibold text-gray-900 mb-2">Prompt in Your Own Language</h4>
+              <p className="text-gray-600">ROKI supports multiple local languages for a truly inclusive experience</p>
+            </div>
+            
+            {/* Current Languages */}
+            <div className="mb-8">
+              <h5 className="text-lg font-semibold text-gray-900 mb-4 text-center">Currently Supported</h5>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="text-center">
+                  <div className="w-16 h-12 mx-auto mb-3 rounded-none flex items-center justify-center border-2 border-gray-800">
+                    <img src="/tz.svg" alt="Tanzania Flag" className="w-full h-full object-cover" />
+                  </div>
+                  <h5 className="font-semibold text-gray-900 mb-1">Kiswahili</h5>
+                  <p className="text-sm text-gray-600">Full language support for East African users</p>
+                </div>
+                <div className="text-center">
+                  <div className="w-16 h-12 mx-auto mb-3 rounded-none flex items-center justify-center border-2 border-gray-800">
+                    <img src="/rw.svg" alt="Rwanda Flag" className="w-full h-full object-cover" />
+                  </div>
+                  <h5 className="font-semibold text-gray-900 mb-1">Kinyarwanda</h5>
+                  <p className="text-sm text-gray-600">Complete language support for Rwandan users</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Upcoming Languages */}
+            <div>
+              <h5 className="text-lg font-semibold text-gray-900 mb-4 text-center">Coming Soon</h5>
+              <div className="grid md:grid-cols-1 gap-4">
+                <div className="text-center">
+                  <div className="w-16 h-12 mx-auto mb-3 rounded-none flex items-center justify-center border-2 border-gray-800">
+                    <img src="/ps.svg" alt="Palestine Flag" className="w-full h-full object-cover" />
+                  </div>
+                  <h5 className="font-semibold text-gray-900 mb-1">العربية</h5>
+                  <p className="text-sm text-gray-600">Arabic language support</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Countdown Timer */}
+          <div className="text-center mt-8 mb-8">
+            <h4 className="text-xl font-semibold text-gray-900 mb-4">Extension Release Countdown</h4>
+            <p className="text-gray-600 mb-6">The VS Code extension launches on October 1st, 2025</p>
+            <div className="grid grid-cols-4 gap-4 max-w-md mx-auto">
+              <div className="bg-white border-2 border-gray-800 p-4 rounded-none">
+                <div className="text-2xl font-bold text-black">{countdown.days}</div>
+                <div className="text-sm text-gray-600">Days</div>
+              </div>
+              <div className="bg-white border-2 border-gray-800 p-4 rounded-none">
+                <div className="text-2xl font-bold text-black">{countdown.hours}</div>
+                <div className="text-sm text-gray-600">Hours</div>
+              </div>
+              <div className="bg-white border-2 border-gray-800 p-4 rounded-none">
+                <div className="text-2xl font-bold text-black">{countdown.minutes}</div>
+                <div className="text-sm text-gray-600">Minutes</div>
+              </div>
+              <div className="bg-white border-2 border-gray-800 p-4 rounded-none">
+                <div className="text-2xl font-bold text-black">{countdown.seconds}</div>
+                <div className="text-sm text-gray-600">Seconds</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Waitlist CTA */}
+          <div className="text-center mt-8">
+            <h4 className="text-xl font-semibold text-gray-900 mb-4">Join the Waitlist</h4>
+            <p className="text-gray-600 mb-6">Be among the first to get access to our VS Code extension</p>
+            <div className="max-w-md mx-auto">
+              <div className="flex gap-3">
+                <Input 
+                  type="email" 
+                  placeholder="Enter your email address"
+                  value={vscodeWaitlistEmail}
+                  onChange={(e) => setVscodeWaitlistEmail(e.target.value)}
+                  className="flex-1 border-2 border-gray-800 rounded-none bg-white"
+                />
+                <Button 
+                  onClick={handleVscodeWaitlistSubmit}
+                  disabled={vscodeWaitlistStatus === 'submitting'}
+                  className="bg-black hover:bg-gray-800 text-white border-2 border-gray-800 px-6 py-2 rounded-none disabled:opacity-50"
+                  size="default"
+                >
+                  {vscodeWaitlistStatus === 'submitting' ? 'Joining...' : 'Join'}
+                </Button>
+              </div>
+              
+              {/* Status Messages */}
+              {vscodeWaitlistStatus === 'success' && (
+                <p className="text-sm text-green-600 mt-3">
+                  ✓ You've been added to the VS Code extension waitlist!
+                </p>
+              )}
+              {vscodeWaitlistStatus === 'error' && (
+                <p className="text-sm text-red-600 mt-3">
+                  ✗ Something went wrong. Please try again.
+                </p>
+              )}
+              
+              <p className="text-sm text-gray-600 mt-3">
+                Get notified when the extension launches • Free • Open Source
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* Project Types Section */}
         <div className="bg-white/50 border-2 border-gray-800 p-8 mb-20 rounded-none relative">
           <SketchLine className="top-4 left-4 text-gray-400" />
@@ -553,6 +853,10 @@ export function HomePage() {
                   <li className="flex items-center">
                     <CheckCircle className="h-4 w-4 text-black mr-2" />
                     Social media content generation
+                  </li>
+                  <li className="flex items-center">
+                    <CheckCircle className="h-4 w-4 text-black mr-2" />
+                    VS Code extension integration
                   </li>
                 </ul>
               </CardContent>
