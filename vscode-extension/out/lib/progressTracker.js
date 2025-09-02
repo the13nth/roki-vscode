@@ -819,6 +819,22 @@ class ProgressTrackerImpl {
         // Trigger sidebar refresh
         vscode.commands.executeCommand('aiProjectManager.refreshSidebar');
     }
+    /**
+     * Public method to get progress data for a specific path
+     */
+    getProgressData(progressPath) {
+        const data = this.readProgressData(progressPath);
+        if (data) {
+            return data;
+        }
+        return {
+            totalTasks: 0,
+            completedTasks: 0,
+            percentage: 0,
+            lastUpdated: new Date(),
+            recentActivity: []
+        };
+    }
 }
 exports.ProgressTrackerImpl = ProgressTrackerImpl;
 //# sourceMappingURL=progressTracker.js.map

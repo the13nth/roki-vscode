@@ -9,6 +9,8 @@ import { SidebarProvider } from './lib/sidebarProvider';
 import { AuthService } from './lib/authService';
 import { ProjectLoader } from './lib/projectLoader';
 import { SyncService } from './lib/syncService';
+import { ProjectStateUpdater } from './lib/projectStateUpdater';
+import { TaskDocumentProvider } from './lib/taskDocumentProvider';
 import { VSCodeExtension } from './types';
 
 // Add fetch type for Node.js
@@ -199,6 +201,7 @@ export async function activate(context: vscode.ExtensionContext) {
     const contextInjector = new ContextInjectorImpl();
     const progressTracker = new ProgressTrackerImpl();
     const fileWatcher = new FileWatcherImpl();
+    const projectStateUpdater = new ProjectStateUpdater();
     
     extension = {
         projectDetector,
@@ -217,6 +220,10 @@ export async function activate(context: vscode.ExtensionContext) {
         showCollapseAll: true
     });
     console.log('Tree data provider registered');
+
+    // Register custom editor provider for tasks.md
+    const taskDocumentProvider = TaskDocumentProvider.register(context);
+    console.log('Task document provider registered');
     
     // Try to make the view visible
     try {
@@ -945,6 +952,145 @@ export async function activate(context: vscode.ExtensionContext) {
             });
         }
     });
+
+    // Update project state command
+    const updateProjectStateCommand = vscode.commands.registerCommand('aiProjectManager.updateProjectState', async () => {
+        try {
+            if (!extension.projectDetector.detectAiProject()) {
+                vscode.window.showWarningMessage('No AI project detected in current workspace');
+                return;
+            }
+
+            vscode.window.showInformationMessage('🔄 Updating project state...');
+            
+            const update = await projectStateUpdater.updateProjectState();
+            
+            // Show success message with summary
+            const completedTasks = update.tasks.filter((t: { status: string; }) => t.status === 'done').length;
+            const completedRequirements = update.requirements.filter((r: { status: string; }) => r.status === 'completed').length;
+            const implementedDesigns = update.design.filter((d: { status: string; }) => d.status === 'implemented').length;
+            
+            const message = `✅ Project state updated successfully!\n\n` +
+                          `📋 Tasks: ${completedTasks}/${update.tasks.length} completed\n` +
+                          `📝 Requirements: ${completedRequirements}/${update.requirements.length} completed\n` +
+                          `🎨 Design: ${implementedDesigns}/${update.design.length} implemented\n` +
+                          `📊 Overall Progress: ${update.progress.percentage}%`;
+            
+            vscode.window.showInformationMessage(message);
+            
+            // Refresh the sidebar to show updated progress
+            sidebarProvider.refresh();
+            
+            // Also refresh cloud project progress to sync with local changes
+            try {
+                await sidebarProvider.refreshCloudProjectProgress();
+            } catch (cloudRefreshError) {
+                console.warn('Failed to refresh cloud progress:', cloudRefreshError);
+            }
+            
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            vscode.window.showErrorMessage(`Failed to update project state: ${errorMessage}`);
+        }
+    });
+
+    const refreshCloudProgressCommand = vscode.commands.registerCommand('aiProjectManager.refreshCloudProgress', async () => {
+        try {
+            vscode.window.showInformationMessage('🔄 Refreshing cloud project progress...');
+            
+            await sidebarProvider.refreshCloudProjectProgress();
+            
+            vscode.window.showInformationMessage('✅ Cloud project progress refreshed!');
+            
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            vscode.window.showErrorMessage(`Failed to refresh cloud progress: ${errorMessage}`);
+        }
+    });
+
+    const refreshUserDetailsCommand = vscode.commands.registerCommand('aiProjectManager.refreshUserDetails', async () => {
+        try {
+            vscode.window.showInformationMessage('🔄 Refreshing user details...');
+            
+            const authService = AuthService.getInstance();
+            const user = await authService.refreshUserDetails();
+            
+            if (user) {
+                vscode.window.showInformationMessage(`✅ User details refreshed! Welcome, ${user.name}!`);
+                // Refresh the sidebar to show updated user details
+                sidebarProvider.refresh();
+            } else {
+                vscode.window.showErrorMessage('❌ Failed to refresh user details. Please check your authentication.');
+            }
+            
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            vscode.window.showErrorMessage(`Failed to refresh user details: ${errorMessage}`);
+        }
+    });
+
+    const openTaskEditorCommand = vscode.commands.registerCommand('aiProjectManager.openTaskEditor', async () => {
+        try {
+            // Try to find a tasks.md file in the workspace
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            if (!workspaceFolder) {
+                vscode.window.showWarningMessage('No workspace folder found. Open a folder to use the task editor.');
+                return;
+            }
+
+            // Look for tasks.md files in the workspace
+            const tasksFiles = await vscode.workspace.findFiles(
+                '**/tasks.md',
+                '**/node_modules/**'
+            );
+
+            if (tasksFiles.length === 0) {
+                // If no tasks.md found, offer to create one
+                const createChoice = await vscode.window.showInformationMessage(
+                    'No tasks.md file found. Would you like to create one?',
+                    'Create tasks.md',
+                    'Cancel'
+                );
+
+                if (createChoice === 'Create tasks.md') {
+                    const newTasksUri = vscode.Uri.joinPath(workspaceFolder.uri, 'tasks.md');
+                    const newDocument = await vscode.workspace.openTextDocument(newTasksUri);
+                    await vscode.window.showTextDocument(newDocument);
+                    
+                    // Add some initial content
+                    const edit = new vscode.WorkspaceEdit();
+                    edit.insert(newTasksUri, new vscode.Position(0, 0), `# Project Tasks
+
+## TODO
+- [ ] Add your first task here
+- [ ] Another task to complete
+
+## IN PROGRESS
+- [ ] Task currently being worked on
+
+## COMPLETED
+- [x] Example completed task
+`);
+                    await vscode.workspace.applyEdit(edit);
+                    
+                    vscode.window.showInformationMessage('📋 Created tasks.md file! You can now use the task editor.');
+                }
+                return;
+            }
+
+            // Use the first tasks.md file found
+            const tasksUri = tasksFiles[0];
+            
+            // Open the tasks.md file with the custom editor
+            await vscode.commands.executeCommand('vscode.openWith', tasksUri, 'aiProjectManager.taskDocument');
+            
+            vscode.window.showInformationMessage('📋 Task editor opened! Use the interactive buttons to manage your tasks.');
+            
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            vscode.window.showErrorMessage(`Failed to open task editor: ${errorMessage}`);
+        }
+    });
     
     context.subscriptions.push(
         injectContextCommand, 
@@ -976,7 +1122,12 @@ export async function activate(context: vscode.ExtensionContext) {
         openAuthSettingsCommand,
         enterTokenCommand,
         checkTokenCommand,
-        treeDataProvider
+        updateProjectStateCommand,
+        refreshCloudProgressCommand,
+        refreshUserDetailsCommand,
+        openTaskEditorCommand,
+        treeDataProvider,
+        taskDocumentProvider
     );
     
     // Start file watching and auto progress tracking if project is detected

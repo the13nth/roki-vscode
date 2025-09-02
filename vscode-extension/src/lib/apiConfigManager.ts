@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { ProjectDetectorImpl } from './projectDetector';
+import { ApiKeySelection } from '../types';
 
 // Add fetch type for Node.js
 declare global {

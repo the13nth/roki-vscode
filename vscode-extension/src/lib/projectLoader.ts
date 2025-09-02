@@ -96,13 +96,41 @@ export class ProjectLoader {
       throw new Error(`Expected array of projects, got: ${typeof projects}`);
     }
 
-    return projects.map((project: any) => ({
-      id: project.id || project._id,
-      name: project.name,
-      description: project.description || '',
-      lastModified: new Date(project.lastModified || project.updatedAt || Date.now()),
-      progress: project.progress || 0
+    // Enhance projects with real-time progress data
+    const enhancedProjects = await Promise.all(projects.map(async (project: any) => {
+      try {
+        // Try to get real-time progress for each project
+        const progressResponse = await this.authService.makeAuthenticatedRequest(
+          `${dashboardUrl}/api/projects/${project.id || project._id}/progress`
+        );
+        
+        let realProgress = project.progress || 0;
+        if (progressResponse.ok) {
+          const progressData = await progressResponse.json();
+          realProgress = progressData.percentage || progressData.progress || project.progress || 0;
+        }
+        
+        return {
+          id: project.id || project._id,
+          name: project.name,
+          description: project.description || '',
+          lastModified: new Date(project.lastModified || project.updatedAt || Date.now()),
+          progress: realProgress
+        };
+      } catch (progressError) {
+        console.warn(`Failed to get progress for project ${project.name}:`, progressError);
+        // Return project with original progress if we can't get real-time data
+        return {
+          id: project.id || project._id,
+          name: project.name,
+          description: project.description || '',
+          lastModified: new Date(project.lastModified || project.updatedAt || Date.now()),
+          progress: project.progress || 0
+        };
+      }
     }));
+
+    return enhancedProjects;
   }
 
   async loadProjectToWorkspace(projectId: string): Promise<void> {

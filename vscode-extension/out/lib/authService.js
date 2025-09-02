@@ -103,6 +103,41 @@ class AuthService {
             accessToken: config.get('authToken', '')
         };
     }
+    async refreshUserDetails() {
+        try {
+            if (!this.isAuthenticated()) {
+                return null;
+            }
+            const config = this.getConfig();
+            const dashboardUrl = config.get('dashboardUrl', 'http://localhost:3000');
+            const token = config.get('authToken', '');
+            // Fetch current user details from the dashboard
+            const response = await fetch(`${dashboardUrl}/api/auth/verify-token`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (!response.ok) {
+                throw new Error(`Failed to fetch user details: ${response.status} ${response.statusText}`);
+            }
+            const userData = await response.json();
+            const user = {
+                id: userData.userId,
+                email: userData.email,
+                name: userData.name,
+                accessToken: token
+            };
+            // Update local settings with fresh user data
+            await this.updateUserSettings(user);
+            return user;
+        }
+        catch (error) {
+            console.error('Failed to refresh user details:', error);
+            return null;
+        }
+    }
     getAuthHeaders() {
         if (!this.isAuthenticated()) {
             throw new Error('Not authenticated');

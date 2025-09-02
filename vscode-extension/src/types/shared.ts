@@ -98,6 +98,71 @@ export interface ProgressTracker {
   syncWithDashboard(): Promise<void>;
   startAutoTracking?(): Promise<void>;
   stopAutoTracking?(): void;
+  getProgressData(progressPath: string): ProgressData;
+}
+
+export interface ProjectStateUpdater {
+  updateProjectState(): Promise<ProjectStateUpdate>;
+}
+
+export interface ProjectStateUpdate {
+  tasks: TaskUpdate[];
+  requirements: RequirementUpdate[];
+  design: DesignUpdate[];
+  progress: ProgressData;
+  lastUpdated: Date;
+}
+
+export interface TaskUpdate {
+  id: string;
+  title: string;
+  status: 'todo' | 'in-progress' | 'review' | 'done';
+  progress: number;
+  lastModified: Date;
+  evidence: string[];
+}
+
+export interface RequirementUpdate {
+  id: string;
+  title: string;
+  status: 'pending' | 'in-progress' | 'completed' | 'blocked';
+  progress: number;
+  lastModified: Date;
+  evidence: string[];
+}
+
+export interface DesignUpdate {
+  id: string;
+  title: string;
+  status: 'draft' | 'review' | 'approved' | 'implemented';
+  progress: number;
+  lastModified: Date;
+  evidence: string[];
+}
+
+export interface ApiKeySelection {
+  usePersonalApiKey: boolean;
+  personalApiKey?: string;
+  globalApiKey?: string;
+  lastUpdated: Date;
+}
+
+export interface TaskItem {
+  id: string;
+  title: string;
+  status: 'todo' | 'in-progress' | 'done';
+  lineNumber: number;
+  indentLevel: number;
+  parentTask?: string;
+  children: TaskItem[];
+}
+
+export interface TaskUpdate {
+  taskId: string;
+  newStatus: 'todo' | 'in-progress' | 'done';
+  startedAt?: Date;
+  completedAt?: Date;
+  notes?: string;
 }
 
 export interface FileWatcher {

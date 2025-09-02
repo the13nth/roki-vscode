@@ -1,6 +1,6 @@
 {
   "name": "ai-project-manager",
-  "displayName": "AI Project Manager",
+  "displayName": "ROKI Project Manager",
   "description": "Intelligent project management with AI context injection",
   "version": "0.0.5",
   "publisher": "ai-project-manager",
@@ -18,8 +18,23 @@
     "onStartupFinished"
   ],
   "main": "./out/extension.js",
-  "contributes": {
-    "commands": [
+          "contributes": {
+            "customEditors": [
+                {
+                    "viewType": "aiProjectManager.taskDocument",
+                    "displayName": "AI Project Manager - Task Editor",
+                    "selector": [
+                        {
+                            "filenamePattern": "**/tasks.md"
+                        },
+                        {
+                            "filenamePattern": "**/*tasks*.md"
+                        }
+                    ],
+                    "priority": "default"
+                }
+            ],
+            "commands": [
       {
         "command": "aiProjectManager.injectContext",
         "title": "AI Project Manager: Inject Context",
@@ -139,11 +154,26 @@
         "title": "AI Project Manager: Open Browser to Login",
         "icon": "$(globe)"
       },
-      {
-        "command": "aiProjectManager.enterToken",
-        "title": "AI Project Manager: Enter Token",
-        "icon": "$(key)"
-      }
+              {
+          "command": "aiProjectManager.enterToken",
+          "title": "AI Project Manager: Enter Token",
+          "icon": "$(key)"
+        },
+        {
+          "command": "aiProjectManager.updateProjectState",
+          "title": "AI Project Manager: Update Project State",
+          "icon": "$(sync)"
+        },
+        {
+          "command": "aiProjectManager.refreshCloudProgress",
+          "title": "AI Project Manager: Refresh Cloud Progress",
+          "icon": "$(refresh)"
+        },
+        {
+          "command": "aiProjectManager.openTaskEditor",
+          "title": "AI Project Manager: Open Task Editor",
+          "icon": "$(tasklist)"
+        }
     ],
     "configuration": {
       "title": "AI Project Manager",
@@ -250,6 +280,11 @@
           "command": "aiProjectManager.injectContext",
           "when": "view == aiProjectManagerSidebar && viewItem == contextAction",
           "group": "inline"
+        },
+        {
+          "command": "aiProjectManager.updateProjectState",
+          "when": "view == aiProjectManagerSidebar",
+          "group": "inline"
         }
       ],
       "commandPalette": [
@@ -340,6 +375,18 @@
         {
           "command": "aiProjectManager.enterToken",
           "when": "true"
+        },
+        {
+          "command": "aiProjectManager.updateProjectState",
+          "when": "true"
+        },
+        {
+          "command": "aiProjectManager.refreshCloudProgress",
+          "when": "true"
+        },
+        {
+          "command": "aiProjectManager.openTaskEditor",
+          "when": "true"
         }
       ]
     },
@@ -354,6 +401,12 @@
         "command": "aiProjectManager.autoInjectContext",
         "key": "ctrl+alt+shift+i",
         "mac": "cmd+alt+shift+i",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "aiProjectManager.updateProjectState",
+        "key": "ctrl+alt+u",
+        "mac": "cmd+alt+u",
         "when": "editorTextFocus"
       }
     ]

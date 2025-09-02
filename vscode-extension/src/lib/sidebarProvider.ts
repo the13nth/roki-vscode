@@ -104,6 +104,22 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
         }
     }
 
+    /**
+     * Refreshes cloud project progress with real-time data
+     */
+    async refreshCloudProjectProgress(): Promise<void> {
+        try {
+            if (this.authService.isAuthenticated()) {
+                const projectLoader = ProjectLoader.getInstance();
+                this.userProjects = await projectLoader.listUserProjects();
+                console.log('Refreshed cloud project progress');
+                this._onDidChangeTreeData.fire();
+            }
+        } catch (error) {
+            console.error('Failed to refresh cloud project progress:', error);
+        }
+    }
+
     getTreeItem(element: SidebarItem): vscode.TreeItem {
         return element;
     }
@@ -136,7 +152,7 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
         // Child items based on parent
         switch (element.contextValue) {
             case 'userDetails':
-                return this.getUserDetailsItems();
+                return await this.getUserDetailsItems();
             case 'userProjects':
                 return this.getUserProjectItems();
             case 'documents':
@@ -209,7 +225,7 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
         // User Details (collapsible)
         const user = this.authService.getCurrentUser();
         items.push(new SidebarItem(
-            `👤 User Details`,
+            `👤 User Details${user ? ` • ${user.name || user.email}` : ''}`,
             vscode.TreeItemCollapsibleState.Collapsed,
             'userDetails',
             undefined,
@@ -317,6 +333,42 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
             new vscode.ThemeIcon('robot')
         ));
 
+        items.push(new SidebarItem(
+            '🔄 Update Project State',
+            vscode.TreeItemCollapsibleState.None,
+            'updateStateAction',
+            {
+                command: 'aiProjectManager.updateProjectState',
+                title: 'Update Project State'
+            },
+            'Update tasks, requirements, and design with current progress',
+            new vscode.ThemeIcon('sync')
+        ));
+
+        items.push(new SidebarItem(
+            '🔄 Refresh Cloud Progress',
+            vscode.TreeItemCollapsibleState.None,
+            'refreshCloudProgress',
+            {
+                command: 'aiProjectManager.refreshCloudProgress',
+                title: 'Refresh Cloud Progress'
+            },
+            'Refresh cloud project progress with real-time data',
+            new vscode.ThemeIcon('refresh')
+        ));
+
+        items.push(new SidebarItem(
+            '📊 Project Dashboard',
+            vscode.TreeItemCollapsibleState.None,
+            'openTaskEditor',
+            {
+                command: 'aiProjectManager.openTaskEditor',
+                title: 'Project Dashboard'
+            },
+            'Open project dashboard with tasks, requirements, and design',
+            new vscode.ThemeIcon('dashboard')
+        ));
+
         // Logout option
         items.push(new SidebarItem(
             '🚪 Logout',
@@ -333,8 +385,15 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
         return items;
     }
 
-    private getUserDetailsItems(): SidebarItem[] {
-        const user = this.authService.getCurrentUser();
+    private async getUserDetailsItems(): Promise<SidebarItem[]> {
+        // Try to refresh user details first
+        let user = await this.authService.refreshUserDetails();
+        
+        // If refresh failed, fall back to stored user data
+        if (!user) {
+            user = this.authService.getCurrentUser();
+        }
+
         if (!user) {
             return [
                 new SidebarItem(
@@ -374,14 +433,14 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
                 new vscode.ThemeIcon('key')
             ),
             new SidebarItem(
-                '🔄 Refresh Token',
+                '🔄 Refresh User Details',
                 vscode.TreeItemCollapsibleState.None,
-                'refreshToken',
+                'refreshUserDetails',
                 {
-                    command: 'aiProjectManager.checkToken',
-                    title: 'Refresh Token'
+                    command: 'aiProjectManager.refreshUserDetails',
+                    title: 'Refresh User Details'
                 },
-                'Verify your authentication token',
+                'Fetch latest user information from dashboard',
                 new vscode.ThemeIcon('refresh')
             )
         ];
@@ -806,20 +865,64 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
 
     private getContextItems(): SidebarItem[] {
         try {
+            // Check if we have a workspace folder
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            if (!workspaceFolder) {
+                return [
+                    new SidebarItem(
+                        'No workspace folder',
+                        vscode.TreeItemCollapsibleState.None,
+                        'noWorkspace',
+                        undefined,
+                        'Open a workspace folder to view context documents',
+                        new vscode.ThemeIcon('info')
+                    )
+                ];
+            }
+
+            // Check if we have an AI project
+            if (!this.projectDetector.detectAiProject()) {
+                return [
+                    new SidebarItem(
+                        'No AI project detected',
+                        vscode.TreeItemCollapsibleState.None,
+                        'noProject',
+                        undefined,
+                        'No AI project structure found in current workspace',
+                        new vscode.ThemeIcon('info')
+                    )
+                ];
+            }
+
             const structure = this.projectDetector.getProjectStructure();
             const contextDir = structure.contextDir;
             
             if (!fs.existsSync(contextDir)) {
-                return [
-                    new SidebarItem(
-                        'No context documents',
-                        vscode.TreeItemCollapsibleState.None,
-                        'noContext',
-                        undefined,
-                        'No context documents found',
-                        new vscode.ThemeIcon('info')
-                    )
-                ];
+                // Try to create the context directory
+                try {
+                    fs.mkdirSync(contextDir, { recursive: true });
+                    return [
+                        new SidebarItem(
+                            'Context directory created',
+                            vscode.TreeItemCollapsibleState.None,
+                            'contextCreated',
+                            undefined,
+                            'Context directory created. Add markdown files to get started.',
+                            new vscode.ThemeIcon('info')
+                        )
+                    ];
+                } catch (mkdirError) {
+                    return [
+                        new SidebarItem(
+                            'Cannot create context directory',
+                            vscode.TreeItemCollapsibleState.None,
+                            'contextError',
+                            undefined,
+                            `Failed to create context directory: ${mkdirError instanceof Error ? mkdirError.message : 'Unknown error'}`,
+                            new vscode.ThemeIcon('error')
+                        )
+                    ];
+                }
             }
 
             const files = fs.readdirSync(contextDir).filter(file => file.endsWith('.md'));
@@ -831,8 +934,19 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
                         vscode.TreeItemCollapsibleState.None,
                         'noContext',
                         undefined,
-                        'No markdown files in context directory',
+                        'No markdown files in context directory. Add .md files to get started.',
                         new vscode.ThemeIcon('info')
+                    ),
+                    new SidebarItem(
+                        'Create Sample Context',
+                        vscode.TreeItemCollapsibleState.None,
+                        'createContext',
+                        {
+                            command: 'aiProjectManager.createProject',
+                            title: 'Create Sample Context'
+                        },
+                        'Create a sample context document to get started',
+                        new vscode.ThemeIcon('add')
                     )
                 ];
             }
@@ -857,13 +971,14 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
                 );
             });
         } catch (error) {
+            console.error('Error in getContextItems:', error);
             return [
                 new SidebarItem(
                     'Error loading context',
                     vscode.TreeItemCollapsibleState.None,
                     'error',
                     undefined,
-                    'Failed to load context documents',
+                    `Failed to load context documents: ${error instanceof Error ? error.message : 'Unknown error'}`,
                     new vscode.ThemeIcon('error')
                 )
             ];
@@ -902,11 +1017,49 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
     
     private getRecentActivityItems(): SidebarItem[] {
         try {
+            // Check if we have a workspace folder
+            const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
+            if (!workspaceFolder) {
+                return [
+                    new SidebarItem(
+                        'No workspace folder',
+                        vscode.TreeItemCollapsibleState.None,
+                        'noWorkspace',
+                        undefined,
+                        'Open a workspace folder to view recent activity',
+                        new vscode.ThemeIcon('info')
+                    )
+                ];
+            }
+
+            // Check if we have an AI project
+            if (!this.projectDetector.detectAiProject()) {
+                return [
+                    new SidebarItem(
+                        'No AI project detected',
+                        vscode.TreeItemCollapsibleState.None,
+                        'noProject',
+                        undefined,
+                        'No AI project structure found in current workspace',
+                        new vscode.ThemeIcon('info')
+                    )
+                ];
+            }
+
             const structure = this.projectDetector.getProjectStructure();
             const progressPath = structure.progressPath;
             
             if (!fs.existsSync(progressPath)) {
-                return [];
+                return [
+                    new SidebarItem(
+                        'No progress data',
+                        vscode.TreeItemCollapsibleState.None,
+                        'noProgress',
+                        undefined,
+                        'No progress data found. Complete some tasks to see activity.',
+                        new vscode.ThemeIcon('info')
+                    )
+                ];
             }
 
             const progressContent = fs.readFileSync(progressPath, 'utf-8');
@@ -919,7 +1072,7 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
                         vscode.TreeItemCollapsibleState.None,
                         'noActivity',
                         undefined,
-                        'No tasks completed recently',
+                        'No tasks completed recently. Complete some tasks to see activity here.',
                         new vscode.ThemeIcon('info')
                     )
                 ];
@@ -939,13 +1092,14 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
                 );
             });
         } catch (error) {
+            console.error('Error in getRecentActivityItems:', error);
             return [
                 new SidebarItem(
                     'Error loading activity',
                     vscode.TreeItemCollapsibleState.None,
                     'error',
                     undefined,
-                    'Failed to load recent activity',
+                    `Failed to load recent activity: ${error instanceof Error ? error.message : 'Unknown error'}`,
                     new vscode.ThemeIcon('error')
                 )
             ];
