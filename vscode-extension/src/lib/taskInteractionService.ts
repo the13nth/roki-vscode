@@ -35,9 +35,9 @@ export class TaskInteractionService {
             const success = await this.insertIntoActiveEditor(formattedTask);
             
             if (success) {
-                vscode.window.showInformationMessage(`✅ Task "${taskTitle}" added to chat!`);
+                vscode.window.showInformationMessage(`Task "${taskTitle}" added to chat!`);
             } else {
-                vscode.window.showInformationMessage(`✅ Task "${taskTitle}" copied to clipboard! Paste it into your chat.`);
+                vscode.window.showInformationMessage(`Task "${taskTitle}" copied to clipboard! Paste it into your chat.`);
             }
             
             return true;
@@ -68,7 +68,7 @@ Please help me work on this task. I need guidance on:
 4. Providing code examples if applicable
 
 **Current Context:**
-I'm working on this as part of my project development. Please provide actionable advice and next steps.`;
+I'm working on this as part of my project development. Please provide check relevant files and implement, ask if you have questions.`;
     }
 
     /**
@@ -163,9 +163,9 @@ I'm working on this as part of my project development. Please provide actionable
             const success = await this.insertIntoActiveEditor(completionMessage);
             
             if (success) {
-                vscode.window.showInformationMessage(`✅ Task completion message added to chat!`);
+                vscode.window.showInformationMessage(`Task completion message added to chat!`);
             } else {
-                vscode.window.showInformationMessage(`✅ Task completion message copied to clipboard!`);
+                vscode.window.showInformationMessage(`Task completion message copied to clipboard!`);
             }
             
             return true;
@@ -181,7 +181,7 @@ I'm working on this as part of my project development. Please provide actionable
      */
     private formatTaskCompletion(taskTitle: string): string {
         const timestamp = new Date().toLocaleString();
-        return `✅ **Task Completed**: ${taskTitle}
+        return `**Task Completed**: ${taskTitle}
 
 **Completion Details:**
 - **Status**: Completed
@@ -206,9 +206,9 @@ This task has been successfully completed. I'm ready to move on to the next item
             const success = await this.insertIntoActiveEditor(resetMessage);
             
             if (success) {
-                vscode.window.showInformationMessage(`🔄 Task reset message added to chat!`);
+                vscode.window.showInformationMessage(`Task reset message added to chat!`);
             } else {
-                vscode.window.showInformationMessage(`🔄 Task reset message copied to clipboard!`);
+                vscode.window.showInformationMessage(`Task reset message copied to clipboard!`);
             }
             
             return true;
@@ -224,7 +224,7 @@ This task has been successfully completed. I'm ready to move on to the next item
      */
     private formatTaskReset(taskTitle: string): string {
         const timestamp = new Date().toLocaleString();
-        return `🔄 **Task Reset**: ${taskTitle}
+        return `**Task Reset**: ${taskTitle}
 
 **Reset Details:**
 - **Status**: Reset to TODO

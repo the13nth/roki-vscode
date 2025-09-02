@@ -149,7 +149,7 @@ async function activate(context) {
         // Initialize error handling
         setupGlobalErrorHandling();
         // Debug: Show activation message
-        vscode.window.showInformationMessage('🤖 AI Project Manager extension activated!');
+        vscode.window.showInformationMessage('AI Project Manager extension activated!');
         // Debug: Check auth service initialization
         const authService = authService_1.AuthService.getInstance();
         console.log('Auth service initialized, authenticated:', authService.isAuthenticated());
@@ -183,7 +183,8 @@ async function activate(context) {
     });
     console.log('Tree data provider registered');
     // Register custom editor provider for tasks.md
-    const taskDocumentProvider = taskDocumentProvider_1.TaskDocumentProvider.register(context);
+    const taskDocumentProvider = new taskDocumentProvider_1.TaskDocumentProvider(context);
+    const taskDocumentProviderRegistration = taskDocumentProvider_1.TaskDocumentProvider.register(context);
     console.log('Task document provider registered');
     // Try to make the view visible
     try {
@@ -203,7 +204,7 @@ async function activate(context) {
                 const formattedContext = await extension.contextInjector.formatContextForAI();
                 // Always copy to clipboard for manual pasting
                 await vscode.env.clipboard.writeText(formattedContext);
-                vscode.window.showInformationMessage('🤖 AI Context copied to clipboard! You can now paste it manually.');
+                vscode.window.showInformationMessage('AI Context copied to clipboard! You can now paste it manually.');
                 console.log('Formatted context:', formattedContext);
             }
             catch (error) {
@@ -228,7 +229,7 @@ async function activate(context) {
     const connectToDashboardCommand = vscode.commands.registerCommand('aiProjectManager.connectToDashboard', async () => {
         try {
             await connectToDashboard();
-            vscode.window.showInformationMessage('✅ Connected to AI Project Dashboard!');
+            vscode.window.showInformationMessage('Connected to AI Project Dashboard!');
         }
         catch (error) {
             vscode.window.showErrorMessage(`Failed to connect: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -250,7 +251,7 @@ async function activate(context) {
         }
     });
     const refreshSidebarCommand = vscode.commands.registerCommand('aiProjectManager.refreshSidebar', () => {
-        sidebarProvider.refresh();
+        sidebarProvider.smartRefresh();
         vscode.window.showInformationMessage('AI Project Manager sidebar refreshed');
     });
     const forceRefreshCommand = vscode.commands.registerCommand('aiProjectManager.forceRefresh', async () => {
@@ -328,7 +329,7 @@ async function activate(context) {
             if (!template)
                 return;
             await createProjectStructure(workspaceFolder.uri.fsPath, projectName, template.label);
-            vscode.window.showInformationMessage(`✅ AI Project "${projectName}" created successfully!`, 'Open Dashboard', 'View Files').then(choice => {
+            vscode.window.showInformationMessage(`AI Project "${projectName}" created successfully!`, 'Open Dashboard', 'View Files').then(choice => {
                 if (choice === 'Open Dashboard') {
                     vscode.commands.executeCommand('aiProjectManager.connectToDashboard');
                 }
@@ -345,7 +346,7 @@ async function activate(context) {
         try {
             const isValid = await validateProjectStructure();
             if (isValid) {
-                vscode.window.showInformationMessage('✅ Project structure is valid');
+                vscode.window.showInformationMessage('Project structure is valid');
             }
         }
         catch (error) {
@@ -363,7 +364,7 @@ async function activate(context) {
             if (choice !== 'Repair')
                 return;
             await repairProjectStructure(workspaceFolder.uri.fsPath);
-            vscode.window.showInformationMessage('✅ Project repair completed');
+            vscode.window.showInformationMessage('Project repair completed');
         }
         catch (error) {
             handleError(error, 'Repair project');
@@ -387,7 +388,7 @@ async function activate(context) {
                 return;
             }
             await updateProjectWithUserInfo(workspaceFolder.uri.fsPath, currentUser);
-            vscode.window.showInformationMessage(`✅ Project updated with user information for ${currentUser.email}`);
+            vscode.window.showInformationMessage(`Project updated with user information for ${currentUser.email}`);
         }
         catch (error) {
             handleError(error, 'Update project user info');
@@ -399,8 +400,8 @@ async function activate(context) {
             const authService = authService_1.AuthService.getInstance();
             const success = await authService.login();
             if (success) {
-                // Refresh sidebar to show projects
-                sidebarProvider.refresh();
+                // Use smart refresh to avoid unnecessary calls
+                sidebarProvider.smartRefresh();
             }
         }
         catch (error) {
@@ -411,8 +412,8 @@ async function activate(context) {
         try {
             const authService = authService_1.AuthService.getInstance();
             await authService.logout();
-            // Refresh sidebar
-            sidebarProvider.refresh();
+            // Use smart refresh to avoid unnecessary calls
+            sidebarProvider.smartRefresh();
         }
         catch (error) {
             handleError(error, 'Logout');
@@ -439,7 +440,7 @@ async function activate(context) {
                 await projectLoader.loadProjectToWorkspace(selectedProjectId);
                 // Refresh file explorer and sidebar
                 await vscode.commands.executeCommand('workbench.files.action.refreshFilesExplorer');
-                sidebarProvider.refresh();
+                sidebarProvider.smartRefresh();
             }
         }
         catch (error) {
@@ -476,7 +477,7 @@ async function activate(context) {
             // Show confirmation
             const selectedProject = sidebarProvider.getUserProjects().find(p => p.id === projectId);
             if (selectedProject) {
-                vscode.window.showInformationMessage(`✅ Selected project: ${selectedProject.name}`);
+                vscode.window.showInformationMessage(`Selected project: ${selectedProject.name}`);
             }
         }
         catch (error) {
@@ -509,7 +510,7 @@ async function activate(context) {
             const kiroSpecsPath = path.join(workspaceFolder.uri.fsPath, '.kiro', 'specs', 'ai-project-manager');
             if (!fs.existsSync(kiroSpecsPath)) {
                 fs.mkdirSync(kiroSpecsPath, { recursive: true });
-                console.log(`✅ Created directory: ${kiroSpecsPath}`);
+                console.log(`Created directory: ${kiroSpecsPath}`);
             }
             // Determine filename based on document type
             let filename;
@@ -534,7 +535,7 @@ async function activate(context) {
             await vscode.window.showTextDocument(document);
             // Refresh the sidebar to show the newly saved document
             sidebarProvider.refresh();
-            vscode.window.showInformationMessage(`📄 Opened and saved ${documentType} from cloud to ${filePath}`);
+            vscode.window.showInformationMessage(`Opened and saved ${documentType} from cloud to ${filePath}`);
         }
         catch (error) {
             handleError(error, 'Open cloud document');
@@ -549,7 +550,7 @@ async function activate(context) {
             }
             const document = await vscode.workspace.openTextDocument(filePath);
             await vscode.window.showTextDocument(document);
-            vscode.window.showInformationMessage(`📄 Opened local document: ${path.basename(filePath)}`);
+            vscode.window.showInformationMessage(`Opened local document: ${path.basename(filePath)}`);
         }
         catch (error) {
             handleError(error, 'Open local document');
@@ -572,7 +573,7 @@ async function activate(context) {
             }
             await vscode.window.withProgress({
                 location: vscode.ProgressLocation.Notification,
-                title: "🔄 Force syncing project...",
+                title: "Force syncing project...",
                 cancellable: false
             }, async (progress) => {
                 progress.report({ increment: 0 });
@@ -607,7 +608,7 @@ async function activate(context) {
                 const hasChanges = await syncService.checkCloudChanges(projectId, workspaceFolder.uri.fsPath);
                 progress.report({ increment: 100 });
                 if (!hasChanges) {
-                    vscode.window.showInformationMessage('✅ No cloud changes detected');
+                    vscode.window.showInformationMessage('No cloud changes detected');
                 }
             });
         }
@@ -625,9 +626,9 @@ async function activate(context) {
             const syncService = syncService_1.SyncService.getInstance();
             const syncStatus = syncService.getSyncStatus(projectId);
             if (syncStatus) {
-                const statusText = syncStatus.status === 'synced' ? '✅ Synced' :
-                    syncStatus.status === 'syncing' ? '🔄 Syncing' :
-                        syncStatus.status === 'error' ? '❌ Error' : '⚠️ Conflict';
+                const statusText = syncStatus.status === 'synced' ? 'Synced' :
+                    syncStatus.status === 'syncing' ? 'Syncing' :
+                        syncStatus.status === 'error' ? 'Error' : 'Conflict';
                 vscode.window.showInformationMessage(`${statusText}\nLast sync: ${syncStatus.lastSync?.toLocaleString() || 'Never'}\n${syncStatus.message || ''}`);
             }
             else {
@@ -698,7 +699,7 @@ async function activate(context) {
                 // Save token to settings
                 await config.update('authToken', token, vscode.ConfigurationTarget.Global);
                 // Show success message
-                vscode.window.showInformationMessage('✅ Token saved! Click "Confirm Token" to verify it.', 'Confirm Now').then(choice => {
+                vscode.window.showInformationMessage('Token saved! Click "Confirm Token" to verify it.', 'Confirm Now').then(choice => {
                     if (choice === 'Confirm Now') {
                         vscode.commands.executeCommand('aiProjectManager.checkToken');
                     }
@@ -754,7 +755,7 @@ async function activate(context) {
                     progress.report({ increment: 100 });
                     // Force a configuration update to trigger sidebar refresh
                     await config.update('authToken', token, vscode.ConfigurationTarget.Global);
-                    vscode.window.showInformationMessage(`✅ Welcome, ${user.name}! Your projects are now available.`, 'View Projects').then(choice => {
+                    vscode.window.showInformationMessage(`Welcome, ${user.name}! Your projects are now available.`, 'View Projects').then(choice => {
                         if (choice === 'View Projects') {
                             sidebarProvider.refresh();
                         }
@@ -802,17 +803,17 @@ async function activate(context) {
                 vscode.window.showWarningMessage('No AI project detected in current workspace');
                 return;
             }
-            vscode.window.showInformationMessage('🔄 Updating project state...');
+            vscode.window.showInformationMessage('Updating project state...');
             const update = await projectStateUpdater.updateProjectState();
             // Show success message with summary
             const completedTasks = update.tasks.filter((t) => t.status === 'done').length;
             const completedRequirements = update.requirements.filter((r) => r.status === 'completed').length;
             const implementedDesigns = update.design.filter((d) => d.status === 'implemented').length;
-            const message = `✅ Project state updated successfully!\n\n` +
-                `📋 Tasks: ${completedTasks}/${update.tasks.length} completed\n` +
-                `📝 Requirements: ${completedRequirements}/${update.requirements.length} completed\n` +
-                `🎨 Design: ${implementedDesigns}/${update.design.length} implemented\n` +
-                `📊 Overall Progress: ${update.progress.percentage}%`;
+            const message = `Project state updated successfully!\n\n` +
+                `Tasks: ${completedTasks}/${update.tasks.length} completed\n` +
+                `Requirements: ${completedRequirements}/${update.requirements.length} completed\n` +
+                `Design: ${implementedDesigns}/${update.design.length} implemented\n` +
+                `Overall Progress: ${update.progress.percentage}%`;
             vscode.window.showInformationMessage(message);
             // Refresh the sidebar to show updated progress
             sidebarProvider.refresh();
@@ -831,9 +832,9 @@ async function activate(context) {
     });
     const refreshCloudProgressCommand = vscode.commands.registerCommand('aiProjectManager.refreshCloudProgress', async () => {
         try {
-            vscode.window.showInformationMessage('🔄 Refreshing cloud project progress...');
+            vscode.window.showInformationMessage('Refreshing cloud project progress...');
             await sidebarProvider.refreshCloudProjectProgress();
-            vscode.window.showInformationMessage('✅ Cloud project progress refreshed!');
+            vscode.window.showInformationMessage('Cloud project progress refreshed!');
         }
         catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -842,11 +843,11 @@ async function activate(context) {
     });
     const refreshUserDetailsCommand = vscode.commands.registerCommand('aiProjectManager.refreshUserDetails', async () => {
         try {
-            vscode.window.showInformationMessage('🔄 Refreshing user details...');
+            vscode.window.showInformationMessage('Refreshing user details...');
             const authService = authService_1.AuthService.getInstance();
             const user = await authService.refreshUserDetails();
             if (user) {
-                vscode.window.showInformationMessage(`✅ User details refreshed! Welcome, ${user.name}!`);
+                vscode.window.showInformationMessage(`User details refreshed! Welcome, ${user.name}!`);
                 // Refresh the sidebar to show updated user details
                 sidebarProvider.refresh();
             }
@@ -891,22 +892,28 @@ async function activate(context) {
 - [x] Example completed task
 `);
                     await vscode.workspace.applyEdit(edit);
-                    vscode.window.showInformationMessage('📋 Created tasks.md file! You can now use the task editor.');
+                    vscode.window.showInformationMessage('Created tasks.md file! You can now use the task editor.');
                 }
                 return;
             }
             // Use the first tasks.md file found
             const tasksUri = tasksFiles[0];
+            // Get the current project ID from the sidebar provider
+            const currentProjectId = sidebarProvider?.getSelectedProject() || null;
+            // Set the project ID in the task document provider
+            if (taskDocumentProvider && currentProjectId) {
+                taskDocumentProvider.setCurrentProjectId(currentProjectId);
+            }
             // Open the tasks.md file with the custom editor
             await vscode.commands.executeCommand('vscode.openWith', tasksUri, 'aiProjectManager.taskDocument');
-            vscode.window.showInformationMessage('📋 Task editor opened! Use the interactive buttons to manage your tasks.');
+            vscode.window.showInformationMessage('Task editor opened! Use the interactive buttons to manage your tasks.');
         }
         catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             vscode.window.showErrorMessage(`Failed to open task editor: ${errorMessage}`);
         }
     });
-    context.subscriptions.push(injectContextCommand, detectProjectCommand, connectToDashboardCommand, toggleAutoInjectCommand, openContextPreferencesCommand, autoInjectContextCommand, refreshSidebarCommand, forceRefreshCommand, openDocumentCommand, setSyncStatusCommand, showSidebarCommand, createProjectCommand, validateProjectCommand, repairProjectCommand, updateProjectUserInfoCommand, loginCommand, logoutCommand, loadProjectCommand, listProjectsCommand, loadProjectRequirementsCommand, selectProjectCommand, openCloudDocumentCommand, openLocalDocumentCommand, forceSyncCommand, checkCloudChangesCommand, showSyncStatusCommand, openAuthSettingsCommand, enterTokenCommand, checkTokenCommand, updateProjectStateCommand, refreshCloudProgressCommand, refreshUserDetailsCommand, openTaskEditorCommand, treeDataProvider, taskDocumentProvider);
+    context.subscriptions.push(injectContextCommand, detectProjectCommand, connectToDashboardCommand, toggleAutoInjectCommand, openContextPreferencesCommand, autoInjectContextCommand, refreshSidebarCommand, forceRefreshCommand, openDocumentCommand, setSyncStatusCommand, showSidebarCommand, createProjectCommand, validateProjectCommand, repairProjectCommand, updateProjectUserInfoCommand, loginCommand, logoutCommand, loadProjectCommand, listProjectsCommand, loadProjectRequirementsCommand, selectProjectCommand, openCloudDocumentCommand, openLocalDocumentCommand, forceSyncCommand, checkCloudChangesCommand, showSyncStatusCommand, openAuthSettingsCommand, enterTokenCommand, checkTokenCommand, updateProjectStateCommand, refreshCloudProgressCommand, refreshUserDetailsCommand, openTaskEditorCommand, treeDataProvider, taskDocumentProviderRegistration);
     // Start file watching and auto progress tracking if project is detected
     if (extension.projectDetector.detectAiProject()) {
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
@@ -927,7 +934,7 @@ async function activate(context) {
         }
     }
     else {
-        vscode.window.showWarningMessage('⚠️ No AI project detected in current workspace');
+        vscode.window.showWarningMessage('No AI project detected in current workspace');
     }
     // Set up periodic heartbeat to maintain connection
     const heartbeatInterval = setInterval(async () => {
@@ -965,7 +972,7 @@ async function activate(context) {
                     accessToken: existingToken
                 };
                 await authService.updateUserSettings(user);
-                vscode.window.showInformationMessage(`✅ Welcome back, ${user.name}!`);
+                vscode.window.showInformationMessage(`Welcome back, ${user.name}!`);
                 sidebarProvider.refresh();
             }
             else {

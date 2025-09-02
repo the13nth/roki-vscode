@@ -67,14 +67,14 @@
   background-color: #f3f4f6;
   color: #ec4899;
   padding: 0.125rem 0.25rem;
-  border-radius: 0.25rem;
+  border-radius: 0;
   font-size: 0.875rem;
 }
 
 .prose pre {
   background-color: #f3f4f6;
   border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
+  border-radius: 0;
   padding: 1rem;
   overflow-x: auto;
   margin-top: 1rem;
@@ -162,7 +162,7 @@
   background-color: hsl(var(--muted));
   color: hsl(var(--foreground));
   padding: 0.125rem 0.25rem;
-  border-radius: 0.25rem;
+  border-radius: 0;
   font-size: 0.875rem;
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
 }
@@ -201,14 +201,14 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+  --radius-xl: 0;
 }
 
 :root {
-  --radius: 0.625rem;
+  --radius: 0;
   --background: oklch(1 0 0);
   --foreground: oklch(0.13 0.028 261.692);
   --card: oklch(1 0 0);

@@ -22,7 +22,7 @@ export default function Page() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-white">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-none h-32 w-32 border-b-2 border-gray-900 mx-auto mb-4"></div>
           <p className="text-gray-600">Redirecting...</p>
         </div>
       </div>
@@ -41,7 +41,7 @@ export default function Page() {
           appearance={{
             elements: {
               rootBox: "mx-auto",
-              card: "shadow-xl border-0 rounded-lg",
+              card: "shadow-xl border-0 rounded-none",
             }
           }}
         />

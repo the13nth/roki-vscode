@@ -43,7 +43,7 @@ export default function ProfilePage() {
                 appearance={{
                   elements: {
                     rootBox: "mx-auto",
-                    card: "shadow-xl border-0 rounded-lg",
+                    card: "shadow-xl border-0 rounded-none",
                   }
                 }}
               />

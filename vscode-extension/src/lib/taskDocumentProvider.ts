@@ -1,9 +1,11 @@
 import * as vscode from 'vscode';
 import { TaskInteractionService, TaskItem } from './taskInteractionService';
+import { AuthService } from './authService';
 
 export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
     public static readonly viewType = 'aiProjectManager.taskDocument';
     private taskInteractionService = new TaskInteractionService();
+    private currentProjectId: string | null = null;
 
     public static register(context: vscode.ExtensionContext): vscode.Disposable {
         const provider = new TaskDocumentProvider(context);
@@ -15,6 +17,10 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
     }
 
     constructor(private readonly context: vscode.ExtensionContext) {}
+
+    public setCurrentProjectId(projectId: string | null): void {
+        this.currentProjectId = projectId;
+    }
 
     public async resolveCustomTextEditor(
         document: vscode.TextDocument,
@@ -53,6 +59,12 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                         break;
                     case 'loadDesign':
                         await this.loadDesign(webviewPanel.webview);
+                        break;
+                    case 'loadCloudRequirements':
+                        await this.loadCloudRequirements(webviewPanel.webview, message.projectId);
+                        break;
+                    case 'loadCloudDesign':
+                        await this.loadCloudDesign(webviewPanel.webview, message.projectId);
                         break;
                 }
             }
@@ -190,6 +202,92 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
         }
     }
 
+    private async loadCloudRequirements(webview: vscode.Webview, projectId: string): Promise<void> {
+        try {
+            const authService = AuthService.getInstance();
+            
+            if (!authService.isAuthenticated()) {
+                webview.postMessage({
+                    type: 'requirementsLoaded',
+                    error: 'Please login first to view cloud requirements.'
+                });
+                return;
+            }
+
+            const config = vscode.workspace.getConfiguration('aiProjectManager');
+            const dashboardUrl = config.get('dashboardUrl', 'http://localhost:3000');
+            
+            // Fetch requirements from cloud
+            const response = await authService.makeAuthenticatedRequest(
+                `${dashboardUrl}/api/vscode/projects/${projectId}/documents/requirements`
+            );
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch requirements: ${response.status} ${response.statusText}`);
+            }
+            
+            const documentData = await response.json();
+            const content = documentData.content || '';
+            
+            // Convert markdown to HTML for display
+            const htmlContent = this.convertMarkdownToHtml(content);
+
+            webview.postMessage({
+                type: 'requirementsLoaded',
+                content: htmlContent,
+                source: 'cloud'
+            });
+        } catch (error) {
+            webview.postMessage({
+                type: 'requirementsLoaded',
+                error: `Failed to load cloud requirements: ${error instanceof Error ? error.message : 'Unknown error'}`
+            });
+        }
+    }
+
+    private async loadCloudDesign(webview: vscode.Webview, projectId: string): Promise<void> {
+        try {
+            const authService = AuthService.getInstance();
+            
+            if (!authService.isAuthenticated()) {
+                webview.postMessage({
+                    type: 'designLoaded',
+                    error: 'Please login first to view cloud design.'
+                });
+                return;
+            }
+
+            const config = vscode.workspace.getConfiguration('aiProjectManager');
+            const dashboardUrl = config.get('dashboardUrl', 'http://localhost:3000');
+            
+            // Fetch design from cloud
+            const response = await authService.makeAuthenticatedRequest(
+                `${dashboardUrl}/api/vscode/projects/${projectId}/documents/design`
+            );
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch design: ${response.status} ${response.statusText}`);
+            }
+            
+            const documentData = await response.json();
+            const content = documentData.content || '';
+            
+            // Convert markdown to HTML for display
+            const htmlContent = this.convertMarkdownToHtml(content);
+
+            webview.postMessage({
+                type: 'designLoaded',
+                content: htmlContent,
+                source: 'cloud'
+            });
+        } catch (error) {
+            webview.postMessage({
+                type: 'designLoaded',
+                error: `Failed to load cloud design: ${error instanceof Error ? error.message : 'Unknown error'}`
+            });
+        }
+    }
+
     private convertMarkdownToHtml(markdown: string): string {
         // Simple markdown to HTML conversion
         let html = markdown
@@ -289,21 +387,22 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                     .refresh-btn {
                         background: var(--vscode-button-background);
                         color: var(--vscode-button-foreground);
-                        border: none;
+                        border: 2px solid var(--vscode-button-background);
                         padding: 8px 16px;
-                        border-radius: 4px;
+                        border-radius: 0;
                         cursor: pointer;
                         font-size: 14px;
                     }
                     
                     .refresh-btn:hover {
                         background: var(--vscode-button-hoverBackground);
+                        border-color: var(--vscode-button-hoverBackground);
                     }
                     
                     .info-box {
                         background: var(--vscode-notificationsInfoBackground);
                         border: 1px solid var(--vscode-notificationsInfoBorder);
-                        border-radius: 6px;
+                        border-radius: 0;
                         padding: 15px;
                         margin-bottom: 20px;
                         color: var(--vscode-notificationsInfoForeground);
@@ -317,7 +416,7 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                         margin-bottom: 15px;
                         padding: 15px;
                         border: 1px solid var(--vscode-panel-border);
-                        border-radius: 6px;
+                        border-radius: 0;
                         background-color: var(--vscode-editor-background);
                     }
                     
@@ -344,8 +443,8 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                     
                     .task-btn {
                         padding: 6px 12px;
-                        border: none;
-                        border-radius: 4px;
+                        border: 2px solid;
+                        border-radius: 0;
                         cursor: pointer;
                         font-size: 12px;
                         font-weight: 500;
@@ -355,35 +454,41 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                     .start-btn {
                         background: var(--vscode-button-background);
                         color: var(--vscode-button-foreground);
+                        border-color: var(--vscode-button-background);
                     }
                     
                     .start-btn:hover {
                         background: var(--vscode-button-hoverBackground);
+                        border-color: var(--vscode-button-hoverBackground);
                     }
                     
                     .complete-btn {
                         background: var(--vscode-testing-iconPassed);
                         color: white;
+                        border-color: var(--vscode-testing-iconPassed);
                     }
                     
                     .complete-btn:hover {
                         background: var(--vscode-testing-iconPassed);
+                        border-color: var(--vscode-testing-iconPassed);
                         opacity: 0.8;
                     }
                     
                     .reset-btn {
                         background: var(--vscode-button-secondaryBackground);
                         color: var(--vscode-button-secondaryForeground);
+                        border-color: var(--vscode-button-secondaryBackground);
                     }
                     
                     .reset-btn:hover {
                         background: var(--vscode-button-secondaryHoverBackground);
+                        border-color: var(--vscode-button-secondaryHoverBackground);
                     }
                     
                     .task-status {
                         display: inline-block;
                         padding: 4px 8px;
-                        border-radius: 12px;
+                        border-radius: 0;
                         font-size: 11px;
                         font-weight: 500;
                         text-transform: uppercase;
@@ -414,16 +519,16 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                         gap: 1px;
                         margin-bottom: 24px;
                         background: var(--vscode-panel-border);
-                        border-radius: 8px;
+                        border-radius: 0;
                         padding: 4px;
                     }
                     
                     .tab-nav-btn {
                         background: var(--vscode-editor-background);
                         color: var(--vscode-editor-foreground);
-                        border: none;
+                        border: 2px solid transparent;
                         padding: 12px 20px;
-                        border-radius: 6px;
+                        border-radius: 0;
                         cursor: pointer;
                         font-size: 14px;
                         font-weight: 500;
@@ -437,11 +542,13 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                     
                     .tab-nav-btn:hover {
                         background: var(--vscode-list-hoverBackground);
+                        border-color: var(--vscode-list-hoverBackground);
                     }
                     
                     .tab-nav-btn.active {
                         background: var(--vscode-button-background);
                         color: var(--vscode-button-foreground);
+                        border-color: var(--vscode-button-background);
                         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
                     }
                     
@@ -486,16 +593,16 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                         gap: 1px;
                         margin-bottom: 20px;
                         background: var(--vscode-panel-border);
-                        border-radius: 6px;
+                        border-radius: 0;
                         padding: 2px;
                     }
                     
                     .task-tab-btn {
                         background: var(--vscode-editor-background);
                         color: var(--vscode-editor-foreground);
-                        border: none;
+                        border: 2px solid transparent;
                         padding: 8px 16px;
-                        border-radius: 4px;
+                        border-radius: 0;
                         cursor: pointer;
                         font-size: 13px;
                         font-weight: 500;
@@ -505,11 +612,13 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                     
                     .task-tab-btn:hover {
                         background: var(--vscode-list-hoverBackground);
+                        border-color: var(--vscode-list-hoverBackground);
                     }
                     
                     .task-tab-btn.active {
                         background: var(--vscode-button-background);
                         color: var(--vscode-button-foreground);
+                        border-color: var(--vscode-button-background);
                     }
                     
                     .task-tab-content {
@@ -555,9 +664,9 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                     .placeholder-btn {
                         background: var(--vscode-button-background);
                         color: var(--vscode-button-foreground);
-                        border: none;
+                        border: 2px solid var(--vscode-button-background);
                         padding: 10px 20px;
-                        border-radius: 6px;
+                        border-radius: 0;
                         cursor: pointer;
                         font-size: 14px;
                         font-weight: 500;
@@ -566,12 +675,20 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                     
                     .placeholder-btn:hover {
                         background: var(--vscode-button-hoverBackground);
+                        border-color: var(--vscode-button-hoverBackground);
+                    }
+                    
+                    .button-group {
+                        display: flex;
+                        gap: 8px;
+                        justify-content: center;
+                        margin-top: 16px;
                     }
                     
                     .markdown-content {
                         background: var(--vscode-editor-background);
                         border: 1px solid var(--vscode-panel-border);
-                        border-radius: 8px;
+                        border-radius: 0;
                         padding: 20px;
                         max-height: 600px;
                         overflow-y: auto;
@@ -628,7 +745,7 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                         background: var(--vscode-textCodeBlock-background);
                         color: var(--vscode-textCodeBlock-foreground);
                         padding: 2px 6px;
-                        border-radius: 4px;
+                        border-radius: 0;
                         font-family: var(--vscode-editor-font-family);
                         font-size: 13px;
                     }
@@ -636,7 +753,7 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                     .markdown-body pre {
                         background: var(--vscode-textCodeBlock-background);
                         border: 1px solid var(--vscode-panel-border);
-                        border-radius: 6px;
+                        border-radius: 0;
                         padding: 16px;
                         overflow-x: auto;
                         margin-bottom: 16px;
@@ -674,7 +791,7 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                         margin-bottom: 10px;
                         padding: 10px;
                         background-color: var(--vscode-editor-inactiveSelectionBackground);
-                        border-radius: 4px;
+                        border-radius: 0;
                     }
                     
                     .no-tasks {
@@ -693,7 +810,7 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                     .error-message {
                         background: var(--vscode-notificationsErrorBackground);
                         border: 1px solid var(--vscode-notificationsErrorBorder);
-                        border-radius: 6px;
+                        border-radius: 0;
                         padding: 15px;
                         margin-bottom: 20px;
                         color: var(--vscode-notificationsErrorForeground);
@@ -703,16 +820,16 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
             <body>
                 <div class="header">
                     <div>
-                        <div class="title">📊 Project Dashboard</div>
+                        <div class="title">Project Dashboard</div>
                         <div class="subtitle">Manage your project tasks, requirements, and design</div>
                     </div>
                     <button class="refresh-btn" onclick="refreshTasks()">
-                        🔄 Refresh
+                        Refresh
                     </button>
                 </div>
                 
                 <div class="info-box">
-                    💡 <strong>How it works:</strong> When you click "Start Task", the task details are automatically copied to your clipboard and inserted into any open AI chat. This works just like the "Add to Chat" feature!
+                    <strong>How it works:</strong> When you click "Start Task", the task details are automatically copied to your clipboard and inserted into any open AI chat. This works just like the "Add to Chat" feature!
                 </div>
                 
                 <div id="errorContainer" style="display: none;"></div>
@@ -720,15 +837,15 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                 <div class="dashboard-tabs">
                     <div class="tab-navigation">
                         <button class="tab-nav-btn active" onclick="switchTab('tasks')">
-                            <span class="tab-icon">📋</span>
+                            <span class="tab-icon">●</span>
                             <span class="tab-label">Tasks</span>
                         </button>
                         <button class="tab-nav-btn" onclick="switchTab('requirements')">
-                            <span class="tab-icon">📋</span>
+                            <span class="tab-icon">●</span>
                             <span class="tab-label">Requirements</span>
                         </button>
                         <button class="tab-nav-btn" onclick="switchTab('design')">
-                            <span class="tab-icon">🎨</span>
+                            <span class="tab-icon">●</span>
                             <span class="tab-label">Design</span>
                         </button>
                     </div>
@@ -741,10 +858,10 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                         
                         <div class="task-tabs">
                             <button class="task-tab-btn active" onclick="switchTaskTab('active')">
-                                📋 Active Tasks
+                                Active Tasks
                             </button>
                             <button class="task-tab-btn" onclick="switchTaskTab('completed')">
-                                ✅ Completed Tasks
+                                Completed Tasks
                             </button>
                         </div>
                         
@@ -768,10 +885,13 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                         </div>
                         <div id="requirementsContainer" class="content-container">
                             <div class="placeholder-content">
-                                <div class="placeholder-icon">📋</div>
+                                <div class="placeholder-icon">●</div>
                                 <h4>Requirements Management</h4>
-                                <p>Requirements will be loaded from your requirements.md file</p>
-                                <button class="placeholder-btn" onclick="loadRequirements()">Load Requirements</button>
+                                <p>Load requirements from local file or cloud project</p>
+                                <div class="button-group">
+                                    <button class="placeholder-btn" onclick="loadRequirements()">Load Local</button>
+                                    <button class="placeholder-btn" onclick="loadCloudRequirements()" id="cloudRequirementsBtn" style="display: ${this.currentProjectId ? 'inline-block' : 'none'};">Load Cloud</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -783,10 +903,13 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                         </div>
                         <div id="designContainer" class="content-container">
                             <div class="placeholder-content">
-                                <div class="placeholder-icon">🎨</div>
+                                <div class="placeholder-icon">●</div>
                                 <h4>Design Documentation</h4>
-                                <p>Design documents will be loaded from your design.md file</p>
-                                <button class="placeholder-btn" onclick="loadDesign()">Load Design</button>
+                                <p>Load design from local file or cloud project</p>
+                                <div class="button-group">
+                                    <button class="placeholder-btn" onclick="loadDesign()">Load Local</button>
+                                    <button class="placeholder-btn" onclick="loadCloudDesign()" id="cloudDesignBtn" style="display: ${this.currentProjectId ? 'inline-block' : 'none'};">Load Cloud</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -795,6 +918,8 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                 <script>
                     const vscode = acquireVsCodeApi();
                     let currentTasks = [];
+                    let currentProjectId = '${this.currentProjectId || ''}';
+                    window.currentProjectId = currentProjectId;
                     
                     // Handle messages from the extension
                     window.addEventListener('message', event => {
@@ -813,7 +938,7 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                                 if (message.error) {
                                     document.getElementById('requirementsContainer').innerHTML = \`
                                         <div class="placeholder-content">
-                                            <div class="placeholder-icon">⚠️</div>
+                                            <div class="placeholder-icon">●</div>
                                             <h4>Error Loading Requirements</h4>
                                             <p>\${message.error}</p>
                                             <button class="placeholder-btn" onclick="loadRequirements()">Retry</button>
@@ -823,8 +948,8 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                                     document.getElementById('requirementsContainer').innerHTML = \`
                                         <div class="markdown-content">
                                             <div class="markdown-header">
-                                                <h4>📋 Project Requirements</h4>
-                                                <button class="placeholder-btn" onclick="loadRequirements()">🔄 Reload</button>
+                                                <h4>Project Requirements</h4>
+                                                <button class="placeholder-btn" onclick="loadRequirements()">Reload</button>
                                             </div>
                                             <div class="markdown-body">
                                                 \${message.content}
@@ -837,7 +962,7 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                                 if (message.error) {
                                     document.getElementById('designContainer').innerHTML = \`
                                         <div class="placeholder-content">
-                                            <div class="placeholder-icon">⚠️</div>
+                                            <div class="placeholder-icon">●</div>
                                             <h4>Error Loading Design</h4>
                                             <p>\${message.error}</p>
                                             <button class="placeholder-btn" onclick="loadDesign()">Retry</button>
@@ -846,9 +971,9 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                                 } else {
                                     document.getElementById('designContainer').innerHTML = \`
                                         <div class="markdown-content">
-                                            <div class="placeholder-icon">🎨</div>
+                                            <div class="placeholder-icon">●</div>
                                             <h4>System Design</h4>
-                                            <button class="placeholder-btn" onclick="loadDesign()">🔄 Reload</button>
+                                            <button class="placeholder-btn" onclick="loadDesign()">Reload</button>
                                         </div>
                                         <div class="markdown-body">
                                             \${message.content}
@@ -863,7 +988,7 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                         const errorContainer = document.getElementById('errorContainer');
                         errorContainer.innerHTML = \`
                             <div class="error-message">
-                                ⚠️ <strong>Note:</strong> \${errorMessage}
+                                <strong>Note:</strong> \${errorMessage}
                             </div>
                         \`;
                         errorContainer.style.display = 'block';
@@ -887,7 +1012,7 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                         // Render uncompleted tasks
                         const uncompletedContainer = document.getElementById('uncompletedTaskContainer');
                         if (uncompletedTasks.length === 0) {
-                            uncompletedContainer.innerHTML = '<div class="no-tasks">🎉 All tasks completed! Great job!</div>';
+                            uncompletedContainer.innerHTML = '<div class="no-tasks">All tasks completed! Great job!</div>';
                         } else {
                             uncompletedContainer.innerHTML = uncompletedTasks.map(task => renderTask(task, false)).join('');
                         }
@@ -911,16 +1036,16 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                             if (task.status === 'todo') {
                                 actionButtons = \`
                                     <button class="task-btn start-btn" onclick="startTask('\${task.title}')">
-                                        ▶️ Start Task
+                                        Start Task
                                     </button>
                                 \`;
                             } else if (task.status === 'in-progress') {
                                 actionButtons = \`
                                     <button class="task-btn complete-btn" onclick="completeTask('\${task.title}')">
-                                        ✅ Complete
+                                        Complete
                                     </button>
                                     <button class="task-btn reset-btn" onclick="resetTask('\${task.title}')">
-                                        🔄 Reset
+                                        Reset
                                     </button>
                                 \`;
                             }
@@ -977,16 +1102,16 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                             if (task.status === 'todo') {
                                 actionButtons = \`
                                     <button class="task-btn start-btn" onclick="startTask('\${task.title}')">
-                                        ▶️ Start
+                                        Start
                                     </button>
                                 \`;
                             } else if (task.status === 'in-progress') {
                                 actionButtons = \`
                                     <button class="task-btn complete-btn" onclick="completeTask('\${task.title}')">
-                                        ✅ Complete
+                                        Complete
                                     </button>
                                     <button class="task-btn reset-btn" onclick="resetTask('\${task.title}')">
-                                        🔄 Reset
+                                        Reset
                                     </button>
                                 \`;
                             }
@@ -1092,6 +1217,45 @@ export class TaskDocumentProvider implements vscode.CustomTextEditorProvider {
                         vscode.postMessage({
                             type: 'refresh'
                         });
+                    }
+
+                    function loadCloudRequirements() {
+                        // Show loading state
+                        document.getElementById('requirementsContainer').innerHTML = \`
+                            <div class="placeholder-content">
+                                <div class="placeholder-icon">⏳</div>
+                                <h4>Loading Cloud Requirements...</h4>
+                                <p>Fetching requirements from cloud project</p>
+                            </div>
+                        \`;
+                        
+                        // Request cloud requirements content from the extension
+                        vscode.postMessage({
+                            type: 'loadCloudRequirements',
+                            projectId: getCurrentProjectId()
+                        });
+                    }
+
+                    function loadCloudDesign() {
+                        // Show loading state
+                        document.getElementById('designContainer').innerHTML = \`
+                            <div class="placeholder-content">
+                                <div class="placeholder-icon">⏳</div>
+                                <h4>Loading Cloud Design...</h4>
+                                <p>Fetching design from cloud project</p>
+                            </div>
+                        \`;
+                        
+                        // Request cloud design content from the extension
+                        vscode.postMessage({
+                            type: 'loadCloudDesign',
+                            projectId: getCurrentProjectId()
+                        });
+                    }
+
+                    function getCurrentProjectId() {
+                        // Get the current project ID from the webview data
+                        return window.currentProjectId || null;
                     }
                 </script>
             </body>

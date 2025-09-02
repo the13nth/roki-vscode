@@ -546,7 +546,7 @@ export class ContextInjectorImpl implements ContextInjector {
             
             // Always copy to clipboard for manual pasting
             await vscode.env.clipboard.writeText(formattedContext);
-            vscode.window.showInformationMessage('🤖 AI context copied to clipboard! You can now paste it manually.', { modal: false });
+            vscode.window.showInformationMessage('AI context copied to clipboard! You can now paste it manually.', { modal: false });
         } catch (error) {
             console.error('Auto-inject failed:', error);
             vscode.window.showWarningMessage('Failed to auto-inject AI context');

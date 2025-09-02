@@ -75,14 +75,14 @@ export default function VSCodeLoginPage() {
         </div>
 
         <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-          <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+          <div className="bg-white py-8 px-4 shadow sm:rounded-none sm:px-10">
             <div className="text-center">
               <p className="text-sm text-gray-500 mb-4">
                 You need to be signed in to use the VSCode extension.
               </p>
               <Link
                 href="/sign-in?redirect_url=/auth/vscode-login"
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-none shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 Sign In
               </Link>
@@ -107,7 +107,7 @@ export default function VSCodeLoginPage() {
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+        <div className="bg-white py-8 px-4 shadow sm:rounded-none sm:px-10">
           <div className="space-y-6">
             <div>
               <label htmlFor="token" className="block text-sm font-medium text-gray-700">
@@ -117,7 +117,7 @@ export default function VSCodeLoginPage() {
                 <textarea
                   id="token"
                   rows={4}
-                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-md font-mono text-xs"
+                  className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 rounded-none font-mono text-xs"
                   value={token}
                   readOnly
                   placeholder={loading ? "Generating token..." : "Loading token..."}
@@ -139,7 +139,7 @@ export default function VSCodeLoginPage() {
               <button
                 onClick={copyToken}
                 disabled={!token}
-                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white ${
+                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-none shadow-sm text-sm font-medium text-white ${
                   copied
                     ? 'bg-green-600 hover:bg-green-700'
                     : 'bg-blue-600 hover:bg-blue-700'
@@ -151,7 +151,7 @@ export default function VSCodeLoginPage() {
               <button
                 onClick={generateToken}
                 disabled={loading}
-                className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-none shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               >
                 {loading ? '🔄 Generating...' : '🔄 Regenerate Token'}
               </button>
