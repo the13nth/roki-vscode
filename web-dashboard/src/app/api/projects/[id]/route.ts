@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
 import { ProjectService } from '@/lib/projectService';
 import { ProjectDashboard } from '@/types';
 import { getPineconeClient } from '@/lib/pinecone';
@@ -60,12 +60,42 @@ export async function GET(
     const isPublic = record.metadata.isPublic as boolean || false;
     const projectOwnerId = record.metadata.userId as string;
     
-    // If not public and user is not the owner, deny access
-    if (!isPublic && (!userId || projectOwnerId !== userId)) {
-      return NextResponse.json(
-        { error: 'Project not found' },
-        { status: 404 }
-      );
+    // Check if user is the owner
+    const isOwner = userId ? projectOwnerId === userId : false;
+    
+    // If not public and user is not the owner, check if project is shared with user
+    if (!isPublic && !isOwner) {
+      // Get user's email to check sharing
+      const user = await currentUser();
+      const userEmail = user?.emailAddresses[0]?.emailAddress;
+      
+      if (userEmail) {
+        // Check if project is shared with this user and invitation was accepted
+        const sharingResponse = await index.namespace('project_sharing').query({
+          vector: new Array(1024).fill(0.1),
+          filter: {
+            projectId: { $eq: projectId },
+            sharedWithEmail: { $eq: userEmail },
+            status: { $eq: 'accepted' }
+          },
+          topK: 1,
+          includeMetadata: true
+        });
+
+        const hasSharedAccess = sharingResponse.matches && sharingResponse.matches.length > 0;
+        
+        if (!hasSharedAccess) {
+          return NextResponse.json(
+            { error: 'Project not found' },
+            { status: 404 }
+          );
+        }
+      } else {
+        return NextResponse.json(
+          { error: 'Project not found' },
+          { status: 404 }
+        );
+      }
     }
 
     // Parse project data

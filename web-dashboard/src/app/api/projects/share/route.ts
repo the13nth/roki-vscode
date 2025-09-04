@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { getPineconeClient, PINECONE_INDEX_NAME } from '@/lib/pinecone';
 import { ProjectSharing, TeamRole } from '@/types/shared';
+import { NotificationService } from '@/lib/notificationService';
 
 const pinecone = getPineconeClient();
 const index = pinecone.index(PINECONE_INDEX_NAME);
@@ -55,7 +56,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Check ownership
-    if (project.ownerId !== userId) {
+    if (project.userId !== userId) {
       return NextResponse.json(
         { success: false, error: 'Only project owners can share projects' },
         { status: 403 }
@@ -84,6 +85,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Create project sharing record
     const sharingId = `share_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const now = new Date();
+    const expiresAt = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
 
     const projectSharing: ProjectSharing = {
       id: sharingId,
@@ -92,7 +94,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       role,
       sharedAt: now,
       sharedBy: userId,
-      status: 'active'
+      status: 'pending'
     };
 
     // Store project sharing in Pinecone
@@ -101,23 +103,33 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       values: new Array(1024).fill(0.1),
       metadata: {
         ...projectSharing,
-        sharedAt: projectSharing.sharedAt.toISOString()
+        sharedAt: projectSharing.sharedAt.toISOString(),
+        expiresAt: expiresAt.toISOString()
       }
     }]);
 
-    // Update project's sharedWith array
-    const currentSharedWith = Array.isArray(project.sharedWith) ? project.sharedWith : [];
-    if (!currentSharedWith.includes(email)) {
-      const updatedSharedWith = [...currentSharedWith, email];
+    // Don't update project's sharedWith array until invitation is accepted
+    // const currentSharedWith = Array.isArray(project.sharedWith) ? project.sharedWith : [];
+    // if (!currentSharedWith.includes(email)) {
+    //   const updatedSharedWith = [...currentSharedWith, email];
       
-      await index.namespace('projects').upsert([{
-        id: String(project.projectId),
-        values: new Array(1024).fill(0.1),
-        metadata: {
-          ...project,
-          sharedWith: updatedSharedWith
-        }
-      }]);
+    //   await index.namespace('projects').upsert([{
+    //     id: String(project.projectId),
+    //     values: new Array(1024).fill(0.1),
+    //     metadata: {
+    //       ...project,
+    //       sharedWith: updatedSharedWith
+    //     }
+    //   });
+    // }
+
+    // Create notification for project sharing
+    try {
+      const projectName = String(project.name || 'Unknown Project');
+      await NotificationService.notifyProjectInvitation(userId, projectId, projectName, email, role);
+    } catch (notificationError) {
+      console.error('Failed to create project sharing notification:', notificationError);
+      // Don't fail the sharing if notification fails
     }
 
     // TODO: Send email notification to shared user
@@ -255,7 +267,7 @@ export async function DELETE(request: NextRequest): Promise<NextResponse> {
       });
 
       const project = projectResponse.matches?.[0]?.metadata;
-      if (!project || project.ownerId !== userId) {
+      if (!project || project.userId !== userId) {
         return NextResponse.json(
           { success: false, error: 'Insufficient permissions to revoke sharing' },
           { status: 403 }

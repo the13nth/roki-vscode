@@ -115,9 +115,9 @@ export function ProjectNavigation({ projectId, activeTab, progress, onNavigate, 
     // Always show overview
     if (item.id === 'overview') return true;
     
-    // For non-owners, show read-only tabs plus analysis and social
+    // For non-owners, show read-only tabs plus analysis, social, and team
     if (!isOwned) {
-      return ['requirements', 'design', 'tasks', 'context', 'visualization', 'analysis', 'social'].includes(item.id);
+      return ['requirements', 'design', 'tasks', 'context', 'visualization', 'analysis', 'social', 'team'].includes(item.id);
     }
     
     // For owners, show all tabs except applications if they don't own the project

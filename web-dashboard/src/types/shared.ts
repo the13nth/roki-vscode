@@ -62,7 +62,7 @@ export interface ProjectConfiguration {
   design?: string; // Generated design document
   tasks?: string; // Generated tasks document
   isPublic?: boolean; // Whether the project is visible to everyone
-  ownerId: string; // Project owner's user ID
+  userId: string; // Project owner's user ID
   teamId?: string; // Associated team ID if part of a team
   sharedWith?: string[]; // Array of user emails the project is shared with
   tokenTracking?: {
@@ -98,6 +98,35 @@ export interface ProjectContext {
   requirementsSummary: string;
   relevantContextDocs: ContextDocument[];
   progressSummary: string;
+}
+
+// Notification types for tracking project updates
+export interface ProjectNotification {
+  id: string;
+  projectId: string;
+  projectName: string;
+  type: 'project_created' | 'project_updated' | 'project_deleted' | 'task_completed' | 'milestone_reached' | 'team_member_added' | 'project_shared' | 'project_invitation';
+  message: string;
+  timestamp: Date;
+  isRead: boolean;
+  metadata?: {
+    taskCount?: number;
+    progress?: number;
+    teamMemberEmail?: string;
+    sharedWithEmail?: string;
+    role?: string;
+  };
+}
+
+export interface UserNotificationPreferences {
+  userId: string;
+  emailNotifications: boolean;
+  projectUpdates: boolean;
+  taskCompletions: boolean;
+  teamChanges: boolean;
+  projectSharing: boolean;
+  digestFrequency: 'immediate' | 'daily' | 'weekly';
+  lastDigestSent?: Date;
 }
 
 // VS Code Extension specific interfaces
@@ -172,13 +201,24 @@ export type TeamRole = 'owner' | 'admin' | 'editor' | 'viewer';
 export interface ProjectSharing {
   id: string;
   projectId: string;
-  teamId?: string;
-  sharedWithUserId?: string;
   sharedWithEmail: string;
   role: TeamRole;
   sharedAt: Date;
   sharedBy: string;
-  status: 'active' | 'revoked';
+  status: 'pending' | 'accepted' | 'declined' | 'active';
+}
+
+export interface ProjectInvitation {
+  id: string;
+  projectId: string;
+  projectName: string;
+  sharedWithEmail: string;
+  role: TeamRole;
+  sharedAt: Date;
+  sharedBy: string;
+  sharedByName?: string;
+  status: 'pending' | 'accepted' | 'declined';
+  expiresAt: Date;
 }
 
 export interface TeamProject {

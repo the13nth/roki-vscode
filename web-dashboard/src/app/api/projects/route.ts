@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { ProjectService } from '@/lib/projectService';
 import { ProjectListItem } from '@/types';
+import { NotificationService } from '@/lib/notificationService';
 
 // GET /api/projects - List user's projects
 export async function GET() {
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
       technologyStack,
       regulatoryCompliance,
       isPublic: isPublic || false,
-      ownerId: userId,
+      userId: userId,
       contextPreferences: {
         maxContextSize: 8000,
         prioritizeRecent: true,
@@ -69,6 +70,14 @@ export async function POST(request: NextRequest) {
     };
 
     const projectListItem = await projectService.createProject(userId, projectData);
+
+    // Create notification for project creation
+    try {
+      await NotificationService.notifyProjectCreated(userId, projectListItem.id, projectListItem.name);
+    } catch (notificationError) {
+      console.error('Failed to create project creation notification:', notificationError);
+      // Don't fail the project creation if notification fails
+    }
 
     return NextResponse.json(projectListItem, { status: 201 });
   } catch (error) {

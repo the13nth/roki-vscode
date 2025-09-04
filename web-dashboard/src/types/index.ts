@@ -20,4 +20,7 @@ export interface ProjectListItem {
   lastModified: Date;
   progress: number;
   isPublic?: boolean;
+  isShared?: boolean;
+  sharedRole?: string;
+  isOwned?: boolean;
 }

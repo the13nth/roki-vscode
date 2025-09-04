@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { getPineconeClient, PINECONE_INDEX_NAME } from '@/lib/pinecone';
 import { TeamInvitation, TeamRole } from '@/types/shared';
+import { NotificationService } from '@/lib/notificationService';
 
 const pinecone = getPineconeClient();
 const index = pinecone.index(PINECONE_INDEX_NAME);
@@ -100,6 +101,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         expiresAt: invitation.expiresAt.toISOString()
       }
     }]);
+
+    // Get team name for notification
+    const teamResponse = await index.namespace('teams').query({
+      vector: new Array(1024).fill(0.1),
+      filter: {
+        teamId: { $eq: teamId }
+      },
+      topK: 1,
+      includeMetadata: true
+    });
+
+    // Create notification for team member invitation
+    try {
+      const teamName = String(teamResponse.matches?.[0]?.metadata?.name || 'Unknown Team');
+      await NotificationService.notifyTeamMemberAdded(userId, teamId, teamName, email);
+    } catch (notificationError) {
+      console.error('Failed to create team invitation notification:', notificationError);
+      // Don't fail the invitation if notification fails
+    }
 
     // TODO: Send email invitation (implement email service)
     console.log(`Invitation sent to ${email} for team ${teamId} with role ${role}`);

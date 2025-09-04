@@ -6,6 +6,8 @@ import SecurityConfigStatus from '@/components/SecurityConfigStatus';
 import TokenUsageVisualization from '@/components/TokenUsageVisualization';
 import { UserApiSettings } from '@/components/UserApiSettings';
 import { UserSubscriptionManager } from '@/components/UserSubscriptionManager';
+import { UserNotifications } from '@/components/UserNotifications';
+import { ProjectInvitations } from '@/components/ProjectInvitations';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function ProfilePage() {
@@ -29,43 +31,46 @@ export default function ProfilePage() {
             <p className="text-gray-600">Manage your account settings and preferences</p>
           </div>
           
-          <Tabs defaultValue="account" className="space-y-8">
-            <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-5' : 'grid-cols-3'}`}>
-              <TabsTrigger value="account">Account Settings</TabsTrigger>
-              <TabsTrigger value="subscription">Subscription</TabsTrigger>
+          <Tabs defaultValue="profile" className="w-full">
+            <TabsList className="grid w-full grid-cols-6">
+              <TabsTrigger value="profile">Profile</TabsTrigger>
+              <TabsTrigger value="security">Security</TabsTrigger>
+              <TabsTrigger value="tokens">Token Usage</TabsTrigger>
               <TabsTrigger value="api">API Settings</TabsTrigger>
-              {isAdmin && <TabsTrigger value="security">Security</TabsTrigger>}
-              {isAdmin && <TabsTrigger value="usage">Token Usage</TabsTrigger>}
+              <TabsTrigger value="notifications">Notifications</TabsTrigger>
+              <TabsTrigger value="invitations">Project Invitations</TabsTrigger>
+              {isAdmin && (
+                <TabsTrigger value="subscription">Subscription</TabsTrigger>
+              )}
             </TabsList>
-            
-            <TabsContent value="account" className="space-y-8">
-              <UserProfile 
-                appearance={{
-                  elements: {
-                    rootBox: "mx-auto",
-                    card: "shadow-xl border-0 rounded-none",
-                  }
-                }}
-              />
+
+            <TabsContent value="profile" className="mt-6">
+              <UserProfile />
             </TabsContent>
-            
-            <TabsContent value="subscription" className="space-y-8">
-              <UserSubscriptionManager />
+
+            <TabsContent value="security" className="mt-6">
+              <SecurityConfigStatus />
             </TabsContent>
-            
-            <TabsContent value="api" className="space-y-8">
+
+            <TabsContent value="tokens" className="mt-6">
+              <TokenUsageVisualization />
+            </TabsContent>
+
+            <TabsContent value="api" className="mt-6">
               <UserApiSettings />
             </TabsContent>
-            
+
+            <TabsContent value="notifications" className="mt-6">
+              <UserNotifications />
+            </TabsContent>
+
+            <TabsContent value="invitations" className="mt-6">
+              <ProjectInvitations />
+            </TabsContent>
+
             {isAdmin && (
-              <TabsContent value="security" className="space-y-8">
-                <SecurityConfigStatus />
-              </TabsContent>
-            )}
-            
-            {isAdmin && (
-              <TabsContent value="usage" className="space-y-8">
-                <TokenUsageVisualization />
+              <TabsContent value="subscription" className="mt-6">
+                <UserSubscriptionManager />
               </TabsContent>
             )}
           </Tabs>

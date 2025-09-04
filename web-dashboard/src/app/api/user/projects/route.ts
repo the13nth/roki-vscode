@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import { getPineconeClient, PINECONE_INDEX_NAME } from '@/lib/pinecone';
+import { auth, currentUser } from '@clerk/nextjs/server';
+import { getPineconeClient, PINECONE_INDEX_NAME, PINECONE_NAMESPACE_PROJECTS } from '@/lib/pinecone';
 
 // Helper function to parse tasks from markdown content (same as in project detail endpoint)
 function parseTasksFromMarkdown(content: string): { totalTasks: number; completedTasks: number; percentage: number } {
@@ -31,11 +31,20 @@ function parseTasksFromMarkdown(content: string): { totalTasks: number; complete
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const { userId } = await auth();
+    const user = await currentUser();
 
-    if (!userId) {
+    if (!userId || !user) {
       return NextResponse.json(
         { success: false, error: 'Authentication required' },
         { status: 401 }
+      );
+    }
+
+    const userEmail = user.emailAddresses[0]?.emailAddress;
+    if (!userEmail) {
+      return NextResponse.json(
+        { success: false, error: 'User email not found' },
+        { status: 400 }
       );
     }
 
@@ -43,10 +52,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const index = pinecone.index(PINECONE_INDEX_NAME);
 
     // Get user's owned projects from Pinecone
-    const ownedProjectsResponse = await index.namespace('projects').query({
+    const ownedProjectsResponse = await index.namespace(PINECONE_NAMESPACE_PROJECTS).query({
       vector: new Array(1024).fill(0.1),
       filter: {
-        ownerId: { $eq: userId }
+        userId: { $eq: userId },
+        type: { $eq: 'user-project' }
       },
       topK: 100,
       includeMetadata: true
@@ -158,8 +168,76 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     }
 
+    // Get shared projects where user has been invited and accepted
+    const sharedProjects: any[] = [];
+    
+    if (userEmail) {
+      // Get all projects that are shared with this user
+      const sharedProjectsResponse = await index.namespace('projects').query({
+        vector: new Array(1024).fill(0.1),
+        filter: {
+          sharedWith: { $in: [userEmail] }
+        },
+        topK: 100,
+        includeMetadata: true
+      });
+
+      for (const projectMatch of sharedProjectsResponse.matches || []) {
+        if (!projectMatch.metadata) continue;
+        
+        const project = projectMatch.metadata;
+        
+        // Check if user has accepted the invitation
+        const sharingResponse = await index.namespace('project_sharing').query({
+          vector: new Array(1024).fill(0.1),
+          filter: {
+            projectId: { $eq: project.projectId },
+            sharedWithEmail: { $eq: userEmail },
+            status: { $eq: 'accepted' }
+          },
+          topK: 1,
+          includeMetadata: true
+        });
+
+        if (sharingResponse.matches && sharingResponse.matches.length > 0) {
+          const sharing = sharingResponse.matches[0].metadata;
+          
+          if (sharing) {
+            // Parse project data to get tasks for progress calculation
+            let progress = 0;
+            let projectData = null;
+            
+            try {
+              if (project.projectData) {
+                projectData = JSON.parse(project.projectData as string);
+                if (projectData?.tasks) {
+                  const taskStats = parseTasksFromMarkdown(projectData.tasks);
+                  progress = taskStats.percentage;
+                }
+              }
+            } catch (error) {
+              console.error('Failed to parse shared project data for progress calculation:', error);
+            }
+            
+            sharedProjects.push({
+              id: project.projectId,
+              name: project.name || 'Untitled Project',
+              description: project.description || '',
+              createdAt: project.createdAt || '',
+              lastModified: project.lastModified || '',
+              progress: progress,
+              isOwned: false,
+              isShared: true,
+              sharedRole: sharing.role,
+              sharedAt: sharing.sharedAt
+            });
+          }
+        }
+      }
+    }
+
     // Combine and deduplicate projects
-    const allProjects = [...ownedProjects, ...teamProjects];
+    const allProjects = [...ownedProjects, ...teamProjects, ...sharedProjects];
     const uniqueProjects = allProjects.filter((project, index, self) => 
       index === self.findIndex(p => p.id === project.id)
     );

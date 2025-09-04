@@ -34,8 +34,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       id: teamId,
       name,
       description,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: new Date(),
+      updatedAt: new Date(),
       ownerId: userId,
       isActive: true
     };

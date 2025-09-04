@@ -53,10 +53,14 @@ export function ProjectOverview() {
   };
 
   const filterAndSortProjects = () => {
-    // Combine user projects and public projects, marking public projects
+    // Combine user projects and public projects, preserving shared project properties
     // The backend now handles deduplication, so we can safely combine the lists
     const allProjects = [
-      ...projects.map(project => ({ ...project, isOwned: true })),
+      ...projects.map(project => ({ 
+        ...project, 
+        // Only set isOwned to true if it's not explicitly marked as shared
+        isOwned: project.isShared ? false : (project.isOwned !== false)
+      })),
       ...publicProjects.map(project => ({ ...project, isOwned: false }))
     ];
     
