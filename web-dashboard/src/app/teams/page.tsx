@@ -39,12 +39,12 @@ export default function TeamsPage() {
         fetchTeams();
         toast({
           title: `${result.teamsCreated} new team${result.teamsCreated > 1 ? 's' : ''} created from shared projects.`,
-          description: 'Your teams have been updated.',
+          description: `Processed ${result.totalProjectsProcessed || 0} shared projects.`,
         });
       } else if (result.success && result.teamsCreated === 0) {
         toast({
           title: 'No new teams created from shared projects.',
-          description: 'Your teams are already up to date.',
+          description: `Processed ${result.totalProjectsProcessed || 0} shared projects. Your teams are already up to date.`,
         });
       } else {
         toast({

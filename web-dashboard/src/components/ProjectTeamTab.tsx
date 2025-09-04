@@ -49,12 +49,12 @@ export default function ProjectTeamTab({ projectId, isOwned = true, isPublic = f
         fetchProjectTeam();
         toast({
           title: `${result.teamsCreated} new team${result.teamsCreated > 1 ? 's' : ''} created from shared projects.`,
-          description: `Synced ${result.teamsCreated} shared projects.`,
+          description: `Processed ${result.totalProjectsProcessed || 0} shared projects.`,
         });
       } else {
         toast({
           title: 'No new teams created from shared projects.',
-          description: 'No shared projects found to create new teams from.',
+          description: `Processed ${result.totalProjectsProcessed || 0} shared projects. No new teams needed.`,
         });
       }
     } catch (error) {

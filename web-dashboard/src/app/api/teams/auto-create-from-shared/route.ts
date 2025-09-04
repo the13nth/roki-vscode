@@ -45,10 +45,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     console.log(`Found ${acceptedSharingResponse.matches?.length || 0} accepted project sharing records for email: ${userEmail}`);
 
-    // Combine both sources of shared projects
+    // Get projects that the current user owns and has shared with others
+    const ownedAndSharedResponse = await index.namespace('project_sharing').query({
+      vector: new Array(1024).fill(0.1),
+      filter: {
+        sharedBy: { $eq: userId },
+        status: { $in: ['pending', 'accepted', 'active'] }
+      },
+      topK: 100,
+      includeMetadata: true
+    });
+
+    console.log(`Found ${ownedAndSharedResponse.matches?.length || 0} projects owned by current user and shared with others`);
+
+    // Combine all sources of projects that should have teams
     const sharedProjectIds = new Set<string>();
     
-    // Add projects from projects namespace
+    // Add projects from projects namespace (projects shared with current user)
     if (sharedProjectsResponse.matches) {
       for (const match of sharedProjectsResponse.matches) {
         if (match.metadata?.projectId) {
@@ -57,9 +70,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
     
-    // Add projects from project_sharing namespace
+    // Add projects from project_sharing namespace (projects shared with current user)
     if (acceptedSharingResponse.matches) {
       for (const match of acceptedSharingResponse.matches) {
+        if (match.metadata?.projectId) {
+          sharedProjectIds.add(String(match.metadata.projectId));
+        }
+      }
+    }
+
+    // Add projects that current user owns and has shared
+    if (ownedAndSharedResponse.matches) {
+      for (const match of ownedAndSharedResponse.matches) {
         if (match.metadata?.projectId) {
           sharedProjectIds.add(String(match.metadata.projectId));
         }
@@ -141,6 +163,23 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           ownerId: String(existingTeam.ownerId),
           isActive: Boolean(existingTeam.isActive)
         };
+
+        // Check if the project is already in this team
+        const existingTeamProjectResponse = await index.namespace('team_projects').query({
+          vector: new Array(1024).fill(0.1),
+          filter: {
+            teamId: { $eq: teamId },
+            projectId: { $eq: projectId }
+          },
+          topK: 1,
+          includeMetadata: true
+        });
+
+        if (existingTeamProjectResponse.matches?.length > 0) {
+          // Project is already in this team, skip adding it again
+          console.log(`Project ${projectId} is already in team ${teamId}`);
+          continue;
+        }
       } else {
         // Create new team for this project owner
         teamId = `team_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -179,6 +218,26 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           status: 'active',
           invitedBy: projectOwnerId
         };
+
+        // Try to get the owner's email from project sharing records
+        if (projectOwnerId !== userId) {
+          // Look for any project sharing record by this owner to get their email
+          const ownerSharingResponse = await index.namespace('project_sharing').query({
+            vector: new Array(1024).fill(0.1),
+            filter: {
+              sharedBy: { $eq: projectOwnerId }
+            },
+            topK: 1,
+            includeMetadata: true
+          });
+
+          if (ownerSharingResponse.matches?.[0]?.metadata?.sharedByEmail) {
+            ownerMember.email = String(ownerSharingResponse.matches[0].metadata.sharedByEmail);
+          }
+        } else {
+          // Current user is the owner, use their email
+          ownerMember.email = userEmail;
+        }
 
         await index.namespace('team_members').upsert([{
           id: ownerMember.id,
@@ -225,26 +284,34 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
 
       if (!currentUserMembershipResponse.matches?.length) {
-        // Get the user's role from project sharing
-        const sharingResponse = await index.namespace('project_sharing').query({
-          vector: new Array(1024).fill(0.1),
-          filter: {
-            projectId: { $eq: projectId },
-            sharedWithEmail: { $eq: userEmail },
-            status: { $eq: 'accepted' }
-          },
-          topK: 1,
-          includeMetadata: true
-        });
+        // Determine the user's role based on whether they own the project or are shared with it
+        let userRole: TeamRole = 'viewer';
+        
+        if (projectOwnerId === userId) {
+          // Current user owns this project
+          userRole = 'owner';
+        } else {
+          // Current user is shared with this project, get their role from project sharing
+          const sharingResponse = await index.namespace('project_sharing').query({
+            vector: new Array(1024).fill(0.1),
+            filter: {
+              projectId: { $eq: projectId },
+              sharedWithEmail: { $eq: userEmail },
+              status: { $eq: 'accepted' }
+            },
+            topK: 1,
+            includeMetadata: true
+          });
 
-        const userRole = sharingResponse.matches?.[0]?.metadata?.role || 'viewer';
+          userRole = (sharingResponse.matches?.[0]?.metadata?.role as TeamRole) || 'viewer';
+        }
 
         const currentUserMember: TeamMember = {
           id: `member_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           teamId,
           userId,
           email: userEmail,
-          role: userRole as TeamRole,
+          role: userRole,
           joinedAt: new Date(),
           invitedAt: new Date(),
           status: 'active',
@@ -261,13 +328,70 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           }
         }]);
       }
+
+      // Add other users who are shared with this project to the team
+      if (projectOwnerId === userId) {
+        // Current user owns this project, add other shared users
+        const otherSharedUsersResponse = await index.namespace('project_sharing').query({
+          vector: new Array(1024).fill(0.1),
+          filter: {
+            projectId: { $eq: projectId },
+            status: { $in: ['accepted', 'active'] }
+          },
+          topK: 100,
+          includeMetadata: true
+        });
+
+        for (const sharing of otherSharedUsersResponse.matches || []) {
+          const sharedUserEmail = String(sharing.metadata?.sharedWithEmail);
+          if (sharedUserEmail && sharedUserEmail !== userEmail) {
+            // Check if this user is already a team member
+            const existingMemberResponse = await index.namespace('team_members').query({
+              vector: new Array(1024).fill(0.1),
+              filter: {
+                teamId: { $eq: teamId },
+                email: { $eq: sharedUserEmail }
+              },
+              topK: 1,
+              includeMetadata: true
+            });
+
+            if (!existingMemberResponse.matches?.length) {
+              const sharedUserRole = (sharing.metadata?.role as TeamRole) || 'viewer';
+              
+              const sharedUserMember: TeamMember = {
+                id: `member_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                teamId,
+                userId: '', // Will need to be filled when user accepts invitation
+                email: sharedUserEmail,
+                role: sharedUserRole,
+                joinedAt: new Date(),
+                invitedAt: new Date(),
+                status: 'pending',
+                invitedBy: userId
+              };
+
+              await index.namespace('team_members').upsert([{
+                id: sharedUserMember.id,
+                values: new Array(1024).fill(0.1),
+                metadata: {
+                  ...sharedUserMember,
+                  joinedAt: sharedUserMember.joinedAt.toISOString(),
+                  invitedAt: sharedUserMember.invitedAt.toISOString()
+                }
+              }]);
+            }
+          }
+        }
+      }
     }
 
     return NextResponse.json({
       success: true,
-      message: `Successfully processed shared projects`,
+      message: `Successfully processed ${sharedProjectIds.size} shared projects`,
       teamsCreated,
-      createdTeams
+      createdTeams,
+      totalProjectsProcessed: sharedProjectIds.size
     });
 
   } catch (error) {
