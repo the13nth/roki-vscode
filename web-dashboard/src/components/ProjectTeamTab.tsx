@@ -97,6 +97,23 @@ export default function ProjectTeamTab({ projectId, isOwned = true }: ProjectTea
     autoCreateTeamsFromSharedProjects();
   }, [projectId, fetchProjectTeam, autoCreateTeamsFromSharedProjects]);
 
+  // Listen for project sharing changes
+  useEffect(() => {
+    const handleProjectSharingChanged = (event: CustomEvent) => {
+      if (event.detail?.projectId === projectId) {
+        // Refresh team data when project sharing changes
+        fetchProjectTeam();
+        autoCreateTeamsFromSharedProjects();
+      }
+    };
+
+    window.addEventListener('projectSharingChanged', handleProjectSharingChanged as EventListener);
+    
+    return () => {
+      window.removeEventListener('projectSharingChanged', handleProjectSharingChanged as EventListener);
+    };
+  }, [projectId, fetchProjectTeam, autoCreateTeamsFromSharedProjects]);
+
   const fetchCurrentUserRole = async (teamId: string) => {
     try {
       const response = await fetch(`/api/teams/${teamId}/members`);

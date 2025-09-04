@@ -1,26 +1,32 @@
 'use client';
 
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
-import React from 'react';
-import { ProjectDashboard } from '@/types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { 
-  FileText, 
-  Palette, 
-  CheckSquare, 
-  FolderOpen, 
+  Calendar, 
+  Clock, 
+  Users, 
+  Tag, 
   ArrowRight, 
-  Clock,
-  File,
+  Lock, 
+  Share2,
+  FileText,
+  Target,
+  CheckCircle,
+  AlertCircle,
+  Clock as ClockIcon,
+  Palette,
+  CheckSquare,
+  FolderOpen,
   Sparkles,
   Loader2,
-  Globe,
-  Lock
+  Globe
 } from 'lucide-react';
+import { ProjectDashboard } from '@/types/shared';
 import { ShareProjectDialog } from './ShareProjectDialog';
 
 interface ProjectOverviewTabProps {
@@ -29,6 +35,7 @@ interface ProjectOverviewTabProps {
 }
 
 export function ProjectOverviewTab({ project, onUpdate }: ProjectOverviewTabProps) {
+  const [refreshKey, setRefreshKey] = useState(0);
   const [isGeneratingSpecs, setIsGeneratingSpecs] = useState(false);
   const [specsError, setSpecsError] = useState<string | null>(null);
   const [specsSuccess, setSpecsSuccess] = useState<string | null>(null);
@@ -171,6 +178,18 @@ export function ProjectOverviewTab({ project, onUpdate }: ProjectOverviewTabProp
     }
   ];
 
+  const handleSharingChanged = () => {
+    // Increment refresh key to trigger re-renders of child components
+    setRefreshKey(prev => prev + 1);
+    // Also trigger a project refresh to get updated sharing data
+    onUpdate({ ...project });
+    
+    // Dispatch a custom event to notify other components (like ProjectTeamTab)
+    window.dispatchEvent(new CustomEvent('projectSharingChanged', { 
+      detail: { projectId: project.projectId } 
+    }));
+  };
+
   return (
     <div className="p-8">
       <div className="mb-8">
@@ -307,10 +326,7 @@ export function ProjectOverviewTab({ project, onUpdate }: ProjectOverviewTabProp
                 <ShareProjectDialog 
                   projectId={project.projectId}
                   projectName={project.name}
-                  onSharingChanged={() => {
-                    // Optionally refresh project data or show updated sharing status
-                    console.log('Project sharing updated');
-                  }}
+                  onSharingChanged={handleSharingChanged}
                 />
                 <p className="mt-1 text-xs text-gray-500">
                   Share this project with specific users by email address.

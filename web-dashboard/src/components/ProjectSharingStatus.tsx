@@ -51,6 +51,22 @@ export function ProjectSharingStatus({ projectId, isOwned = true }: ProjectShari
     }
   }, [projectId, fetchProjectSharingStatus]);
 
+  // Listen for project sharing changes
+  useEffect(() => {
+    const handleProjectSharingChanged = (event: CustomEvent) => {
+      if (event.detail?.projectId === projectId) {
+        // Refresh sharing status when project sharing changes
+        fetchProjectSharingStatus();
+      }
+    };
+
+    window.addEventListener('projectSharingChanged', handleProjectSharingChanged as EventListener);
+    
+    return () => {
+      window.removeEventListener('projectSharingChanged', handleProjectSharingChanged as EventListener);
+    };
+  }, [projectId, fetchProjectSharingStatus]);
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
