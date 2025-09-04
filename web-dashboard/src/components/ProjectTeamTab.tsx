@@ -11,6 +11,7 @@ import { AddProjectToTeamDialog } from './AddProjectToTeamDialog';
 import TeamMemberManagement  from './TeamMemberManagement';
 import { Users, Calendar, Crown, UserCheck, UserX, Loader2, FolderOpen, Building2 } from 'lucide-react';
 import { Team, TeamMember, ProjectConfiguration, TeamProjectWithDetails, TeamRole } from '@/types/shared';
+import { useToast } from '@/hooks/use-toast';
 
 interface ProjectTeamTabProps {
   projectId: string;
@@ -25,11 +26,48 @@ export default function ProjectTeamTab({ projectId, isOwned = true, isPublic = f
   const [loading, setLoading] = useState(true);
   const [projectTeam, setProjectTeam] = useState<Team | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<TeamRole>('viewer');
+  const [syncing, setSyncing] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchTeams();
     fetchProjectTeam();
+    autoCreateTeamsFromSharedProjects();
   }, [projectId]);
+
+  const autoCreateTeamsFromSharedProjects = async () => {
+    try {
+      setSyncing(true);
+      const response = await fetch('/api/teams/auto-create-from-shared', {
+        method: 'POST'
+      });
+      const result = await response.json();
+      
+      if (result.success && result.teamsCreated > 0) {
+        // Refresh teams after creating new ones
+        fetchTeams();
+        fetchProjectTeam();
+        toast({
+          title: `${result.teamsCreated} new team${result.teamsCreated > 1 ? 's' : ''} created from shared projects.`,
+          description: `Synced ${result.teamsCreated} shared projects.`,
+        });
+      } else {
+        toast({
+          title: 'No new teams created from shared projects.',
+          description: 'No shared projects found to create new teams from.',
+        });
+      }
+    } catch (error) {
+      console.error('Error auto-creating teams from shared projects:', error);
+      toast({
+        title: 'Error syncing shared projects.',
+        description: 'Failed to create new teams from shared projects.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const fetchTeams = async () => {
     try {
@@ -295,7 +333,16 @@ export default function ProjectTeamTab({ projectId, isOwned = true, isPublic = f
               Manage your teams and collaborate with others
             </p>
           </div>
-          {isOwned && <CreateTeamDialog onTeamCreated={fetchTeams} />}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={autoCreateTeamsFromSharedProjects}
+              disabled={loading || syncing}
+            >
+              {syncing ? 'Syncing...' : 'Sync Shared Projects'}
+            </Button>
+            {isOwned && <CreateTeamDialog onTeamCreated={fetchTeams} />}
+          </div>
         </div>
 
         {teams.length === 0 ? (

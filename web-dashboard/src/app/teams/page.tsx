@@ -10,6 +10,7 @@ import { InviteTeamMemberDialog } from '@/components/InviteTeamMemberDialog';
 import { AddProjectToTeamDialog } from '@/components/AddProjectToTeamDialog';
 import { Users, Calendar, Crown, UserCheck, UserX, Loader2, FolderOpen } from 'lucide-react';
 import { Team, TeamMember, ProjectConfiguration, TeamProjectWithDetails } from '@/types/shared';
+import { useToast } from '@/hooks/use-toast';
 
 export default function TeamsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
@@ -17,10 +18,52 @@ export default function TeamsPage() {
   const [teamProjects, setTeamProjects] = useState<Record<string, TeamProjectWithDetails[]>>({});
   const [loading, setLoading] = useState(true);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchTeams();
+    autoCreateTeamsFromSharedProjects();
   }, []);
+
+  const autoCreateTeamsFromSharedProjects = async () => {
+    try {
+      setSyncing(true);
+      const response = await fetch('/api/teams/auto-create-from-shared', {
+        method: 'POST'
+      });
+      const result = await response.json();
+      
+      if (result.success && result.teamsCreated > 0) {
+        // Refresh teams after creating new ones
+        fetchTeams();
+        toast({
+          title: `${result.teamsCreated} new team${result.teamsCreated > 1 ? 's' : ''} created from shared projects.`,
+          description: 'Your teams have been updated.',
+        });
+      } else if (result.success && result.teamsCreated === 0) {
+        toast({
+          title: 'No new teams created from shared projects.',
+          description: 'Your teams are already up to date.',
+        });
+      } else {
+        toast({
+          title: 'Failed to sync shared projects.',
+          description: result.message || 'Please try again.',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Error auto-creating teams from shared projects:', error);
+      toast({
+        title: 'Failed to sync shared projects.',
+        description: 'Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const fetchTeams = async () => {
     try {
@@ -121,7 +164,16 @@ export default function TeamsPage() {
             Manage your teams and collaborate with others
           </p>
         </div>
-        <CreateTeamDialog onTeamCreated={fetchTeams} />
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={autoCreateTeamsFromSharedProjects}
+            disabled={loading || syncing}
+          >
+            {syncing ? 'Syncing...' : 'Sync Shared Projects'}
+          </Button>
+          <CreateTeamDialog onTeamCreated={fetchTeams} />
+        </div>
       </div>
 
       {teams.length === 0 ? (
