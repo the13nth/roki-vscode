@@ -94,17 +94,52 @@ export async function POST(
       }
     }
 
-    // Update invitation status
+    // Update invitation status with timeout and retry logic
     const newStatus = action === 'accept' ? 'accepted' : 'declined';
-    await index.namespace('project_sharing').upsert([{
-      id: invitationId,
-      values: new Array(1024).fill(0.1),
-      metadata: {
-        ...invitation,
-        status: newStatus,
-        respondedAt: new Date().toISOString()
+    
+    const updateInvitationWithTimeout = async () => {
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Pinecone operation timed out')), 30000); // 30 second timeout
+      });
+
+      const upsertPromise = index.namespace('project_sharing').upsert([{
+        id: invitationId,
+        values: new Array(1024).fill(0.1),
+        metadata: {
+          ...invitation,
+          status: newStatus,
+          respondedAt: new Date().toISOString()
+        }
+      }]);
+
+      return Promise.race([upsertPromise, timeoutPromise]);
+    };
+
+    // Retry logic for updating invitation
+    let retryCount = 0;
+    const maxRetries = 3;
+    let lastError: Error;
+
+    while (retryCount < maxRetries) {
+      try {
+        await updateInvitationWithTimeout();
+        break; // Success, exit retry loop
+      } catch (error) {
+        lastError = error as Error;
+        retryCount++;
+        console.warn(`Pinecone invitation update attempt ${retryCount} failed:`, error);
+        
+        if (retryCount < maxRetries) {
+          // Exponential backoff: wait 1s, 2s, 4s
+          const delay = Math.pow(2, retryCount - 1) * 1000;
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
       }
-    }]);
+    }
+
+    if (retryCount === maxRetries) {
+      throw new Error(`Failed to update invitation after ${maxRetries} attempts: ${lastError?.message}`);
+    }
 
     if (action === 'accept') {
       // Get the project to update sharedWith array with retry logic

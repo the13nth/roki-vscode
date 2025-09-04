@@ -8,7 +8,8 @@ import { Separator } from '@/components/ui/separator';
 import { CreateTeamDialog } from '@/components/CreateTeamDialog';
 import { InviteTeamMemberDialog } from '@/components/InviteTeamMemberDialog';
 import { AddProjectToTeamDialog } from '@/components/AddProjectToTeamDialog';
-import { Users, Calendar, Crown, UserCheck, UserX, Loader2, FolderOpen } from 'lucide-react';
+import { TeamInvitations } from '@/components/TeamInvitations';
+import { Users, Calendar, Crown, UserCheck, UserX, Loader2, FolderOpen, Bell } from 'lucide-react';
 import { Team, TeamMember, ProjectConfiguration, TeamProjectWithDetails } from '@/types/shared';
 import { useToast } from '@/hooks/use-toast';
 
@@ -19,6 +20,7 @@ export default function TeamsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [showInvitations, setShowInvitations] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -167,6 +169,14 @@ export default function TeamsPage() {
         <div className="flex gap-2">
           <Button
             variant="outline"
+            onClick={() => setShowInvitations(!showInvitations)}
+            variant={showInvitations ? "default" : "outline"}
+          >
+            <Bell className="w-4 h-4 mr-2" />
+            {showInvitations ? 'Hide Invitations' : 'Show Invitations'}
+          </Button>
+          <Button
+            variant="outline"
             onClick={autoCreateTeamsFromSharedProjects}
             disabled={loading || syncing}
           >
@@ -175,6 +185,13 @@ export default function TeamsPage() {
           <CreateTeamDialog onTeamCreated={fetchTeams} />
         </div>
       </div>
+
+      {/* Team Invitations Section */}
+      {showInvitations && (
+        <div className="mb-8">
+          <TeamInvitations />
+        </div>
+      )}
 
       {teams.length === 0 ? (
         <Card className="text-center py-12">

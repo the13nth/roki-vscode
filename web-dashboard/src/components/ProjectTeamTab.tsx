@@ -9,7 +9,9 @@ import { CreateTeamDialog } from './CreateTeamDialog';
 import { InviteTeamMemberDialog } from './InviteTeamMemberDialog';
 import { AddProjectToTeamDialog } from './AddProjectToTeamDialog';
 import TeamMemberManagement  from './TeamMemberManagement';
-import { Users, Calendar, Crown, UserCheck, UserX, Loader2, FolderOpen, Building2 } from 'lucide-react';
+import { TeamInvitations } from './TeamInvitations';
+import { ProjectSharingStatus } from './ProjectSharingStatus';
+import { Users, Calendar, Crown, UserCheck, UserX, Loader2, FolderOpen, Building2, Bell } from 'lucide-react';
 import { Team, TeamMember, ProjectConfiguration, TeamProjectWithDetails, TeamRole } from '@/types/shared';
 import { useToast } from '@/hooks/use-toast';
 
@@ -26,6 +28,7 @@ export default function ProjectTeamTab({ projectId, isOwned = true, isPublic = f
   const [projectTeam, setProjectTeam] = useState<Team | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<TeamRole>('viewer');
   const [syncing, setSyncing] = useState(false);
+  const [showInvitations, setShowInvitations] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -208,6 +211,13 @@ export default function ProjectTeamTab({ projectId, isOwned = true, isPublic = f
             </div>
             {isOwned && (
               <div className="flex gap-2">
+                <Button
+                  onClick={() => setShowInvitations(!showInvitations)}
+                  variant={showInvitations ? "default" : "outline"}
+                >
+                  <Bell className="w-4 h-4 mr-2" />
+                  {showInvitations ? 'Hide Invitations' : 'Show Invitations'}
+                </Button>
                 <InviteTeamMemberDialog
                   teamId={projectTeam.id}
                   teamName={projectTeam.name}
@@ -255,6 +265,21 @@ export default function ProjectTeamTab({ projectId, isOwned = true, isPublic = f
                 </div>
 
                 <Separator />
+
+                {/* Project Sharing Status */}
+                <div className="mb-6">
+                  <ProjectSharingStatus 
+                    projectId={projectId} 
+                    isOwned={isOwned} 
+                  />
+                </div>
+
+                {/* Team Invitations Section */}
+                {showInvitations && (
+                  <div className="mb-6">
+                    <TeamInvitations />
+                  </div>
+                )}
 
                 {/* Team Members Management */}
                 <TeamMemberManagement

@@ -97,16 +97,50 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       status: 'pending'
     };
 
-    // Store project sharing in Pinecone
-    await index.namespace('project_sharing').upsert([{
-      id: sharingId,
-      values: new Array(1024).fill(0.1),
-      metadata: {
-        ...projectSharing,
-        sharedAt: projectSharing.sharedAt.toISOString(),
-        expiresAt: expiresAt.toISOString()
+    // Store project sharing in Pinecone with timeout and retry logic
+    const upsertWithTimeout = async () => {
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Pinecone operation timed out')), 30000); // 30 second timeout
+      });
+
+      const upsertPromise = index.namespace('project_sharing').upsert([{
+        id: sharingId,
+        values: new Array(1024).fill(0.1),
+        metadata: {
+          ...projectSharing,
+          sharedAt: projectSharing.sharedAt.toISOString(),
+          expiresAt: expiresAt.toISOString()
+        }
+      }]);
+
+      return Promise.race([upsertPromise, timeoutPromise]);
+    };
+
+    // Retry logic for Pinecone operations
+    let retryCount = 0;
+    const maxRetries = 3;
+    let lastError: Error;
+
+    while (retryCount < maxRetries) {
+      try {
+        await upsertWithTimeout();
+        break; // Success, exit retry loop
+      } catch (error) {
+        lastError = error as Error;
+        retryCount++;
+        console.warn(`Pinecone upsert attempt ${retryCount} failed:`, error);
+        
+        if (retryCount < maxRetries) {
+          // Exponential backoff: wait 1s, 2s, 4s
+          const delay = Math.pow(2, retryCount - 1) * 1000;
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
       }
-    }]);
+    }
+
+    if (retryCount === maxRetries) {
+      throw new Error(`Failed to save project sharing after ${maxRetries} attempts: ${lastError?.message}`);
+    }
 
     // Don't update project's sharedWith array until invitation is accepted
     // const currentSharedWith = Array.isArray(project.sharedWith) ? project.sharedWith : [];
