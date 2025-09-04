@@ -20,7 +20,6 @@ interface ProjectTeamTabProps {
 }
 
 export default function ProjectTeamTab({ projectId, isOwned = true, isPublic = false }: ProjectTeamTabProps) {
-  const [teams, setTeams] = useState<Team[]>([]);
   const [teamMembers, setTeamMembers] = useState<Record<string, TeamMember[]>>({});
   const [teamProjects, setTeamProjects] = useState<Record<string, TeamProjectWithDetails[]>>({});
   const [loading, setLoading] = useState(true);
@@ -30,7 +29,6 @@ export default function ProjectTeamTab({ projectId, isOwned = true, isPublic = f
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchTeams();
     fetchProjectTeam();
     autoCreateTeamsFromSharedProjects();
   }, [projectId]);
@@ -45,7 +43,6 @@ export default function ProjectTeamTab({ projectId, isOwned = true, isPublic = f
       
       if (result.success && result.teamsCreated > 0) {
         // Refresh teams after creating new ones
-        fetchTeams();
         fetchProjectTeam();
         toast({
           title: `${result.teamsCreated} new team${result.teamsCreated > 1 ? 's' : ''} created from shared projects.`,
@@ -69,28 +66,9 @@ export default function ProjectTeamTab({ projectId, isOwned = true, isPublic = f
     }
   };
 
-  const fetchTeams = async () => {
-    try {
-      const response = await fetch('/api/teams');
-      const result = await response.json();
-      
-      if (result.success) {
-        setTeams(result.teams || []);
-        // Fetch members and projects for each team
-        result.teams?.forEach((team: Team) => {
-          fetchTeamMembers(team.id);
-          fetchTeamProjects(team.id);
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching teams:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const fetchProjectTeam = async () => {
     try {
+      setLoading(true);
       const response = await fetch('/api/teams/project-lookup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -112,6 +90,8 @@ export default function ProjectTeamTab({ projectId, isOwned = true, isPublic = f
       }
     } catch (error) {
       console.error('Error fetching project team:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -206,7 +186,7 @@ export default function ProjectTeamTab({ projectId, isOwned = true, isPublic = f
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Loader2 className="w-8 h-8 animate-spin" />
-        <span className="ml-2">Loading teams...</span>
+        <span className="ml-2">Loading project team...</span>
       </div>
     );
   }
@@ -220,10 +200,10 @@ export default function ProjectTeamTab({ projectId, isOwned = true, isPublic = f
             <div>
               <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
                 <Building2 className="w-6 h-6" />
-                Project Team: {projectTeam.name}
+                Project Team
               </h2>
               <p className="text-muted-foreground">
-                This project is part of the "{projectTeam.name}" team
+                Team members and collaboration for the "{projectTeam.name}" project
               </p>
             </div>
             {isOwned && (
@@ -246,7 +226,7 @@ export default function ProjectTeamTab({ projectId, isOwned = true, isPublic = f
             <CardHeader>
               <div className="flex items-start justify-between">
                 <div className="flex-1">
-                  <CardTitle className="text-xl">{projectTeam.name}</CardTitle>
+                  <CardTitle className="text-xl">{projectTeam.name} Team</CardTitle>
                   {projectTeam.description && (
                     <CardDescription className="mt-2">
                       {projectTeam.description}
@@ -324,128 +304,32 @@ export default function ProjectTeamTab({ projectId, isOwned = true, isPublic = f
         </div>
       )}
 
-      {/* All Teams Section */}
-      <div>
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold tracking-tight">All Teams</h2>
-            <p className="text-muted-foreground">
-              Manage your teams and collaborate with others
+      {/* Show message if no project team found */}
+      {!projectTeam && !loading && (
+        <Card className="text-center py-12">
+          <CardContent>
+            <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">No team found for this project</h3>
+            <p className="text-muted-foreground mb-4">
+              This project is not currently part of a team. You can create a team or add this project to an existing team.
             </p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={autoCreateTeamsFromSharedProjects}
-              disabled={loading || syncing}
-            >
-              {syncing ? 'Syncing...' : 'Sync Shared Projects'}
-            </Button>
-            {isOwned && <CreateTeamDialog onTeamCreated={fetchTeams} />}
-          </div>
-        </div>
-
-        {teams.length === 0 ? (
-          <Card className="text-center py-12">
-            <CardContent>
-              <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No teams yet</h3>
-              <p className="text-muted-foreground mb-4">
-                Create your first team to start collaborating with others
-              </p>
-              {isOwned && <CreateTeamDialog onTeamCreated={fetchTeams} />}
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {teams.map((team) => (
-              <Card key={team.id} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-xl">{team.name}</CardTitle>
-                      {team.description && (
-                        <CardDescription className="mt-2">
-                          {team.description}
-                        </CardDescription>
-                      )}
-                    </div>
-                    <Badge variant={team.isActive ? 'default' : 'secondary'}>
-                      {team.isActive ? 'Active' : 'Inactive'}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {/* Team Stats */}
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Users className="w-4 h-4" />
-                        <span>
-                          {teamMembers[team.id]?.length || 0} member{teamMembers[team.id]?.length !== 1 ? 's' : ''}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        <span>Created {formatDate(team.createdAt)}</span>
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* Team Members */}
-                    <div>
-                      <h4 className="font-medium mb-2">Members</h4>
-                      <div className="space-y-2">
-                        {teamMembers[team.id]?.length > 0 ? (
-                          <>
-                            {teamMembers[team.id].slice(0, 3).map((member) => (
-                              <div key={member.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
-                                <div className="flex items-center gap-2">
-                                  {getRoleIcon(member.role)}
-                                  <span className="text-sm font-medium">
-                                    {member.email || member.userId || 'Unknown User'}
-                                  </span>
-                                </div>
-                                <Badge variant={getRoleBadgeVariant(member.role)}>
-                                  {member.role}
-                                </Badge>
-                              </div>
-                            ))}
-                            {teamMembers[team.id].length > 3 && (
-                              <div className="text-center py-2 text-sm text-muted-foreground">
-                                +{teamMembers[team.id].length - 3} more members
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <div className="text-center py-2 text-sm text-muted-foreground">
-                            {teamMembers[team.id] === undefined ? 'Loading members...' : 'No members found'}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex gap-2">
-                      {isOwned && (
-                        <InviteTeamMemberDialog
-                          teamId={team.id}
-                          teamName={team.name}
-                          onInvitationSent={() => fetchTeamMembers(team.id)}
-                        />
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Team Details Modal */}
-      {/* This section is no longer needed as the View Details button is removed */}
+            <div className="flex gap-2 justify-center">
+              <CreateTeamDialog onTeamCreated={() => {
+                // After creating a team, try to find the project team again
+                // and potentially add this project to the newly created team
+                fetchProjectTeam();
+              }} />
+              <Button
+                variant="outline"
+                onClick={autoCreateTeamsFromSharedProjects}
+                disabled={syncing}
+              >
+                {syncing ? 'Syncing...' : 'Sync Shared Projects'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
