@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,7 +10,7 @@ import { InviteTeamMemberDialog } from '@/components/InviteTeamMemberDialog';
 import { AddProjectToTeamDialog } from '@/components/AddProjectToTeamDialog';
 import { TeamInvitations } from '@/components/TeamInvitations';
 import { Users, Calendar, Crown, UserCheck, UserX, Loader2, FolderOpen, Bell } from 'lucide-react';
-import { Team, TeamMember, ProjectConfiguration, TeamProjectWithDetails } from '@/types/shared';
+import { Team, TeamMember, TeamProjectWithDetails } from '@/types/shared';
 import { useToast } from '@/hooks/use-toast';
 
 export default function TeamsPage() {
@@ -23,12 +23,27 @@ export default function TeamsPage() {
   const [showInvitations, setShowInvitations] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchTeams();
-    autoCreateTeamsFromSharedProjects();
+  const fetchTeams = useCallback(async () => {
+    try {
+      const response = await fetch('/api/teams');
+      const result = await response.json();
+      
+      if (result.success) {
+        setTeams(result.teams || []);
+        // Fetch members and projects for each team
+        result.teams?.forEach((team: Team) => {
+          fetchTeamMembers(team.id);
+          fetchTeamProjects(team.id);
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching teams:', error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const autoCreateTeamsFromSharedProjects = async () => {
+  const autoCreateTeamsFromSharedProjects = useCallback(async () => {
     try {
       setSyncing(true);
       const response = await fetch('/api/teams/auto-create-from-shared', {
@@ -65,27 +80,12 @@ export default function TeamsPage() {
     } finally {
       setSyncing(false);
     }
-  };
+  }, [fetchTeams, toast]);
 
-  const fetchTeams = async () => {
-    try {
-      const response = await fetch('/api/teams');
-      const result = await response.json();
-      
-      if (result.success) {
-        setTeams(result.teams || []);
-        // Fetch members and projects for each team
-        result.teams?.forEach((team: Team) => {
-          fetchTeamMembers(team.id);
-          fetchTeamProjects(team.id);
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching teams:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    fetchTeams();
+    autoCreateTeamsFromSharedProjects();
+  }, [fetchTeams, autoCreateTeamsFromSharedProjects]);
 
   const fetchTeamMembers = async (teamId: string) => {
     try {
@@ -168,7 +168,6 @@ export default function TeamsPage() {
         </div>
         <div className="flex gap-2">
           <Button
-            variant="outline"
             onClick={() => setShowInvitations(!showInvitations)}
             variant={showInvitations ? "default" : "outline"}
           >

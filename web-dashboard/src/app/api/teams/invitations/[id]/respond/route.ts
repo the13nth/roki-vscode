@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { getPineconeClient, PINECONE_INDEX_NAME } from '@/lib/pinecone';
-import { TeamInvitation, TeamMember, TeamRole } from '@/types/shared';
+import { TeamMember, TeamRole } from '@/types/shared';
 
 const pinecone = getPineconeClient();
 const index = pinecone.index(PINECONE_INDEX_NAME);
@@ -59,7 +59,7 @@ export async function POST(
     }
 
     // Verify the invitation is for the current user
-    if (invitation.email !== userEmail) {
+    if (String(invitation.email) !== userEmail) {
       return NextResponse.json(
         { success: false, error: 'This invitation is not for you' },
         { status: 403 }
@@ -67,7 +67,7 @@ export async function POST(
     }
 
     // Check if invitation is still pending
-    if (invitation.status !== 'pending') {
+    if (String(invitation.status) !== 'pending') {
       return NextResponse.json(
         { success: false, error: 'Invitation has already been responded to' },
         { status: 400 }
@@ -109,7 +109,7 @@ export async function POST(
     // Retry logic for updating invitation
     let retryCount = 0;
     const maxRetries = 3;
-    let lastError: Error;
+    let lastError: Error | undefined;
 
     while (retryCount < maxRetries) {
       try {
@@ -128,22 +128,22 @@ export async function POST(
       }
     }
 
-    if (retryCount === maxRetries) {
-      throw new Error(`Failed to update invitation after ${maxRetries} attempts: ${lastError?.message}`);
+    if (retryCount === maxRetries && lastError) {
+      throw new Error(`Failed to update invitation after ${maxRetries} attempts: ${lastError.message}`);
     }
 
     if (action === 'accept') {
       // Add user to team members with timeout and retry logic
       const teamMember: TeamMember = {
         id: `member_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        teamId: invitation.teamId,
+        teamId: String(invitation.teamId),
         userId,
         email: userEmail,
-        role: invitation.role as TeamRole,
+        role: String(invitation.role) as TeamRole,
         joinedAt: new Date(),
-        invitedAt: new Date(invitation.invitedAt),
+        invitedAt: new Date(String(invitation.invitedAt)),
         status: 'active',
-        invitedBy: invitation.invitedBy
+        invitedBy: String(invitation.invitedBy)
       };
 
       const addMemberWithTimeout = async () => {
@@ -167,7 +167,7 @@ export async function POST(
       // Retry logic for adding team member
       let retryCount = 0;
       const maxRetries = 3;
-      let lastError: Error;
+      let lastError: Error | undefined;
 
       while (retryCount < maxRetries) {
         try {
@@ -186,8 +186,8 @@ export async function POST(
         }
       }
 
-      if (retryCount === maxRetries) {
-        throw new Error(`Failed to add team member after ${maxRetries} attempts: ${lastError?.message}`);
+      if (retryCount === maxRetries && lastError) {
+        throw new Error(`Failed to add team member after ${maxRetries} attempts: ${lastError.message}`);
       }
 
       // Update the invitation record to link to the team member

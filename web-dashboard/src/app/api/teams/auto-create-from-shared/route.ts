@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { getPineconeClient, PINECONE_INDEX_NAME } from '@/lib/pinecone';
 import { Team, TeamMember, TeamRole } from '@/types/shared';
@@ -7,7 +7,7 @@ const pinecone = getPineconeClient();
 const index = pinecone.index(PINECONE_INDEX_NAME);
 
 // Auto-create teams from shared projects or connect existing shared projects to teams
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export async function POST(): Promise<NextResponse> {
   try {
     const { userId } = await auth();
     if (!userId) {

@@ -119,7 +119,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Retry logic for Pinecone operations
     let retryCount = 0;
     const maxRetries = 3;
-    let lastError: Error;
+    let lastError: Error | undefined;
 
     while (retryCount < maxRetries) {
       try {
@@ -138,8 +138,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    if (retryCount === maxRetries) {
-      throw new Error(`Failed to save project sharing after ${maxRetries} attempts: ${lastError?.message}`);
+    if (retryCount === maxRetries && lastError) {
+      throw new Error(`Failed to save project sharing after ${maxRetries} attempts: ${lastError.message}`);
     }
 
     // Don't update project's sharedWith array until invitation is accepted

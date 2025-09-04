@@ -263,7 +263,6 @@ export function ProjectDashboardLayout({
                       <ProjectTeamTab 
                         projectId={projectId} 
                         isOwned={(project as any).isOwned ?? true}
-                        isPublic={(project as any).isPublic ?? false}
                       />
                     </div>
                   )}

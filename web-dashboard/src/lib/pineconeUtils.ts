@@ -1,4 +1,4 @@
-import { Pinecone } from '@pinecone-database/pinecone';
+
 
 export interface PineconeOperationOptions {
   timeout?: number; // milliseconds
@@ -25,7 +25,7 @@ export class PineconeUtils {
     } = options;
 
     let retryCount = 0;
-    let lastError: Error;
+    let lastError: Error | undefined;
 
     while (retryCount < maxRetries) {
       try {
@@ -52,7 +52,7 @@ export class PineconeUtils {
       }
     }
 
-    throw new Error(`Failed to execute Pinecone operation after ${maxRetries} attempts: ${lastError?.message}`);
+    throw new Error(`Failed to execute Pinecone operation after ${maxRetries} attempts: ${lastError?.message || 'Unknown error'}`);
   }
 
   /**
@@ -95,8 +95,8 @@ export class PineconeUtils {
   /**
    * Validate Pinecone index and namespace
    */
-  static validateNamespace(index: any, namespace: string): boolean {
-    if (!index || typeof index.namespace !== 'function') {
+  static validateNamespace(index: unknown, namespace: string): boolean {
+    if (!index || typeof (index as any).namespace !== 'function') {
       throw new Error('Invalid Pinecone index provided');
     }
     
@@ -110,7 +110,7 @@ export class PineconeUtils {
   /**
    * Create a standardized error message for Pinecone operations
    */
-  static createErrorMessage(operation: string, error: Error, context?: Record<string, any>): string {
+  static createErrorMessage(operation: string, error: Error, context?: Record<string, unknown>): string {
     let message = `Pinecone ${operation} failed: ${error.message}`;
     
     if (context) {

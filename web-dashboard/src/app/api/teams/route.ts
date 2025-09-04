@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { getPineconeClient, PINECONE_INDEX_NAME } from '@/lib/pinecone';
-import { Team, TeamMember, TeamRole } from '@/types/shared';
+import { Team, TeamMember } from '@/types/shared';
 
 const pinecone = getPineconeClient();
 const index = pinecone.index(PINECONE_INDEX_NAME);
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 }
 
 // Get user's teams
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export async function GET(): Promise<NextResponse> {
   try {
     const { userId } = await auth();
     if (!userId) {

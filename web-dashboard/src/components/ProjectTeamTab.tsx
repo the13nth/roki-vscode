@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,16 +12,15 @@ import TeamMemberManagement  from './TeamMemberManagement';
 import { TeamInvitations } from './TeamInvitations';
 import { ProjectSharingStatus } from './ProjectSharingStatus';
 import { Users, Calendar, Crown, UserCheck, UserX, Loader2, FolderOpen, Building2, Bell } from 'lucide-react';
-import { Team, TeamMember, ProjectConfiguration, TeamProjectWithDetails, TeamRole } from '@/types/shared';
+import { Team, TeamMember, TeamProjectWithDetails, TeamRole } from '@/types/shared';
 import { useToast } from '@/hooks/use-toast';
 
 interface ProjectTeamTabProps {
   projectId: string;
   isOwned?: boolean;
-  isPublic?: boolean;
 }
 
-export default function ProjectTeamTab({ projectId, isOwned = true, isPublic = false }: ProjectTeamTabProps) {
+export default function ProjectTeamTab({ projectId, isOwned = true }: ProjectTeamTabProps) {
   const [teamMembers, setTeamMembers] = useState<Record<string, TeamMember[]>>({});
   const [teamProjects, setTeamProjects] = useState<Record<string, TeamProjectWithDetails[]>>({});
   const [loading, setLoading] = useState(true);
@@ -31,12 +30,36 @@ export default function ProjectTeamTab({ projectId, isOwned = true, isPublic = f
   const [showInvitations, setShowInvitations] = useState(false);
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchProjectTeam();
-    autoCreateTeamsFromSharedProjects();
+  const fetchProjectTeam = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/teams/project-lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.team) {
+          setProjectTeam(result.team);
+          fetchTeamMembers(result.team.id);
+          fetchTeamProjects(result.team.id);
+          
+          // Get current user's role in this team
+          if (result.team.id) {
+            fetchCurrentUserRole(result.team.id);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching project team:', error);
+    } finally {
+      setLoading(false);
+    }
   }, [projectId]);
 
-  const autoCreateTeamsFromSharedProjects = async () => {
+  const autoCreateTeamsFromSharedProjects = useCallback(async () => {
     try {
       setSyncing(true);
       const response = await fetch('/api/teams/auto-create-from-shared', {
@@ -67,36 +90,12 @@ export default function ProjectTeamTab({ projectId, isOwned = true, isPublic = f
     } finally {
       setSyncing(false);
     }
-  };
+  }, [fetchProjectTeam, toast]);
 
-  const fetchProjectTeam = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/teams/project-lookup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId })
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success && result.team) {
-          setProjectTeam(result.team);
-          fetchTeamMembers(result.team.id);
-          fetchTeamProjects(result.team.id);
-          
-          // Get current user's role in this team
-          if (result.team.id) {
-            fetchCurrentUserRole(result.team.id);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error fetching project team:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    fetchProjectTeam();
+    autoCreateTeamsFromSharedProjects();
+  }, [projectId, fetchProjectTeam, autoCreateTeamsFromSharedProjects]);
 
   const fetchCurrentUserRole = async (teamId: string) => {
     try {
@@ -166,15 +165,7 @@ export default function ProjectTeamTab({ projectId, isOwned = true, isPublic = f
     }
   };
 
-  const getRoleIcon = (role: string) => {
-    switch (role) {
-      case 'owner': return <Crown className="w-4 h-4" />;
-      case 'admin': return <UserCheck className="w-4 h-4" />;
-      case 'editor': return <UserCheck className="w-4 h-4" />;
-      case 'viewer': return <UserX className="w-4 h-4" />;
-      default: return <Users className="w-4 h-4" />;
-    }
-  };
+
 
   const formatDate = (date: Date | string) => {
     const dateObj = typeof date === 'string' ? new Date(date) : date;

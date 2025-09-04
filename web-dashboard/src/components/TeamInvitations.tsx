@@ -4,8 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Users, Calendar, Crown, UserCheck, UserX, Loader2, Check, X } from 'lucide-react';
+import { Calendar, UserCheck, Loader2, Check, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface TeamInvitation {
@@ -102,11 +101,11 @@ export function TeamInvitations() {
 
   const getRoleIcon = (role: string) => {
     switch (role) {
-      case 'owner': return <Crown className="w-4 h-4" />;
+      case 'owner': return <UserCheck className="w-4 h-4" />;
       case 'admin': return <UserCheck className="w-4 h-4" />;
       case 'editor': return <UserCheck className="w-4 h-4" />;
-      case 'viewer': return <UserX className="w-4 h-4" />;
-      default: return <Users className="w-4 h-4" />;
+      case 'viewer': return <UserCheck className="w-4 h-4" />;
+      default: return <UserCheck className="w-4 h-4" />;
     }
   };
 
@@ -136,7 +135,7 @@ export function TeamInvitations() {
     return (
       <Card className="text-center py-8">
         <CardContent>
-          <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+          <UserCheck className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-lg font-semibold mb-2">No pending team invitations</h3>
           <p className="text-muted-foreground">
             You don't have any pending team invitations at the moment.
@@ -180,7 +179,7 @@ export function TeamInvitations() {
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm text-muted-foreground">
                 <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4" />
+                  <UserCheck className="w-4 h-4" />
                   <span>Invited by {invitation.invitedByName}</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -195,7 +194,7 @@ export function TeamInvitations() {
                 </div>
               )}
 
-              <Separator />
+      
 
               <div className="flex gap-2">
                 <Button

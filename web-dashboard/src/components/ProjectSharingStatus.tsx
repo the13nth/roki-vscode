@@ -1,11 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { Users, Calendar, Crown, UserCheck, UserX, Loader2, Share2, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { Calendar, Crown, UserCheck, UserX, Loader2, Share2, CheckCircle, Clock, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface ProjectSharingRecord {
@@ -28,13 +27,7 @@ export function ProjectSharingStatus({ projectId, isOwned = true }: ProjectShari
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (projectId) {
-      fetchProjectSharingStatus();
-    }
-  }, [projectId]);
-
-  const fetchProjectSharingStatus = async () => {
+  const fetchProjectSharingStatus = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/projects/${projectId}/sharing-status`);
@@ -50,7 +43,13 @@ export function ProjectSharingStatus({ projectId, isOwned = true }: ProjectShari
     } finally {
       setLoading(false);
     }
-  };
+  }, [projectId]);
+
+  useEffect(() => {
+    if (projectId) {
+      fetchProjectSharingStatus();
+    }
+  }, [projectId, fetchProjectSharingStatus]);
 
   const getStatusBadge = (status: string) => {
     switch (status) {

@@ -118,7 +118,7 @@ export async function POST(
     // Retry logic for updating invitation
     let retryCount = 0;
     const maxRetries = 3;
-    let lastError: Error;
+    let lastError: Error | undefined;
 
     while (retryCount < maxRetries) {
       try {
@@ -137,8 +137,8 @@ export async function POST(
       }
     }
 
-    if (retryCount === maxRetries) {
-      throw new Error(`Failed to update invitation after ${maxRetries} attempts: ${lastError?.message}`);
+    if (retryCount === maxRetries && lastError) {
+      throw new Error(`Failed to update invitation after ${maxRetries} attempts: ${lastError.message}`);
     }
 
     if (action === 'accept') {

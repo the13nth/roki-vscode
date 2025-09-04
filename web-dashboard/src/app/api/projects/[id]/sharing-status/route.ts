@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { getPineconeClient, PINECONE_INDEX_NAME } from '@/lib/pinecone';
 
 export async function GET(
-  request: NextRequest,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ): Promise<NextResponse> {
   try {
@@ -58,7 +58,8 @@ export async function GET(
     const isOwner = String(project.userId) === userId;
 
     // If not owner, only show records where user is shared with
-    const userEmail = project.sharedWith?.find((email: string) => email === userId) || '';
+    const sharedWithArray = Array.isArray(project.sharedWith) ? project.sharedWith : [];
+    const userEmail = sharedWithArray.find((email: string) => email === userId) || '';
     
     let filteredSharingRecords = sharingResponse.matches || [];
     
