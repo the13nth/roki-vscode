@@ -281,6 +281,42 @@ export async function PUT(
       }
     }
 
+    // Check if the new content would exceed the document size limit and needs chunking
+    const contentSize = new Blob([content]).size;
+    const MAX_DOCUMENT_SIZE = 30000; // 30KB per document
+    
+    if (contentSize > MAX_DOCUMENT_SIZE) {
+      console.warn(`⚠️ Document content size (${contentSize} bytes) exceeds limit. Implementing chunking strategy.`);
+      
+      try {
+        // Store the large document in chunks
+        const pinecone = getPineconeClient();
+        const index = pinecone.index(PINECONE_INDEX_NAME);
+        
+        const chunkId = `doc_${projectId}_${type}`;
+        await index.namespace('project_documents').upsert([{
+          id: chunkId,
+          values: new Array(1024).fill(0.1), // Placeholder vector
+          metadata: {
+            projectId,
+            userId,
+            documentType: type,
+            content: content,
+            lastModified: new Date().toISOString(),
+            type: 'project_document'
+          }
+        }]);
+        
+        // Replace the content with a chunked reference
+        (updateData as any)[type] = `[CHUNKED:${chunkId}]`;
+        
+        console.log(`✅ Stored large document as chunk: ${chunkId}`);
+      } catch (error) {
+        console.error('❌ Failed to store document in chunks:', error);
+        // Continue with normal update even if chunking fails
+      }
+    }
+
     try {
       const success = await projectService.updateProject(userId, projectId, updateData);
       

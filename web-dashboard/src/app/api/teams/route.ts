@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { auth, currentUser } from '@clerk/nextjs/server';
 import { getPineconeClient, PINECONE_INDEX_NAME } from '@/lib/pinecone';
 import { Team, TeamMember, TeamRole } from '@/types/shared';
 
@@ -16,6 +16,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         { status: 401 }
       );
     }
+
+    // Get user details to get email
+    const user = await currentUser();
+    const userEmail = user?.emailAddresses?.[0]?.emailAddress || '';
 
     const body = await request.json();
     const { name, description } = body;
@@ -56,7 +60,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       id: `member_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       teamId,
       userId,
-      email: '', // Will be filled from user profile
+      email: userEmail,
       role: 'owner',
       joinedAt: now,
       invitedAt: now,

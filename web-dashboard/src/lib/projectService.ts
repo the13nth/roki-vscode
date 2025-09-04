@@ -277,6 +277,14 @@ export class ProjectService {
     const metadataSize = new Blob([projectDataString]).size;
     const MAX_METADATA_SIZE = 40000; // Leave some buffer below 40KB limit
 
+    console.log(`📊 Metadata size check: ${metadataSize} bytes (limit: ${MAX_METADATA_SIZE} bytes)`);
+    console.log(`📊 Project data breakdown:`, {
+      requirements: updatedProject.requirements ? new Blob([updatedProject.requirements]).size : 0,
+      design: updatedProject.design ? new Blob([updatedProject.design]).size : 0,
+      tasks: updatedProject.tasks ? new Blob([updatedProject.tasks]).size : 0,
+      total: metadataSize
+    });
+
     if (metadataSize > MAX_METADATA_SIZE) {
       console.warn(`⚠️ Project data size (${metadataSize} bytes) exceeds Pinecone metadata limit. Implementing chunking strategy.`);
       
@@ -292,6 +300,13 @@ export class ProjectService {
       updatedProject.requirements = chunkedProject.requirements;
       updatedProject.design = chunkedProject.design;
       updatedProject.tasks = chunkedProject.tasks;
+      
+      // Recalculate size after chunking
+      const chunkedProjectDataString = JSON.stringify(updatedProject);
+      const chunkedMetadataSize = new Blob([chunkedProjectDataString]).size;
+      console.log(`✅ After chunking: ${chunkedMetadataSize} bytes (was: ${metadataSize} bytes)`);
+    } else {
+      console.log(`✅ Project data size (${metadataSize} bytes) is within limits, no chunking needed`);
     }
 
     // Generate new embedding for the updated project

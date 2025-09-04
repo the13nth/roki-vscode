@@ -8,6 +8,7 @@ import { UserApiSettings } from '@/components/UserApiSettings';
 import { UserSubscriptionManager } from '@/components/UserSubscriptionManager';
 import { UserNotifications } from '@/components/UserNotifications';
 import { ProjectInvitations } from '@/components/ProjectInvitations';
+import ProjectAccessDisplay from '@/components/ProjectAccessDisplay';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function ProfilePage() {
@@ -32,13 +33,14 @@ export default function ProfilePage() {
           </div>
           
           <Tabs defaultValue="profile" className="w-full">
-            <TabsList className="grid w-full grid-cols-6">
+            <TabsList className="grid w-full grid-cols-7">
               <TabsTrigger value="profile">Profile</TabsTrigger>
               <TabsTrigger value="security">Security</TabsTrigger>
               <TabsTrigger value="tokens">Token Usage</TabsTrigger>
               <TabsTrigger value="api">API Settings</TabsTrigger>
               <TabsTrigger value="notifications">Notifications</TabsTrigger>
               <TabsTrigger value="invitations">Project Invitations</TabsTrigger>
+              <TabsTrigger value="access">Project Access</TabsTrigger>
               {isAdmin && (
                 <TabsTrigger value="subscription">Subscription</TabsTrigger>
               )}
@@ -66,6 +68,10 @@ export default function ProfilePage() {
 
             <TabsContent value="invitations" className="mt-6">
               <ProjectInvitations />
+            </TabsContent>
+
+            <TabsContent value="access" className="mt-6">
+              <ProjectAccessDisplay />
             </TabsContent>
 
             {isAdmin && (

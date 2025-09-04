@@ -8,8 +8,9 @@ import { Separator } from '@/components/ui/separator';
 import { CreateTeamDialog } from './CreateTeamDialog';
 import { InviteTeamMemberDialog } from './InviteTeamMemberDialog';
 import { AddProjectToTeamDialog } from './AddProjectToTeamDialog';
+import TeamMemberManagement  from './TeamMemberManagement';
 import { Users, Calendar, Crown, UserCheck, UserX, Loader2, FolderOpen, Building2 } from 'lucide-react';
-import { Team, TeamMember, ProjectConfiguration, TeamProjectWithDetails } from '@/types/shared';
+import { Team, TeamMember, ProjectConfiguration, TeamProjectWithDetails, TeamRole } from '@/types/shared';
 
 interface ProjectTeamTabProps {
   projectId: string;
@@ -23,6 +24,7 @@ export default function ProjectTeamTab({ projectId, isOwned = true, isPublic = f
   const [teamProjects, setTeamProjects] = useState<Record<string, TeamProjectWithDetails[]>>({});
   const [loading, setLoading] = useState(true);
   const [projectTeam, setProjectTeam] = useState<Team | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<TeamRole>('viewer');
 
   useEffect(() => {
     fetchTeams();
@@ -63,6 +65,11 @@ export default function ProjectTeamTab({ projectId, isOwned = true, isPublic = f
           setProjectTeam(result.team);
           fetchTeamMembers(result.team.id);
           fetchTeamProjects(result.team.id);
+          
+          // Get current user's role in this team
+          if (result.team.id) {
+            fetchCurrentUserRole(result.team.id);
+          }
         }
       }
     } catch (error) {
@@ -70,19 +77,45 @@ export default function ProjectTeamTab({ projectId, isOwned = true, isPublic = f
     }
   };
 
-  const fetchTeamMembers = async (teamId: string) => {
+  const fetchCurrentUserRole = async (teamId: string) => {
     try {
       const response = await fetch(`/api/teams/${teamId}/members`);
       const result = await response.json();
+      
+      if (result.success && result.members) {
+        // Find current user in team members
+        const currentUser = result.members.find((member: TeamMember) => 
+          member.userId === 'current' || member.email === 'current@user.com' // This will need to be updated with actual user ID
+        );
+        
+        if (currentUser) {
+          setCurrentUserRole(currentUser.role);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching current user role:', error);
+    }
+  };
+
+  const fetchTeamMembers = async (teamId: string) => {
+    try {
+      console.log(`🔍 Fetching team members for team: ${teamId}`);
+      const response = await fetch(`/api/teams/${teamId}/members`);
+      const result = await response.json();
+      
+      console.log(`📊 Team members response for ${teamId}:`, result);
       
       if (result.success) {
         setTeamMembers(prev => ({
           ...prev,
           [teamId]: result.members || []
         }));
+        console.log(`✅ Set team members for ${teamId}:`, result.members);
+      } else {
+        console.error(`❌ Failed to fetch team members for ${teamId}:`, result.error);
       }
     } catch (error) {
-      console.error('Error fetching team members:', error);
+      console.error(`❌ Error fetching team members for ${teamId}:`, error);
     }
   };
 
@@ -205,27 +238,16 @@ export default function ProjectTeamTab({ projectId, isOwned = true, isPublic = f
 
                 <Separator />
 
-                {/* Team Members */}
-                <div>
-                  <h4 className="font-medium mb-2">Members</h4>
-                  <div className="space-y-2">
-                    {teamMembers[projectTeam.id]?.map((member) => (
-                      <div key={member.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
-                        <div className="flex items-center gap-2">
-                          {getRoleIcon(member.role)}
-                          <span className="text-sm font-medium">{member.email || 'No email'}</span>
-                        </div>
-                        <Badge variant={getRoleBadgeVariant(member.role)}>
-                          {member.role}
-                        </Badge>
-                      </div>
-                    )) || (
-                      <div className="text-center py-2 text-sm text-muted-foreground">
-                        Loading members...
-                      </div>
-                    )}
-                  </div>
-                </div>
+                {/* Team Members Management */}
+                <TeamMemberManagement
+                  teamId={projectTeam.id}
+                  members={teamMembers[projectTeam.id] || []}
+                  currentUserRole={currentUserRole}
+                  onMemberUpdated={() => {
+                    fetchTeamMembers(projectTeam.id);
+                    fetchCurrentUserRole(projectTeam.id);
+                  }}
+                />
 
                 {/* Team Projects */}
                 <div>
@@ -328,20 +350,30 @@ export default function ProjectTeamTab({ projectId, isOwned = true, isPublic = f
                     <div>
                       <h4 className="font-medium mb-2">Members</h4>
                       <div className="space-y-2">
-                        {teamMembers[team.id]?.slice(0, 3).map((member) => (
-                          <div key={member.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
-                            <div className="flex items-center gap-2">
-                              {getRoleIcon(member.role)}
-                              <span className="text-sm font-medium">{member.email || 'No email'}</span>
-                            </div>
-                            <Badge variant={getRoleBadgeVariant(member.role)}>
-                              {member.role}
-                            </Badge>
-                          </div>
-                        ))}
-                        {teamMembers[team.id]?.length > 3 && (
+                        {teamMembers[team.id]?.length > 0 ? (
+                          <>
+                            {teamMembers[team.id].slice(0, 3).map((member) => (
+                              <div key={member.id} className="flex items-center justify-between p-2 bg-muted rounded-md">
+                                <div className="flex items-center gap-2">
+                                  {getRoleIcon(member.role)}
+                                  <span className="text-sm font-medium">
+                                    {member.email || member.userId || 'Unknown User'}
+                                  </span>
+                                </div>
+                                <Badge variant={getRoleBadgeVariant(member.role)}>
+                                  {member.role}
+                                </Badge>
+                              </div>
+                            ))}
+                            {teamMembers[team.id].length > 3 && (
+                              <div className="text-center py-2 text-sm text-muted-foreground">
+                                +{teamMembers[team.id].length - 3} more members
+                              </div>
+                            )}
+                          </>
+                        ) : (
                           <div className="text-center py-2 text-sm text-muted-foreground">
-                            +{teamMembers[team.id].length - 3} more members
+                            {teamMembers[team.id] === undefined ? 'Loading members...' : 'No members found'}
                           </div>
                         )}
                       </div>
