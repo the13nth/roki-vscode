@@ -14,12 +14,12 @@ interface ProjectInvitation {
   id: string;
   projectId: string;
   projectName: string;
-  projectDescription: string;
+  projectPreview?: string; // Brief preview for pending invitations
   sharedWithEmail: string;
   role: string;
   sharedAt: string;
   sharedBy: string;
-  sharedByName: string;
+  sharedByName?: string;
   expiresAt: string;
 }
 
@@ -217,10 +217,15 @@ export function ProjectInvitations() {
                   )}
                 </div>
                 
-                {invitation.projectDescription && (
-                  <p className="text-sm text-gray-600 mb-2">
-                    {invitation.projectDescription}
-                  </p>
+                {invitation.projectPreview && (
+                  <div className="mb-2">
+                    <p className="text-sm text-gray-600 mb-1">
+                      {invitation.projectPreview}
+                    </p>
+                    <p className="text-xs text-gray-500 italic">
+                      This is a preview. Accept the invitation to access the full project.
+                    </p>
+                  </div>
                 )}
 
                 <div className="flex items-center gap-4 text-sm text-gray-500">

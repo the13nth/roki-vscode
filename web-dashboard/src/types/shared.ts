@@ -212,6 +212,7 @@ export interface ProjectInvitation {
   id: string;
   projectId: string;
   projectName: string;
+  projectPreview?: string; // Brief preview for pending invitations
   sharedWithEmail: string;
   role: TeamRole;
   sharedAt: Date;

@@ -72,7 +72,10 @@ export async function GET(): Promise<NextResponse> {
             id: invitation.id || match.id,
             projectId: invitation.projectId,
             projectName: project.name || 'Unknown Project',
-            projectDescription: project.description || '',
+            // Only return a brief preview for pending invitations - not the full description
+            projectPreview: project.description 
+              ? `${String(project.description).substring(0, 150)}${String(project.description).length > 150 ? '...' : ''}`
+              : 'No description available',
             sharedWithEmail: invitation.sharedWithEmail,
             role: invitation.role,
             sharedAt: invitation.sharedAt,
