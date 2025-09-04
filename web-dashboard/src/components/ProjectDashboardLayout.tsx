@@ -15,6 +15,7 @@ import { ProjectAnalysis } from './ProjectAnalysis';
 import { SocialPostsGenerator } from './SocialPostsGenerator';
 import { PromptsViewer } from './PromptsViewer';
 import ProjectApplicationsView from './ProjectApplicationsView';
+import ProjectTeamTab from './ProjectTeamTab';
 
 import SyncStatus from './SyncStatus';
 import { EmbeddingsVisualization } from './EmbeddingsVisualization';
@@ -23,7 +24,7 @@ import { Card, CardContent } from '@/components/ui/card';
 
 interface ProjectDashboardLayoutProps {
   projectId: string;
-  activeTab?: 'overview' | 'requirements' | 'design' | 'tasks' | 'context' | 'api' | 'analysis' | 'enhanced-analysis' | 'progress' | 'visualization' | 'social' | 'prompts' | 'applications';
+  activeTab?: 'overview' | 'requirements' | 'design' | 'tasks' | 'context' | 'api' | 'analysis' | 'enhanced-analysis' | 'progress' | 'visualization' | 'social' | 'prompts' | 'applications' | 'team';
 }
 
 export function ProjectDashboardLayout({ 
@@ -33,11 +34,15 @@ export function ProjectDashboardLayout({
   const [project, setProject] = useState<ProjectDashboard | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [currentTab, setCurrentTab] = useState(activeTab);
 
   useEffect(() => {
     loadProject();
   }, [projectId]);
 
+  useEffect(() => {
+    setCurrentTab(activeTab);
+  }, [activeTab]);
 
 
   const loadProject = async () => {
@@ -69,6 +74,10 @@ export function ProjectDashboardLayout({
     if (project) {
       setProject({ ...project, ...updatedProject });
     }
+  };
+
+  const handleTabChange = (tab: string) => {
+    setCurrentTab(tab as any);
   };
 
   if (isLoading) {
@@ -119,8 +128,9 @@ export function ProjectDashboardLayout({
               {/* Navigation */}
               <ProjectNavigation 
                 projectId={projectId} 
-                activeTab={activeTab}
+                activeTab={currentTab}
                 progress={project.progress}
+                onNavigate={handleTabChange}
                 isOwned={(project as any).isOwned ?? true}
               />
               
@@ -136,14 +146,14 @@ export function ProjectDashboardLayout({
             <div className="xl:col-span-4 w-full">
               <Card className="min-h-[600px] rounded-none w-full">
                 <CardContent className="p-0 w-full">
-                  {activeTab === 'overview' && (
+                  {currentTab === 'overview' && (
                     <ProjectOverviewTab 
                       project={project}
                       onUpdate={handleProjectUpdate}
                     />
                   )}
                   
-                  {activeTab === 'requirements' && (
+                  {currentTab === 'requirements' && (
                     <DocumentEditor 
                       projectId={projectId}
                       projectPath={project.projectPath}
@@ -154,7 +164,7 @@ export function ProjectDashboardLayout({
                     />
                   )}
                   
-                  {activeTab === 'design' && (
+                  {currentTab === 'design' && (
                     <DocumentEditor 
                       projectId={projectId}
                       projectPath={project.projectPath}
@@ -165,7 +175,7 @@ export function ProjectDashboardLayout({
                     />
                   )}
                   
-                  {activeTab === 'tasks' && (
+                  {currentTab === 'tasks' && (
                     <DocumentEditor 
                       projectId={projectId}
                       projectPath={project.projectPath}
@@ -177,76 +187,86 @@ export function ProjectDashboardLayout({
                     />
                   )}
                   
-                                  {activeTab === 'context' && (
-                  <ContextDocumentManager projectId={projectId} isOwned={project.isOwned} />
-                )}
+                  {currentTab === 'context' && (
+                    <ContextDocumentManager projectId={projectId} isOwned={project.isOwned} />
+                  )}
                 
-                {activeTab === 'api' && (
-                  <ApiConfiguration projectId={projectId} />
-                )}
+                  {currentTab === 'api' && (
+                    <ApiConfiguration projectId={projectId} />
+                  )}
                 
-                {activeTab === 'analysis' && (
-                  <ProjectAnalysis projectId={projectId} isOwned={(project as any).isOwned ?? true} />
-                )}
+                  {currentTab === 'analysis' && (
+                    <ProjectAnalysis projectId={projectId} isOwned={(project as any).isOwned ?? true} />
+                  )}
                 
-                {activeTab === 'progress' && (
-                  <div className="p-6">
-                    <ProgressDashboard projectId={projectId} />
-                  </div>
-                )}
+                  {currentTab === 'progress' && (
+                    <div className="p-6">
+                      <ProgressDashboard projectId={projectId} />
+                    </div>
+                  )}
                 
-                {activeTab === 'visualization' && (
-                  <div className="p-6">
-                    <div className="space-y-6">
-                      <div>
-                        <h1 className="text-2xl font-bold">Document Visualization</h1>
-                        <p className="text-gray-600">
-                          Explore your project documents in 3D vector space to understand relationships and similarities.
-                        </p>
-                      </div>
-                      
-                      <div style={{ border: '2px solid', padding: '10px' }}>
-                        <EmbeddingsVisualization projectId={projectId} />
+                  {currentTab === 'visualization' && (
+                    <div className="p-6">
+                      <div className="space-y-6">
+                        <div>
+                          <h1 className="text-2xl font-bold">Document Visualization</h1>
+                          <p className="text-gray-600">
+                            Explore your project documents in 3D vector space to understand relationships and similarities.
+                          </p>
+                        </div>
+                        
+                        <div style={{ border: '2px solid', padding: '10px' }}>
+                          <EmbeddingsVisualization projectId={projectId} />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
                 
-                {activeTab === 'social' && (
-                  <div className="p-6">
-                    <div className="space-y-6">
-                      <div>
-                        <h1 className="text-2xl font-bold">Social Media Posts</h1>
-                        <p className="text-gray-600">
-                          Generate engaging social media content for your project using AI-powered analysis.
-                        </p>
+                  {currentTab === 'social' && (
+                    <div className="p-6">
+                      <div className="space-y-6">
+                        <div>
+                          <h1 className="text-2xl font-bold">Social Media Posts</h1>
+                          <p className="text-gray-600">
+                            Generate engaging social media content for your project using AI-powered analysis.
+                          </p>
+                        </div>
+                        
+                        <SocialPostsGenerator projectId={projectId} isOwned={(project as any).isOwned ?? true} />
                       </div>
-                      
-                      <SocialPostsGenerator projectId={projectId} isOwned={(project as any).isOwned ?? true} />
                     </div>
-                  </div>
-                )}
+                  )}
                 
-                {activeTab === 'prompts' && (
-                  <div className="p-6">
-                    <PromptsViewer projectId={projectId} />
-                  </div>
-                )}
+                  {currentTab === 'prompts' && (
+                    <div className="p-6">
+                      <PromptsViewer projectId={projectId} />
+                    </div>
+                  )}
                 
-                {activeTab === 'applications' && (
-                  <div className="p-6">
-                    <div className="space-y-6">
-                      <div>
-                        <h1 className="text-2xl font-bold">Project Applications</h1>
-                        <p className="text-gray-600">
-                          Review applications from people interested in contributing to your project requirements.
-                        </p>
+                  {currentTab === 'applications' && (
+                    <div className="p-6">
+                      <div className="space-y-6">
+                        <div>
+                          <h1 className="text-2xl font-bold">Project Applications</h1>
+                          <p className="text-gray-600">
+                            Review applications from people interested in contributing to your project requirements.
+                          </p>
+                        </div>
+                        
+                        <ProjectApplicationsView projectId={projectId} isOwned={project.isOwned} />
                       </div>
-                      
-                      <ProjectApplicationsView projectId={projectId} isOwned={project.isOwned} />
                     </div>
-                  </div>
-                )}
+                  )}
+                  
+                  {currentTab === 'team' && (
+                    <div className="p-6">
+                      <ProjectTeamTab 
+                        projectId={projectId} 
+                        isOwned={(project as any).isOwned ?? true}
+                        isPublic={(project as any).isPublic ?? false}
+                      />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

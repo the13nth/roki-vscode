@@ -22,105 +22,91 @@ import {
 
 interface ProjectNavigationProps {
   projectId: string;
-  activeTab: string;
+  activeTab?: string;
   progress: ProgressData;
-  onNavigate?: () => void;
+  onNavigate?: (tab: string) => void;
   isOwned?: boolean;
 }
 
-interface NavItem {
-  id: string;
-  name: string;
-  href: string;
-  icon: React.ReactNode;
-  description: string;
-}
-
 export function ProjectNavigation({ projectId, activeTab, progress, onNavigate, isOwned = true }: ProjectNavigationProps) {
-  const allNavItems: NavItem[] = [
+  const allNavItems = [
     {
       id: 'overview',
       name: 'Overview',
-      href: `/project/${projectId}`,
-      description: 'Project summary and quick actions',
-      icon: <LayoutDashboard className="w-5 h-5" />
+      description: 'Project overview and quick actions',
+      icon: <LayoutDashboard className="w-5 h-4" />
     },
     {
       id: 'requirements',
       name: 'Requirements',
-      href: `/project/${projectId}/requirements`,
-      description: 'Project requirements and user stories',
-      icon: <FileText className="w-5 h-5" />
+      description: 'Define project requirements and user stories',
+      icon: <FileText className="w-5 h-4" />
     },
     {
       id: 'design',
       name: 'Design',
-      href: `/project/${projectId}/design`,
-      description: 'System architecture and design',
-      icon: <Palette className="w-5 h-5" />
+      description: 'System architecture and design documentation',
+      icon: <Palette className="w-5 h-4" />
     },
     {
       id: 'tasks',
       name: 'Tasks',
-      href: `/project/${projectId}/tasks`,
       description: 'Implementation tasks and checklist',
-      icon: <CheckSquare className="w-5 h-5" />
+      icon: <CheckSquare className="w-5 h-4" />
     },
     {
       id: 'context',
       name: 'Context',
-      href: `/project/${projectId}/context`,
-      description: 'Context documents and references',
-      icon: <FolderOpen className="w-5 h-5" />
+      description: 'Manage project context documents',
+      icon: <FolderOpen className="w-5 h-4" />
     },
     // {
     //   id: 'api',
-    //   name: 'API',
-    //   href: `/project/${projectId}/api`,
-    //   description: 'AI provider configuration and API settings',
-    //   icon: <Settings className="w-5 h-5" />
+    //   name: 'API Config',
+    //   description: 'Configure API endpoints and settings',
+    //   icon: <Settings className="w-5 h-4" />
     // },
     {
       id: 'analysis',
       name: 'Analysis',
-      href: `/project/${projectId}/analysis`,
       description: 'AI-powered project analysis and insights',
-      icon: <Brain className="w-5 h-5" />
+      icon: <Brain className="w-5 h-4" />
     },
     {
       id: 'progress',
       name: 'Progress',
-      href: `/project/${projectId}/progress`,
-      description: 'Progress tracking and analytics',
-      icon: <BarChart3 className="w-5 h-5" />
+      description: 'Track project progress and milestones',
+      icon: <BarChart3 className="w-5 h-4" />
     },
     {
       id: 'visualization',
       name: 'Visualization',
-      href: `/project/${projectId}/visualization`,
-      description: '3D vector space visualization of project documents',
-      icon: <Network className="w-5 h-5" />
+      description: '3D document visualization and insights',
+      icon: <Network className="w-5 h-4" />
     },
     {
       id: 'social',
       name: 'Social Posts',
-      href: `/project/${projectId}/social`,
-      description: 'Generate social media content for your project',
-      icon: <Share2 className="w-5 h-5" />
+      description: 'Generate social media content',
+      icon: <Share2 className="w-5 h-4" />
     },
     {
       id: 'prompts',
       name: 'Prompts',
-      href: `/project/${projectId}/prompts`,
-      description: 'View AI prompts used for analysis and content generation',
-      icon: <Code2 className="w-5 h-5" />
+      description: 'View and manage AI prompts',
+      icon: <Code2 className="w-5 h-4" />
     },
     {
       id: 'applications',
       name: 'Applications',
-      href: `/project/${projectId}/applications`,
       description: 'View applications for project requirements',
-      icon: <Users className="w-5 h-5" />
+      icon: <Users className="w-5 h-4" />
+    },
+    {
+      id: 'team',
+      name: 'Team',
+      description: 'Manage team members and collaboration',
+      icon: <Users className="w-5 h-4" />
     }
   ];
 
@@ -157,10 +143,9 @@ export function ProjectNavigation({ projectId, activeTab, progress, onNavigate, 
               
               return (
                 <li key={item.id}>
-                  <Link
-                    href={item.href}
-                    onClick={onNavigate}
-                    className={`group flex items-center px-4 py-3 text-sm font-medium rounded-none transition-all duration-200 ${
+                  <button
+                    onClick={() => onNavigate?.(item.id)}
+                    className={`group flex items-center w-full px-4 py-3 text-sm font-medium rounded-none transition-all duration-200 ${
                       isActive
                         ? 'bg-primary text-primary-foreground shadow-sm'
                         : 'text-muted-foreground hover:bg-muted hover:text-foreground'
@@ -171,7 +156,7 @@ export function ProjectNavigation({ projectId, activeTab, progress, onNavigate, 
                     }`}>
                       {item.icon}
                     </span>
-                    <span className="truncate flex-1">{item.name}</span>
+                    <span className="truncate flex-1 text-left">{item.name}</span>
                     
                     {/* Show task count for tasks tab */}
                     {item.id === 'tasks' && (
@@ -179,7 +164,7 @@ export function ProjectNavigation({ projectId, activeTab, progress, onNavigate, 
                         {progress.completedTasks}/{progress.totalTasks}
                       </Badge>
                     )}
-                  </Link>
+                  </button>
                 </li>
               );
             })}

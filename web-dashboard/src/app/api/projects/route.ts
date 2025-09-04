@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
       technologyStack,
       regulatoryCompliance,
       isPublic: isPublic || false,
+      ownerId: userId,
       contextPreferences: {
         maxContextSize: 8000,
         prioritizeRecent: true,

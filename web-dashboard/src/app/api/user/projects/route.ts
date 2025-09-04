@@ -2,6 +2,32 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { getPineconeClient, PINECONE_INDEX_NAME } from '@/lib/pinecone';
 
+// Helper function to parse tasks from markdown content (same as in project detail endpoint)
+function parseTasksFromMarkdown(content: string): { totalTasks: number; completedTasks: number; percentage: number } {
+  if (!content || !content.trim()) {
+    return { totalTasks: 0, completedTasks: 0, percentage: 0 };
+  }
+
+  const lines = content.split('\n');
+  let totalTasks = 0;
+  let completedTasks = 0;
+
+  for (const line of lines) {
+    // Match task checkboxes: - [ ] or - [x]
+    const taskMatch = line.match(/^[\s]*-[\s]*\[([x\s])\]/);
+    if (taskMatch) {
+      totalTasks++;
+      if (taskMatch[1].toLowerCase() === 'x') {
+        completedTasks++;
+      }
+    }
+  }
+
+  const percentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  
+  return { totalTasks, completedTasks, percentage };
+}
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     const { userId } = await auth();
@@ -16,8 +42,47 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const pinecone = getPineconeClient();
     const index = pinecone.index(PINECONE_INDEX_NAME);
 
-    // Get user's projects from Pinecone
-    const response = await index.namespace('projects').query({
+    // Get user's owned projects from Pinecone
+    const ownedProjectsResponse = await index.namespace('projects').query({
+      vector: new Array(1024).fill(0.1),
+      filter: {
+        ownerId: { $eq: userId }
+      },
+      topK: 100,
+      includeMetadata: true
+    });
+
+    const ownedProjects = ownedProjectsResponse.matches?.map(match => {
+      // Parse project data to get tasks for progress calculation
+      let progress = 0;
+      let projectData = null;
+      
+      try {
+        if (match.metadata?.projectData) {
+          projectData = JSON.parse(match.metadata.projectData as string);
+          if (projectData?.tasks) {
+            const taskStats = parseTasksFromMarkdown(projectData.tasks);
+            progress = taskStats.percentage;
+          }
+        }
+      } catch (error) {
+        console.error('Failed to parse project data for progress calculation:', error);
+      }
+      
+      return {
+        id: match.metadata?.projectId || match.id,
+        name: match.metadata?.name || 'Untitled Project',
+        description: match.metadata?.description || '',
+        createdAt: match.metadata?.createdAt || '',
+        lastModified: match.metadata?.lastModified || '',
+        progress: progress,
+        isOwned: true,
+        teamId: match.metadata?.teamId || null
+      };
+    }) || [];
+
+    // Get team projects where user is a member
+    const teamMembershipsResponse = await index.namespace('team_members').query({
       vector: new Array(1024).fill(0.1),
       filter: {
         userId: { $eq: userId }
@@ -26,20 +91,85 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       includeMetadata: true
     });
 
-    const projects = response.matches?.map(match => ({
-      id: match.metadata?.projectId || match.id,
-      name: match.metadata?.name || 'Untitled Project',
-      description: match.metadata?.description || '',
-      createdAt: match.metadata?.createdAt || '',
-      lastModified: match.metadata?.lastModified || ''
-    })) || [];
+    const teamProjects: any[] = [];
+    
+    for (const membership of teamMembershipsResponse.matches || []) {
+      if (!membership.metadata) continue;
+      
+      const teamId = membership.metadata.teamId;
+      
+      // Get team projects
+      const teamProjectsResponse = await index.namespace('team_projects').query({
+        vector: new Array(1024).fill(0.1),
+        filter: {
+          teamId: { $eq: teamId }
+        },
+        topK: 100,
+        includeMetadata: true
+      });
+
+      for (const teamProject of teamProjectsResponse.matches || []) {
+        if (!teamProject.metadata) continue;
+        
+        const projectId = teamProject.metadata.projectId;
+        
+        // Get project details
+        const projectResponse = await index.namespace('projects').query({
+          vector: new Array(1024).fill(0.1),
+          filter: {
+            projectId: { $eq: projectId }
+          },
+          topK: 1,
+          includeMetadata: true
+        });
+
+        if (projectResponse.matches?.[0]?.metadata) {
+          const project = projectResponse.matches[0].metadata;
+          
+          // Parse project data to get tasks for progress calculation
+          let progress = 0;
+          let projectData = null;
+          
+          try {
+            if (project.projectData) {
+              projectData = JSON.parse(project.projectData as string);
+              if (projectData?.tasks) {
+                const taskStats = parseTasksFromMarkdown(projectData.tasks);
+                progress = taskStats.percentage;
+              }
+            }
+          } catch (error) {
+            console.error('Failed to parse team project data for progress calculation:', error);
+          }
+          
+          teamProjects.push({
+            id: project.projectId,
+            name: project.name || 'Untitled Project',
+            description: project.description || '',
+            createdAt: project.createdAt || '',
+            lastModified: project.lastModified || '',
+            progress: progress,
+            isOwned: false,
+            teamId: teamId,
+            teamRole: teamProject.metadata.projectRole,
+            addedAt: teamProject.metadata.addedAt
+          });
+        }
+      }
+    }
+
+    // Combine and deduplicate projects
+    const allProjects = [...ownedProjects, ...teamProjects];
+    const uniqueProjects = allProjects.filter((project, index, self) => 
+      index === self.findIndex(p => p.id === project.id)
+    );
 
     // Sort by last modified date (newest first)
-    projects.sort((a, b) => new Date(String(b.lastModified)).getTime() - new Date(String(a.lastModified)).getTime());
+    uniqueProjects.sort((a, b) => new Date(String(b.lastModified)).getTime() - new Date(String(a.lastModified)).getTime());
 
     return NextResponse.json({
       success: true,
-      projects
+      projects: uniqueProjects
     });
 
   } catch (error) {

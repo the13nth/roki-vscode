@@ -7,6 +7,7 @@ import { DotMatrixBackground } from "@/components/ui/dot-matrix-background";
 import { ClerkProvider } from '@clerk/nextjs';
 import { ClientOnly } from "@/components/ClientOnly";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Toaster } from "@/components/ui/toaster";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,6 +43,7 @@ export default function RootLayout({
             </ClientOnly>
             {children}
           </div>
+          <Toaster />
           <SpeedInsights />
         </body>
       </html>

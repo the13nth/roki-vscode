@@ -19,7 +19,9 @@ import {
   UserPlus,
   BookOpen,
   FileText,
-  Briefcase
+  Briefcase,
+  Users,
+  Home
 } from 'lucide-react';
 import { GlobalApiSettings } from './GlobalApiSettings';
 import { SignedIn, SignedOut, UserButton, SignInButton, SignUpButton, useUser, useOrganization } from '@clerk/nextjs';
@@ -51,6 +53,20 @@ export function UnifiedNavigation({
                    membership.organization?.slug === 'binghi_admins' || 
                    membership.organization?.name === 'binghi_admins'
                  ));
+
+  // Define navigation items at component level
+  const authenticatedNavItems = [
+    { href: "/", label: "Home", icon: Home },
+    { href: "/projects", label: "Projects", icon: FolderOpen },
+    { href: "/blog", label: "Blog", icon: FileText },
+    { href: "/jobs", label: "Jobs", icon: Briefcase },
+    { href: "/applications", label: "Applications", icon: Users },
+    { href: "/profile", label: "Profile", icon: User },
+  ];
+
+  if (isAdmin) {
+    authenticatedNavItems.push({ href: "/admin", label: "Admin", icon: Shield });
+  }
 
   // Don't show navigation on homepage when variant is global
   if (variant === 'global' && pathname === '/') {
@@ -124,52 +140,51 @@ export function UnifiedNavigation({
   };
 
   const renderMainNavigation = () => {
-    const baseNavItems = [
-      { href: "/", label: "Home", icon: null as any },
-      { href: "/projects", label: "Projects", icon: FolderOpen },
-      { href: "/blog", label: "Blog", icon: BookOpen },
-      { href: "/jobs", label: "Jobs", icon: Briefcase },
-    ];
-
-    const authenticatedNavItems = [
-      { href: "/applications", label: "Applications", icon: FileText },
-      { href: "/profile", label: "Profile", icon: User },
-    ];
-
-    if (isAdmin) {
-      authenticatedNavItems.push({ href: "/admin", label: "Admin", icon: Shield });
-    }
-
     // Homepage specific navigation
     if (variant === 'homepage') {
       return (
         <>
           <nav className="hidden md:flex items-center space-x-6">
-            {baseNavItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link key={item.href} href={item.href} className="flex items-center text-gray-600 hover:text-gray-900">
-                  {Icon && <Icon className="mr-1 h-4 w-4" />}
-                  {item.label}
-                </Link>
-              );
-            })}
+            {/* Basic navigation items for all users */}
+            <Link href="/" className="flex items-center text-gray-600 hover:text-gray-900">
+              <Home className="mr-1 h-4 w-4" />
+              Home
+            </Link>
+            <Link href="/projects" className="flex items-center text-gray-600 hover:text-gray-900">
+              <FolderOpen className="mr-1 h-4 w-4" />
+              Projects
+            </Link>
+            <Link href="/blog" className="flex items-center text-gray-600 hover:text-gray-900">
+              <FileText className="mr-1 h-4 w-4" />
+              Blog
+            </Link>
+            <Link href="/jobs" className="flex items-center text-gray-600 hover:text-gray-900">
+              <Briefcase className="mr-1 h-4 w-4" />
+              Jobs
+            </Link>
             <Link href="#features" className="text-gray-600 hover:text-gray-900">
               Features
             </Link>
             <Link href="#pricing" className="text-gray-600 hover:text-gray-900">
               Pricing
             </Link>
+            
+            {/* Additional navigation items for authenticated users */}
             <SignedIn>
-              {authenticatedNavItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link key={item.href} href={item.href} className="flex items-center text-gray-600 hover:text-gray-900">
-                    <Icon className="mr-1 h-4 w-4" />
-                    {item.label}
-                  </Link>
-                );
-              })}
+              <Link href="/applications" className="flex items-center text-gray-600 hover:text-gray-900">
+                <Users className="mr-1 h-4 w-4" />
+                Applications
+              </Link>
+              <Link href="/profile" className="flex items-center text-gray-600 hover:text-gray-900">
+                <User className="mr-1 h-4 w-4" />
+                Profile
+              </Link>
+              {isAdmin && (
+                <Link href="/admin" className="flex items-center text-gray-600 hover:text-gray-900">
+                  <Shield className="mr-1 h-4 w-4" />
+                  Admin
+                </Link>
+              )}
             </SignedIn>
           </nav>
           
@@ -190,32 +205,18 @@ export function UnifiedNavigation({
     return (
       <>
         <nav className="hidden md:flex items-center space-x-4">
-                      {baseNavItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link key={item.href} href={item.href}>
-                  <Button variant="ghost" size="sm" className="flex items-center">
-                    {Icon && <Icon className="mr-2 h-4 w-4" />}
-                    {item.label}
-                  </Button>
-                </Link>
-              );
-            })}
-          
-          <SignedIn>
-            {authenticatedNavItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link key={item.href} href={item.href}>
-                  <Button variant="ghost" size="sm" className="flex items-center">
-                    <Icon className="mr-2 h-4 w-4" />
-                    {item.label}
-                  </Button>
-                </Link>
-              );
-            })}
-            <GlobalApiSettings />
-          </SignedIn>
+          {authenticatedNavItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link key={item.href} href={item.href}>
+                <Button variant="ghost" size="sm" className="flex items-center">
+                  {Icon && <Icon className="mr-2 h-4 w-4" />}
+                  {item.label}
+                </Button>
+              </Link>
+            );
+          })}
+          <GlobalApiSettings />
         </nav>
 
         {/* Mobile menu button */}
@@ -317,67 +318,26 @@ export function UnifiedNavigation({
             </>
           ) : (
             <>
-              <Link href="/" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button variant="ghost" size="sm" className="w-full justify-start">
-                  Home
-                </Button>
-              </Link>
-              
-              <Link href="/projects" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button variant="ghost" size="sm" className="w-full justify-start">
-                  <FolderOpen className="mr-2 h-4 w-4" />
-                  Projects
-                </Button>
-              </Link>
-              
-              <Link href="/blog" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button variant="ghost" size="sm" className="w-full justify-start">
-                  <BookOpen className="mr-2 h-4 w-4" />
-                  Blog
-                </Button>
-              </Link>
-              
-              <Link href="/jobs" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button variant="ghost" size="sm" className="w-full justify-start">
-                  <Briefcase className="mr-2 h-4 w-4" />
-                  Jobs
-                </Button>
-              </Link>
-              
-              <SignedIn>
-                <Link href="/applications" onClick={() => setIsMobileMenuOpen(false)}>
-                  <Button variant="ghost" size="sm" className="w-full justify-start">
-                    <FileText className="mr-2 h-4 w-4" />
-                    Applications
-                  </Button>
-                </Link>
-                <Link href="/profile" onClick={() => setIsMobileMenuOpen(false)}>
-                  <Button variant="ghost" size="sm" className="w-full justify-start">
-                    <User className="mr-2 h-4 w-4" />
-                    Profile
-                  </Button>
-                </Link>
-                {isAdmin && (
-                  <Link href="/admin" onClick={() => setIsMobileMenuOpen(false)}>
+              {authenticatedNavItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Link key={item.href} href={item.href} onClick={() => setIsMobileMenuOpen(false)}>
                     <Button variant="ghost" size="sm" className="w-full justify-start">
-                      <Shield className="mr-2 h-4 w-4" />
-                      Admin
+                      {Icon && <Icon className="mr-2 h-4 w-4" />}
+                      {item.label}
                     </Button>
                   </Link>
-                )}
-                
-                {/* Project Navigation for mobile */}
-                {variant === 'project' && projectNavigation && (
-                  <div className="border-t pt-3 mt-3">
-                    <div className="text-sm font-medium text-muted-foreground mb-2 px-2">
-                      Project Navigation
-                    </div>
-                    <div onClick={() => setIsMobileMenuOpen(false)}>
-                      {projectNavigation}
-                    </div>
-                  </div>
-                )}
-              </SignedIn>
+                );
+              })}
+              
+              {isAdmin && (
+                <Link href="/admin" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button variant="ghost" size="sm" className="w-full justify-start">
+                    <Shield className="mr-2 h-4 w-4" />
+                    Admin
+                  </Button>
+                </Link>
+              )}
             </>
           )}
         </div>

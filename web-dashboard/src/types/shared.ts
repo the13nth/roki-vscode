@@ -62,6 +62,9 @@ export interface ProjectConfiguration {
   design?: string; // Generated design document
   tasks?: string; // Generated tasks document
   isPublic?: boolean; // Whether the project is visible to everyone
+  ownerId: string; // Project owner's user ID
+  teamId?: string; // Associated team ID if part of a team
+  sharedWith?: string[]; // Array of user emails the project is shared with
   tokenTracking?: {
     totalTokens: number;
     totalCost: number;
@@ -139,4 +142,67 @@ export interface VSCodeExtension {
   contextInjector: ContextInjector;
   progressTracker: ProgressTracker;
   fileWatcher: FileWatcher;
+}
+
+// Team Collaboration Types
+export interface Team {
+  id: string;
+  name: string;
+  description?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  ownerId: string;
+  isActive: boolean;
+}
+
+export interface TeamMember {
+  id: string;
+  teamId: string;
+  userId: string;
+  email: string;
+  role: TeamRole;
+  joinedAt: Date;
+  invitedAt: Date;
+  status: 'pending' | 'active' | 'inactive';
+  invitedBy: string;
+}
+
+export type TeamRole = 'owner' | 'admin' | 'editor' | 'viewer';
+
+export interface ProjectSharing {
+  id: string;
+  projectId: string;
+  teamId?: string;
+  sharedWithUserId?: string;
+  sharedWithEmail: string;
+  role: TeamRole;
+  sharedAt: Date;
+  sharedBy: string;
+  status: 'active' | 'revoked';
+}
+
+export interface TeamProject {
+  id: string;
+  teamId: string;
+  projectId: string;
+  addedAt: Date;
+  addedBy: string;
+  projectRole: TeamRole; // Role the project has within the team
+}
+
+export interface TeamProjectWithDetails extends ProjectConfiguration {
+  teamRole: TeamRole;
+  addedAt: Date;
+}
+
+export interface TeamInvitation {
+  id: string;
+  teamId: string;
+  email: string;
+  role: TeamRole;
+  invitedBy: string;
+  invitedAt: Date;
+  expiresAt: Date;
+  status: 'pending' | 'accepted' | 'expired' | 'declined';
+  token: string;
 }

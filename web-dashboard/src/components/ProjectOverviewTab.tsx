@@ -21,6 +21,7 @@ import {
   Globe,
   Lock
 } from 'lucide-react';
+import { ShareProjectDialog } from './ShareProjectDialog';
 
 interface ProjectOverviewTabProps {
   project: ProjectDashboard & { isOwned?: boolean; isPublic?: boolean };
@@ -293,6 +294,26 @@ export function ProjectOverviewTab({ project, onUpdate }: ProjectOverviewTabProp
                     ? 'This project is visible to everyone on the platform.'
                     : 'This project is only visible to you.'
                   }
+                </p>
+              </dd>
+            </div>
+          )}
+
+          {/* Project Sharing - Only show for project owners */}
+          {project.isOwned && (
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Collaboration</dt>
+              <dd className="mt-1">
+                <ShareProjectDialog 
+                  projectId={project.projectId}
+                  projectName={project.name}
+                  onSharingChanged={() => {
+                    // Optionally refresh project data or show updated sharing status
+                    console.log('Project sharing updated');
+                  }}
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Share this project with specific users by email address.
                 </p>
               </dd>
             </div>

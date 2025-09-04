@@ -30,11 +30,13 @@ export function ProjectOverview() {
     try {
       setIsLoading(true);
       
-      // Load user's projects
-      const userResponse = await fetch('/api/projects');
+      // Load user's projects (including team projects with deduplication)
+      const userResponse = await fetch('/api/user/projects');
       if (userResponse.ok) {
         const userProjectsData = await userResponse.json();
-        setProjects(userProjectsData);
+        if (userProjectsData.success) {
+          setProjects(userProjectsData.projects || []);
+        }
       }
       
       // Load public projects
