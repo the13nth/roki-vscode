@@ -80,6 +80,32 @@ export async function GET(
         break;
     }
 
+    // Check if the content is a chunked document reference
+    if (content.startsWith('[CHUNKED:')) {
+      try {
+        const chunkId = content.match(/\[CHUNKED:(.+?)\]/)?.[1];
+        if (chunkId) {
+          // Retrieve the chunked document from the separate namespace
+          const pinecone = getPineconeClient();
+          const index = pinecone.index(PINECONE_INDEX_NAME);
+          
+          const chunkResponse = await index.namespace('project_documents').fetch([chunkId]);
+          const chunkRecord = chunkResponse.records?.[chunkId];
+          
+          if (chunkRecord?.metadata?.content) {
+            content = chunkRecord.metadata.content as string;
+            console.log(`✅ Retrieved chunked document: ${chunkId}`);
+          } else {
+            console.warn(`⚠️ Chunked document not found: ${chunkId}`);
+            content = 'Document content unavailable';
+          }
+        }
+      } catch (error) {
+        console.error('❌ Failed to retrieve chunked document:', error);
+        content = 'Document content unavailable';
+      }
+    }
+
     return NextResponse.json({ content });
   } catch (error) {
     console.error('Failed to get document:', error);
@@ -222,6 +248,37 @@ export async function PUT(
           };
         }
         break;
+    }
+
+    // Check if we need to update any existing chunked documents
+    const existingContent = getCurrentContent(project, type);
+    if (existingContent.startsWith('[CHUNKED:')) {
+      try {
+        const chunkId = existingContent.match(/\[CHUNKED:(.+?)\]/)?.[1];
+        if (chunkId) {
+          // Update the existing chunk with new content
+          const pinecone = getPineconeClient();
+          const index = pinecone.index(PINECONE_INDEX_NAME);
+          
+          await index.namespace('project_documents').upsert([{
+            id: chunkId,
+            values: new Array(1024).fill(0.1), // Placeholder vector
+            metadata: {
+              projectId,
+              userId,
+              documentType: type,
+              content: content,
+              lastModified: new Date().toISOString(),
+              type: 'project_document'
+            }
+          }]);
+          
+          console.log(`✅ Updated existing chunked document: ${chunkId}`);
+        }
+      } catch (error) {
+        console.error('❌ Failed to update existing chunked document:', error);
+        // Continue with normal project update even if chunk update fails
+      }
     }
 
     try {

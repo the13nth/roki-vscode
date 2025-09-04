@@ -226,7 +226,11 @@ export class ProjectService {
 
     try {
       const projectData = JSON.parse(record.metadata.projectData as string) as UserProject;
-      return projectData;
+      
+      // Check for chunked documents and retrieve them
+      const processedProject = await this.processChunkedDocuments(projectData);
+      
+      return processedProject;
     } catch (error) {
       console.error('Failed to parse project data:', error);
       return null;
@@ -267,6 +271,28 @@ export class ProjectService {
       userId, // Ensure user doesn't change
       lastModified: new Date().toISOString()
     };
+
+    // Check if the updated project data would exceed Pinecone's metadata limit
+    const projectDataString = JSON.stringify(updatedProject);
+    const metadataSize = new Blob([projectDataString]).size;
+    const MAX_METADATA_SIZE = 40000; // Leave some buffer below 40KB limit
+
+    if (metadataSize > MAX_METADATA_SIZE) {
+      console.warn(`⚠️ Project data size (${metadataSize} bytes) exceeds Pinecone metadata limit. Implementing chunking strategy.`);
+      
+      // Store large documents separately and keep only references
+      const chunkedProject = await this.storeLargeProjectInChunks(updatedProject, projectId, userId);
+      
+      if (!chunkedProject) {
+        console.error('❌ Failed to store large project in chunks');
+        return false;
+      }
+      
+      // Use the chunked version for the main metadata
+      updatedProject.requirements = chunkedProject.requirements;
+      updatedProject.design = chunkedProject.design;
+      updatedProject.tasks = chunkedProject.tasks;
+    }
 
     // Generate new embedding for the updated project
     let embedding: number[];
@@ -344,6 +370,79 @@ export class ProjectService {
     return true;
   }
 
+  // Helper method to store large project documents in chunks
+  private async storeLargeProjectInChunks(project: UserProject, projectId: string, userId: string): Promise<UserProject | null> {
+    try {
+      const pinecone = getPineconeClient();
+      const index = pinecone.index(PINECONE_INDEX_NAME);
+      
+      // Create a copy of the project with chunked documents
+      const chunkedProject = { ...project };
+      
+      // Store large documents separately if they exceed a certain size
+      const MAX_DOCUMENT_SIZE = 30000; // 30KB per document
+      
+      if (project.requirements && new Blob([project.requirements]).size > MAX_DOCUMENT_SIZE) {
+        const chunkId = `doc_${projectId}_requirements`;
+        await index.namespace('project_documents').upsert([{
+          id: chunkId,
+          values: new Array(1024).fill(0.1), // Placeholder vector
+          metadata: {
+            projectId,
+            userId,
+            documentType: 'requirements',
+            content: project.requirements,
+            lastModified: new Date().toISOString(),
+            type: 'project_document'
+          }
+        }]);
+        chunkedProject.requirements = `[CHUNKED:${chunkId}]`;
+        console.log(`✅ Stored large requirements document as chunk: ${chunkId}`);
+      }
+      
+      if (project.design && new Blob([project.design]).size > MAX_DOCUMENT_SIZE) {
+        const chunkId = `doc_${projectId}_design`;
+        await index.namespace('project_documents').upsert([{
+          id: chunkId,
+          values: new Array(1024).fill(0.1), // Placeholder vector
+          metadata: {
+            projectId,
+            userId,
+            documentType: 'design',
+            content: project.design,
+            lastModified: new Date().toISOString(),
+            type: 'project_document'
+          }
+        }]);
+        chunkedProject.design = `[CHUNKED:${chunkId}]`;
+        console.log(`✅ Stored large design document as chunk: ${chunkId}`);
+      }
+      
+      if (project.tasks && new Blob([project.tasks]).size > MAX_DOCUMENT_SIZE) {
+        const chunkId = `doc_${projectId}_tasks`;
+        await index.namespace('project_documents').upsert([{
+          id: chunkId,
+          values: new Array(1024).fill(0.1), // Placeholder vector
+          metadata: {
+            projectId,
+            userId,
+            documentType: 'tasks',
+            content: project.tasks,
+            lastModified: new Date().toISOString(),
+            type: 'project_document'
+          }
+        }]);
+        chunkedProject.tasks = `[CHUNKED:${chunkId}]`;
+        console.log(`✅ Stored large tasks document as chunk: ${chunkId}`);
+      }
+      
+      return chunkedProject;
+    } catch (error) {
+      console.error('❌ Failed to store large project in chunks:', error);
+      return null;
+    }
+  }
+
   async deleteProject(userId: string, projectId: string): Promise<boolean> {
     // For deletion, we need to explicitly check ownership regardless of public status
     const deletePinecone = getPineconeClient();
@@ -364,5 +463,45 @@ export class ProjectService {
 
     await deleteIndex.namespace(PINECONE_NAMESPACE_PROJECTS).deleteOne(deleteVectorId);
     return true;
+  }
+
+  // Helper method to process chunked documents and retrieve their content
+  private async processChunkedDocuments(project: UserProject): Promise<UserProject> {
+    const pinecone = getPineconeClient();
+    const index = pinecone.index(PINECONE_INDEX_NAME);
+
+    const processedProject: UserProject = { ...project };
+
+    if (processedProject.requirements && processedProject.requirements.includes('[CHUNKED:')) {
+      const chunkId = processedProject.requirements.replace('[CHUNKED:', '').replace(']', '');
+      const chunkResponse = await index.namespace('project_documents').fetch([chunkId]);
+      const chunkRecord = chunkResponse.records?.[chunkId];
+      if (chunkRecord?.metadata?.content) {
+        processedProject.requirements = String(chunkRecord.metadata.content);
+        console.log(`✅ Retrieved chunked requirements document: ${chunkId}`);
+      }
+    }
+
+    if (processedProject.design && processedProject.design.includes('[CHUNKED:')) {
+      const chunkId = processedProject.design.replace('[CHUNKED:', '').replace(']', '');
+      const chunkResponse = await index.namespace('project_documents').fetch([chunkId]);
+      const chunkRecord = chunkResponse.records?.[chunkId];
+      if (chunkRecord?.metadata?.content) {
+        processedProject.design = String(chunkRecord.metadata.content);
+        console.log(`✅ Retrieved chunked design document: ${chunkId}`);
+      }
+    }
+
+    if (processedProject.tasks && processedProject.tasks.includes('[CHUNKED:')) {
+      const chunkId = processedProject.tasks.replace('[CHUNKED:', '').replace(']', '');
+      const chunkResponse = await index.namespace('project_documents').fetch([chunkId]);
+      const chunkRecord = chunkResponse.records?.[chunkId];
+      if (chunkRecord?.metadata?.content) {
+        processedProject.tasks = String(chunkRecord.metadata.content);
+        console.log(`✅ Retrieved chunked tasks document: ${chunkId}`);
+      }
+    }
+
+    return processedProject;
   }
 }
