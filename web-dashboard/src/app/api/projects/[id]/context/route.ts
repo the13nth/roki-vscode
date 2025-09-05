@@ -7,6 +7,7 @@ import { ProjectService } from '@/lib/projectService';
 import { getPineconeClient } from '@/lib/pinecone';
 import { PINECONE_NAMESPACE_PROJECTS } from '@/lib/pinecone';
 import { createVectorId } from '@/lib/projectService';
+import { pineconeOperationsService } from '@/lib/pineconeOperationsService';
 
 // GET /api/projects/[id]/context - Get all context documents
 export async function GET(
@@ -50,24 +51,27 @@ export async function GET(
       const pinecone = getPineconeClient();
       const index = pinecone.index(process.env.NEXT_PUBLIC_PINECONE_INDEX_NAME || 'roki');
       
-      // Query for context documents specifically
-      const queryResponse = await index.query({
-        vector: new Array(1024).fill(0), // Match the index dimension
-        filter: {
-          projectId: { $eq: id },
-          type: { $eq: 'context' } // Filter for context documents only
-        },
-        topK: 100,
-        includeMetadata: true,
-        includeValues: false // We don't need the vectors for display
-      });
+      // Query for context documents specifically using optimized service
+      const queryResponse = await pineconeOperationsService.query(
+        new Array(1024).fill(0), // Match the index dimension
+        {
+          filter: {
+            projectId: { $eq: id },
+            type: { $eq: 'context' } // Filter for context documents only
+          },
+          topK: 100,
+          includeMetadata: true,
+          includeValues: false // We don't need the vectors for display
+        }
+      );
       
       console.log(`📄 Found ${queryResponse.matches.length} context documents for project ${id}`);
+      console.log('🔍 Query response matches:', queryResponse.matches.map((m: any) => ({ id: m.id, type: m.metadata?.type, title: m.metadata?.title })));
       
       // Convert Pinecone matches to ContextDocument format
       contextDocs = queryResponse.matches
-        .filter(match => match.metadata)
-        .map(match => {
+        .filter((match: any) => match.metadata)
+        .map((match: any) => {
           const metadata = match.metadata!;
           
           return {
@@ -77,7 +81,7 @@ export async function GET(
             title: (typeof metadata.title === 'string' ? metadata.title : 'Untitled Document'),
             content: (typeof metadata.content === 'string' ? metadata.content : ''),
             tags: (typeof metadata.tags === 'string' ? 
-                   metadata.tags.split(',').map(t => t.trim()).filter(Boolean) : []),
+                   metadata.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : []),
             category: (typeof metadata.category === 'string' ? metadata.category : 'other'),
             lastModified: (typeof metadata.lastModified === 'string' ? 
                           new Date(metadata.lastModified) : new Date()),

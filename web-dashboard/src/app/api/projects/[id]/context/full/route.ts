@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { ProjectService } from '@/lib/projectService';
 import { getPineconeClient } from '@/lib/pinecone';
+import { pineconeOperationsService } from '@/lib/pineconeOperationsService';
 
 interface ProjectContext {
   projectId: string;
@@ -66,16 +67,18 @@ export async function GET(
       const pinecone = getPineconeClient();
       const index = pinecone.index(process.env.NEXT_PUBLIC_PINECONE_INDEX_NAME || 'roki');
       
-      // Query for all documents in this project
-      const queryResponse = await index.query({
-        vector: new Array(1024).fill(0), // Match the index dimension
-        filter: {
-          projectId: { $eq: projectId }
-        },
-        topK: 200, // Get more documents to include main docs + context docs
-        includeMetadata: true,
-        includeValues: false
-      });
+      // Query for all documents in this project using optimized service
+      const queryResponse = await pineconeOperationsService.query(
+        new Array(1024).fill(0), // Match the index dimension
+        {
+          filter: {
+            projectId: { $eq: projectId }
+          },
+          topK: 200, // Get more documents to include main docs + context docs
+          includeMetadata: true,
+          includeValues: false
+        }
+      );
       
       console.log(`📄 Found ${queryResponse.matches.length} total documents for project ${projectId}`);
       
@@ -96,7 +99,7 @@ export async function GET(
             lastModified: metadata.lastModified ? new Date(metadata.lastModified as string) : new Date(),
             category: metadata.category || 'other',
             tags: typeof metadata.tags === 'string' ? 
-                  metadata.tags.split(',').map(t => t.trim()).filter(Boolean) : []
+                  metadata.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : []
           });
         } else if (docType === 'requirements') {
           context.requirements = metadata.content as string;

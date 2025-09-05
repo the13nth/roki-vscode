@@ -1,60 +1,9 @@
 import { getPineconeClient, PINECONE_INDEX_NAME, PINECONE_NAMESPACE_PROJECTS } from './pinecone';
 import { ProjectConfiguration, ProjectListItem } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
-
-// Helper functions
-async function generateEmbedding(text: string): Promise<number[]> {
-  try {
-    // Use Gemini for embeddings
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${process.env.GOOGLE_AI_API_KEY}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'models/text-embedding-004',
-        content: {
-          parts: [{ text }]
-        }
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Gemini embedding API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const geminiEmbedding = data.embedding.values;
-    
-    // Pad Gemini's 768-dimensional embedding to 1024 dimensions to match Pinecone index
-    if (geminiEmbedding.length < 1024) {
-      const paddedEmbedding = [...geminiEmbedding];
-      while (paddedEmbedding.length < 1024) {
-        paddedEmbedding.push(0);
-      }
-      return paddedEmbedding;
-    } else if (geminiEmbedding.length > 1024) {
-      // Truncate if somehow longer than expected
-      return geminiEmbedding.slice(0, 1024);
-    }
-    
-    return geminiEmbedding;
-  } catch (error) {
-    console.error('Failed to generate embedding with Gemini:', error);
-    // Fallback to a simple hash-based embedding
-    const hash = text.split('').reduce((a, b) => {
-      a = ((a << 5) - a) + b.charCodeAt(0);
-      return a & a;
-    }, 0);
-
-    // Create a 1024-dimensional vector to match Pinecone index
-    const vector = new Array(1024).fill(0);
-    for (let i = 0; i < 1024; i++) {
-      vector[i] = Math.sin(hash + i) * 0.1;
-    }
-    return vector;
-  }
-}
+import { embeddingService } from './embeddingService';
+import { pineconeOperationsService } from './pineconeOperationsService';
+import { PineconeUtils } from './pineconeUtils';
 
 export function createVectorId(type: string, id: string): string {
   return `${type}:${id}`;
@@ -103,7 +52,7 @@ export class ProjectService {
     };
 
     // Generate embedding for the project description
-    const embedding = await generateEmbedding(project.description);
+    const embedding = await embeddingService.generateEmbedding(project.description);
 
     // Store in Pinecone
     const pinecone = getPineconeClient();
@@ -314,7 +263,7 @@ export class ProjectService {
     try {
       // Always generate a new embedding for the updated project data
       const embeddingText = updatedProject.description || updatedProject.name || projectId;
-      embedding = await generateEmbedding(embeddingText);
+      embedding = await embeddingService.generateEmbedding(embeddingText);
       
       // Ensure the embedding has the correct dimension and is not all zeros
       if (embedding.length !== 1024) {

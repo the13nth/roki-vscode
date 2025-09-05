@@ -1,58 +1,7 @@
 import { getPineconeClient, PINECONE_INDEX_NAME } from './pinecone';
-
-// Helper function for embeddings (same as in projectService)
-async function generateEmbedding(text: string): Promise<number[]> {
-  try {
-    // Use Gemini for embeddings
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${process.env.GOOGLE_AI_API_KEY}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'models/text-embedding-004',
-        content: {
-          parts: [{ text }]
-        }
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Gemini embedding API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const geminiEmbedding = data.embedding.values;
-    
-    // Pad Gemini's 768-dimensional embedding to 1024 dimensions to match Pinecone index
-    if (geminiEmbedding.length < 1024) {
-      const paddedEmbedding = [...geminiEmbedding];
-      while (paddedEmbedding.length < 1024) {
-        paddedEmbedding.push(0);
-      }
-      return paddedEmbedding;
-    } else if (geminiEmbedding.length > 1024) {
-      // Truncate if somehow longer than expected
-      return geminiEmbedding.slice(0, 1024);
-    }
-    
-    return geminiEmbedding;
-  } catch (error) {
-    console.error('Failed to generate embedding with Gemini:', error);
-    // Fallback to a simple hash-based embedding
-    const hash = text.split('').reduce((a, b) => {
-      a = ((a << 5) - a) + b.charCodeAt(0);
-      return a & a;
-    }, 0);
-
-    // Create a 1024-dimensional vector to match Pinecone index
-    const vector = new Array(1024).fill(0);
-    for (let i = 0; i < 1024; i++) {
-      vector[i] = Math.sin(hash + i) * 0.1;
-    }
-    return vector;
-  }
-}
+import { embeddingService } from './embeddingService';
+import { pineconeOperationsService } from './pineconeOperationsService';
+import { PineconeUtils } from './pineconeUtils';
 
 // Enhanced token tracking with rate limiting and alerts
 export interface TokenUsage {
@@ -226,7 +175,7 @@ export class TokenTrackingService {
       const index = pinecone.index(PINECONE_INDEX_NAME);
 
       const content = `Token alert for user ${alert.userId}: ${alert.message}`;
-      const embedding = await generateEmbedding(content);
+      const embedding = await embeddingService.generateEmbedding(content);
 
       const vectorId = `token_alert_${alert.userId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -323,16 +272,13 @@ export class TokenTrackingService {
 
   private async saveToPinecone(tokenUsage: TokenUsage): Promise<void> {
     try {
-      const pinecone = getPineconeClient();
-      const index = pinecone.index(PINECONE_INDEX_NAME);
-
       // Create a simple embedding for the token usage data
       const content = `Token usage for ${tokenUsage.analysisType} analysis in project ${tokenUsage.projectId}`;
-      const embedding = await generateEmbedding(content);
+      const embedding = await embeddingService.generateEmbedding(content);
 
       const vectorId = `token_usage_${tokenUsage.projectId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-      await index.upsert([{
+      await pineconeOperationsService.upsert([{
         id: vectorId,
         values: embedding,
         metadata: {

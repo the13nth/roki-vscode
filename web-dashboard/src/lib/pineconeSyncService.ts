@@ -4,6 +4,9 @@ import {
   PINECONE_NAMESPACE_PROJECTS
 } from './pinecone';
 import { ProjectService } from './projectService';
+import { embeddingService } from './embeddingService';
+import { pineconeOperationsService } from './pineconeOperationsService';
+import { PineconeUtils } from './pineconeUtils';
 import * as crypto from 'crypto';
 
 // Helper functions that were missing
@@ -20,56 +23,13 @@ function getPineconeIndex() {
   return pinecone.index(PINECONE_INDEX_NAME);
 }
 
+// Use the optimized embedding service
 async function generateEmbedding(text: string): Promise<number[]> {
   try {
-    // Use Gemini for embeddings
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${process.env.GOOGLE_AI_API_KEY}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'models/text-embedding-004',
-        content: {
-          parts: [{ text }]
-        }
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Gemini embedding API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const geminiEmbedding = data.embedding.values;
-    
-    // Pad Gemini's 768-dimensional embedding to 1024 dimensions to match Pinecone index
-    if (geminiEmbedding.length < 1024) {
-      const paddedEmbedding = [...geminiEmbedding];
-      while (paddedEmbedding.length < 1024) {
-        paddedEmbedding.push(0);
-      }
-      return paddedEmbedding;
-    } else if (geminiEmbedding.length > 1024) {
-      // Truncate if somehow longer than expected
-      return geminiEmbedding.slice(0, 1024);
-    }
-    
-    return geminiEmbedding;
+    return await embeddingService.generateEmbedding(text);
   } catch (error) {
-    console.error('Failed to generate embedding with Gemini:', error);
-    // Fallback to a simple hash-based embedding
-    const hash = text.split('').reduce((a, b) => {
-      a = ((a << 5) - a) + b.charCodeAt(0);
-      return a & a;
-    }, 0);
-
-    // Create a 1024-dimensional vector to match Pinecone index
-    const vector = new Array(1024).fill(0);
-    for (let i = 0; i < 1024; i++) {
-      vector[i] = Math.sin(hash + i) * 0.1;
-    }
-    return vector;
+    console.error('Failed to generate embedding:', error);
+    return embeddingService.generateFallbackEmbedding(text);
   }
 }
 
@@ -462,12 +422,9 @@ class PineconeSyncService {
     try {
       console.log('🔄 Embedding context document:', document.title);
 
-      const pinecone = getPineconeClient();
-      const index = pinecone.index(process.env.NEXT_PUBLIC_PINECONE_INDEX_NAME || 'roki');
-
-      // Create embedding for the document content using Gemini
+      // Create embedding for the document content using optimized service
       const textToEmbed = `${document.title}\n\n${document.content}`;
-      console.log('📝 Generating embedding with Gemini for text length:', textToEmbed.length);
+      console.log('📝 Generating embedding for text length:', textToEmbed.length);
       
       const embedding = await generateEmbedding(textToEmbed);
       console.log('✅ Generated embedding with dimensions:', embedding.length);
@@ -485,15 +442,18 @@ class PineconeSyncService {
         url: document.url || undefined
       };
 
-      // Store in Pinecone
+      // Store in Pinecone using optimized operations
       console.log('💾 Storing document in Pinecone with ID:', document.id);
-      await index.upsert([{
+      console.log('📋 Document metadata:', JSON.stringify(metadata, null, 2));
+      
+      const upsertResult = await pineconeOperationsService.upsert([{
         id: document.id,
         values: embedding,
         metadata: metadata
       }]);
 
       console.log('✅ Successfully embedded context document:', document.title);
+      console.log('📊 Upsert result:', upsertResult);
       return { success: true, message: `Successfully embedded context document: ${document.title}` };
 
     } catch (error) {

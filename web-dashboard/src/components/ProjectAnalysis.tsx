@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CornerBrackets } from '@/components/ui/corner-brackets';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PitchDeckGenerator } from './PitchDeckGenerator';
+import { FinancialAnalysis } from './FinancialAnalysis';
 import {
   Dialog,
   DialogContent,
@@ -788,16 +789,7 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                     <span className="flex-1 text-left break-words leading-tight">Competitive Differentiation</span>
                     {analysisResults.differentiation && <CheckCircle className="w-4 h-4 ml-2 text-green-600 flex-shrink-0" />}
                   </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => handleAnalyze('financial')}
-                    disabled={!isOwned || isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
-                    className="justify-start rounded-none border-gray-300 hover:border-yellow-300 hover:bg-yellow-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
-                  >
-                    <DollarSign className="w-4 h-4 mr-2 flex-shrink-0" />
-                    <span className="flex-1 text-left break-words leading-tight">Cost & Revenue Analysis</span>
-                    {analysisResults.financial && <CheckCircle className="w-4 h-4 ml-2 text-green-600 flex-shrink-0" />}
-                  </Button>
+                 
                   <Button
                     variant="outline"
                     onClick={() => handleAnalyze('bmc')}
@@ -807,6 +799,16 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                     <Grid3X3 className="w-4 h-4 mr-2 flex-shrink-0" />
                     <span className="flex-1 text-left break-words leading-tight">Business Model Canvas</span>
                     {analysisResults.bmc && <CheckCircle className="w-4 h-4 ml-2 text-green-600 flex-shrink-0" />}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleAnalyze('financial')}
+                    disabled={!isOwned || isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
+                    className="justify-start rounded-none border-gray-300 hover:border-yellow-300 hover:bg-yellow-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
+                  >
+                    <DollarSign className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <span className="flex-1 text-left break-words leading-tight">Financial Analysis</span>
+                    {analysisResults.financial && <CheckCircle className="w-4 h-4 ml-2 text-green-600 flex-shrink-0" />}
                   </Button>
                   <Button
                     variant="outline"
@@ -1037,18 +1039,16 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                         Differentiation
                       </TabsTrigger>
                     )}
-                    {analysisResults.financial && (
-                      <TabsTrigger value="financial" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
-                        <DollarSign className="w-3 h-3 mr-1" />
-                        Financial
-                      </TabsTrigger>
-                    )}
                     {analysisResults.bmc && (
                       <TabsTrigger value="bmc" className="text-xs sm:text-sm whitespace-nowrap text-blue-700 px-2 sm:px-3">
                         <Grid3X3 className="w-3 h-3 mr-1" />
                         BMC
                       </TabsTrigger>
                     )}
+                    <TabsTrigger value="financial" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
+                      <DollarSign className="w-3 h-3 mr-1" />
+                      Financial
+                    </TabsTrigger>
                     {analysisResults.roast && (
                       <TabsTrigger value="roast" className="text-xs sm:text-sm whitespace-nowrap text-red-700 px-2 sm:px-3">
                         <Flame className="w-3 h-3 mr-1" />
@@ -1460,113 +1460,6 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                   </TabsContent>
                 )}
 
-                {/* Financial Analysis Tab */}
-                {analysisResults.financial && (
-                  <TabsContent value="financial" className="space-y-4">
-                    <Card className="analysis-card">
-                      <CardHeader>
-                        <CardTitle className="text-lg font-semibold flex items-center">
-                          <DollarSign className="w-5 h-5 mr-2 text-green-600" />
-                          Financial Analysis
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="bg-green-50 rounded-lg p-4">
-                          {analysisResults.financial.financialProjections ?
-                            renderMarkdown(analysisResults.financial.financialProjections.content) :
-                            renderMarkdown(analysisResults.financial.summary)
-                          }
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Clock className="w-4 h-4 mr-2" />
-                        Analysis completed at {new Date(analysisResults.financial.timestamp).toLocaleString()}
-                      </div>
-                      <div className="flex gap-2">
-                        {savingAnalyses.financial && (
-                          <Badge variant="secondary" className="flex items-center">
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Auto-saving...
-                          </Badge>
-                        )}
-                        {savedAnalyses.financial && !savingAnalyses.financial && (
-                          <Badge variant="default" className="flex items-center">
-                            <CheckCircle className="w-4 h-4 mr-2" />
-                            Auto-saved
-                          </Badge>
-                        )}
-                        
-                        <Dialog open={showImproveDialog.financial} onOpenChange={(open) => setShowImproveDialog(prev => ({ ...prev, financial: open }))}>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={!isOwned}
-                              className="flex items-center"
-                            >
-                              <Sparkles className="w-4 h-4 mr-2" />
-                              Improve Analysis
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-2xl">
-                            <DialogHeader>
-                              <DialogTitle className="flex items-center">
-                                <Sparkles className="w-5 h-5 mr-2" />
-                                Improve Financial Analysis
-                              </DialogTitle>
-                              <DialogDescription>
-                                Describe how you'd like to improve this financial analysis and cost projections.
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                              <div>
-                                <Label htmlFor="improve-financial" className="text-sm font-medium">
-                                  What would you like to improve or enhance?
-                                </Label>
-                                <Textarea
-                                  id="improve-financial"
-                                  value={improveDetails.financial || ''}
-                                  onChange={(e) => handleImproveDetailsChange('financial', e.target.value)}
-                                  placeholder="e.g., Add more detailed cost breakdowns, include revenue projections, expand on funding requirements, add ROI calculations..."
-                                  className="min-h-[100px] mt-2"
-                                />
-                              </div>
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  variant="outline"
-                                  onClick={() => setShowImproveDialog(prev => ({ ...prev, financial: false }))}
-                                >
-                                  Cancel
-                                </Button>
-                                <Button
-                                  onClick={() => handleImproveAnalysis('financial')}
-                                  disabled={!isOwned || improvingAnalyses.financial || !improveDetails.financial?.trim()}
-                                  className="flex items-center"
-                                >
-                                  {improvingAnalyses.financial ? (
-                                    <>
-                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                      Improving...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Sparkles className="w-4 h-4 mr-2" />
-                                      Improve Analysis
-                                    </>
-                                  )}
-                                </Button>
-                              </div>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-                      </div>
-                    </div>
-                  </TabsContent>
-                )}
-
                 {/* Business Model Canvas Tab */}
                 {analysisResults.bmc && (
                   <TabsContent value="bmc" className="space-y-6">
@@ -1787,6 +1680,11 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                     )}
                   </TabsContent>
                 )}
+
+                {/* Financial Analysis Tab */}
+                <TabsContent value="financial" className="space-y-4">
+                  <FinancialAnalysis projectId={projectId} isOwned={isOwned} />
+                </TabsContent>
 
                 {/* Roast Analysis Tab */}
                 {analysisResults.roast && analysisResults.roast.roastIdea && (

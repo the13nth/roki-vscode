@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getPineconeClient } from '@/lib/pinecone';
 import { PineconeSyncServiceInstance } from '@/lib/pineconeSyncService';
 import { ProjectService } from '@/lib/projectService';
+import { pineconeOperationsService } from '@/lib/pineconeOperationsService';
+import { PineconeUtils } from '@/lib/pineconeUtils';
 
 export async function GET(
   request: NextRequest,
@@ -26,12 +28,15 @@ export async function GET(
       const projectService = ProjectService.getInstance();
       
       // We need to get the userId - let's try to find it from the project metadata
-      const projectQuery = await index.namespace('projects').query({
-        vector: new Array(1024).fill(0),
-        filter: { projectId: projectId },
-        topK: 1,
-        includeMetadata: true,
-      });
+      const projectQuery = await pineconeOperationsService.query(
+        new Array(1024).fill(0),
+        {
+          filter: { projectId: projectId },
+          topK: 1,
+          includeMetadata: true,
+          namespace: 'projects'
+        }
+      );
 
       let userId: string | null = null;
       if (projectQuery.matches && projectQuery.matches.length > 0) {
@@ -92,19 +97,21 @@ export async function GET(
     
     try {
       // Query for all embeddings with this projectId (no namespace filter to get all types)
-      const queryResponse = await index.query({
-        vector: new Array(1024).fill(0), // Match the index dimension
-        filter: {
-          projectId: { $eq: projectId }
-        },
-        topK: 100,
-        includeMetadata: true,
-        includeValues: true // Explicitly request vector values
-      });
+      const queryResponse = await pineconeOperationsService.query(
+        new Array(1024).fill(0), // Match the index dimension
+        {
+          filter: {
+            projectId: { $eq: projectId }
+          },
+          topK: 100,
+          includeMetadata: true,
+          includeValues: true // Explicitly request vector values
+        }
+      );
       
       console.log(`🔍 Found ${queryResponse.matches.length} matches for project ${projectId}`);
       
-      queryResponse.matches.forEach((match, index) => {
+      queryResponse.matches.forEach((match: any, index: number) => {
         if (match.metadata) {
           console.log(`📄 Processing match ${index + 1}:`, {
             id: match.id,
@@ -166,15 +173,17 @@ export async function GET(
       
       for (const vectorId of expectedVectorIds) {
         try {
-          const specificQuery = await index.query({
-            vector: new Array(1024).fill(0),
-            filter: {
-              projectId: { $eq: projectId }
-            },
-            topK: 1,
-            includeMetadata: true,
-            includeValues: true
-          });
+          const specificQuery = await pineconeOperationsService.query(
+            new Array(1024).fill(0),
+            {
+              filter: {
+                projectId: { $eq: projectId }
+              },
+              topK: 1,
+              includeMetadata: true,
+              includeValues: true
+            }
+          );
           
           if (specificQuery.matches && specificQuery.matches.length > 0) {
             const match = specificQuery.matches[0];

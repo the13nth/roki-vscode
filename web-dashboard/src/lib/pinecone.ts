@@ -19,6 +19,9 @@ export function getPineconeClient(): Pinecone {
     } else {
       pinecone = new Pinecone({
         apiKey: apiKey,
+        // Enhanced configuration for better performance and reliability
+        maxRetries: 3, // Add retry configuration
+        sourceTag: 'roki-optimized' // Add source tag for monitoring
       });
     }
   }
