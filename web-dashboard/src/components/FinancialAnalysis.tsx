@@ -444,6 +444,56 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
     };
   };
 
+  // Intelligent calculation functions
+  const calculateCOGSPerCustomer = (answers: Record<string, string>) => {
+    // Extract pricing information from pricing strategy
+    const pricingStrategy = answers.pricing_strategy || '';
+    const revenueModel = answers.revenue_model || '';
+    
+    // Estimate COGS based on revenue model and pricing
+    let estimatedCOGS = 0;
+    
+    if (revenueModel === 'Subscription/SaaS') {
+      // For SaaS, COGS is typically 20-40% of revenue
+      estimatedCOGS = 15; // Conservative estimate
+    } else if (revenueModel === 'Marketplace Commission') {
+      // For marketplace, COGS is typically 5-15% of revenue
+      estimatedCOGS = 8;
+    } else if (revenueModel === 'One-time Purchase') {
+      // For one-time purchases, COGS is typically 30-60% of revenue
+      estimatedCOGS = 25;
+    } else {
+      // Default estimate
+      estimatedCOGS = 12;
+    }
+    
+    return estimatedCOGS;
+  };
+
+  const calculateBreakevenCustomers = (answers: Record<string, string>) => {
+    const monthlyBurn = parseFloat(answers.monthly_burn || '0');
+    const estimatedCOGS = calculateCOGSPerCustomer(answers);
+    const pricingStrategy = answers.pricing_strategy || '';
+    
+    // Extract average revenue per customer from pricing strategy
+    let avgRevenuePerCustomer = 50; // Default estimate
+    
+    if (pricingStrategy.includes('$')) {
+      // Try to extract price from pricing strategy text
+      const priceMatch = pricingStrategy.match(/\$(\d+)/);
+      if (priceMatch) {
+        avgRevenuePerCustomer = parseFloat(priceMatch[1]);
+      }
+    }
+    
+    if (monthlyBurn > 0 && avgRevenuePerCustomer > estimatedCOGS) {
+      const contributionMargin = avgRevenuePerCustomer - estimatedCOGS;
+      return Math.ceil(monthlyBurn / contributionMargin);
+    }
+    
+    return 0;
+  };
+
   const loadBMCData = async () => {
     try {
       console.log('🔄 Loading BMC data for financial analysis...');
@@ -643,12 +693,23 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
     try {
       setIsAnalyzing(true);
       
+      // Calculate intelligent values
+      const calculatedCOGS = calculateCOGSPerCustomer(answers);
+      const calculatedBreakevenCustomers = calculateBreakevenCustomers(answers);
+      
+      // Add calculated values to answers
+      const enhancedAnswers = {
+        ...answers,
+        calculated_cogs_per_customer: calculatedCOGS.toString(),
+        calculated_breakeven_customers: calculatedBreakevenCustomers.toString()
+      };
+      
       const response = await fetch(`/api/projects/${projectId}/financial/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           context,
-          answers,
+          answers: enhancedAnswers,
           step: currentStep
         })
       });
@@ -681,8 +742,7 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
       'customer_lifetime': 'Average number of months a customer stays with your service. Higher lifetime value means more revenue per customer.',
       
       // Step 3: Cost of Revenues / COGS
-      'product_costs': 'Direct costs to deliver your product/service to each customer. Include hosting, payment processing, third-party services, and operational costs.',
-      'cogs_per_customer': 'Monthly cost of goods sold per customer. This should be lower than your revenue per customer to maintain profitability.',
+      'product_costs': 'Main cost components for delivering your product/service. Include hosting, payment processing, third-party services, materials, and operational costs.',
       'scaling_costs': 'How your costs change as you grow. Linear scaling means costs increase proportionally, while economies of scale mean lower per-unit costs.',
       
       // Step 4: Operating Expenses
@@ -704,7 +764,6 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
       
       // Step 8: Breakeven Analysis
       'breakeven_timeline': 'When you expect revenue to equal expenses. This is when you become profitable.',
-      'breakeven_customers': 'Number of customers needed to cover all your costs and reach profitability.',
       
       // Step 9: Scenario Analysis
       'best_case': 'Optimistic assumptions about market conditions, growth, and business performance.',
@@ -843,6 +902,39 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
       case 9: return financialData.scenarios || 'Scenario analysis not available';
       default: return 'Content not available';
     }
+  };
+
+  const renderCalculatedValues = () => {
+    if (Object.keys(answers).length === 0) return null;
+
+    const calculatedCOGS = calculateCOGSPerCustomer(answers);
+    const calculatedBreakevenCustomers = calculateBreakevenCustomers(answers);
+
+    return (
+      <Card className="mb-4 border-blue-200 bg-blue-50">
+        <CardHeader>
+          <CardTitle className="text-sm flex items-center">
+            <Calculator className="w-4 h-4 mr-2" />
+            Calculated Values
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div className="flex justify-between items-center">
+            <span className="text-sm font-medium">Estimated COGS per customer:</span>
+            <span className="text-sm font-bold text-blue-700">${calculatedCOGS}/month</span>
+          </div>
+          {calculatedBreakevenCustomers > 0 && (
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Breakeven customers needed:</span>
+              <span className="text-sm font-bold text-blue-700">{calculatedBreakevenCustomers.toLocaleString()}</span>
+            </div>
+          )}
+          <div className="text-xs text-blue-600 mt-2">
+            * Values calculated based on your revenue model and pricing strategy
+          </div>
+        </CardContent>
+      </Card>
+    );
   };
 
   if (showResults && financialData) {
@@ -998,6 +1090,9 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Show calculated values for relevant steps */}
+          {(currentStep === 3 || currentStep === 8) && renderCalculatedValues()}
+          
           {getCurrentStepQuestions().map((question) => (
             <div key={question.id} className="space-y-2">
               <Label className="flex items-center">

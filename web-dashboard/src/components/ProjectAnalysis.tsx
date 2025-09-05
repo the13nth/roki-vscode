@@ -13,6 +13,9 @@ import { CornerBrackets } from '@/components/ui/corner-brackets';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PitchDeckGenerator } from './PitchDeckGenerator';
 import { FinancialAnalysis } from './FinancialAnalysis';
+import { MarketAnalysis } from './MarketAnalysis';
+import { RoastAnalysis } from './RoastAnalysis';
+import { WorkflowBuilderWrapper } from './WorkflowBuilder';
 import {
   Dialog,
   DialogContent,
@@ -44,7 +47,9 @@ import {
   Presentation,
   ChevronDown,
   ChevronRight,
-  Sparkles
+  ChevronLeft,
+  Sparkles,
+  Workflow
 } from 'lucide-react';
 import { JSX } from 'react/jsx-runtime';
 
@@ -139,6 +144,8 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
   const [savingAnalyses, setSavingAnalyses] = useState<Record<string, boolean>>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState<Record<string, boolean>>({});
   const [isAnalysisOptionsCollapsed, setIsAnalysisOptionsCollapsed] = useState(false);
+  const [isProjectContextCollapsed, setIsProjectContextCollapsed] = useState(false);
+  const [isAnalysisTypeSidebarCollapsed, setIsAnalysisTypeSidebarCollapsed] = useState(false);
 
   // Improve analysis state
   const [improvingAnalyses, setImprovingAnalyses] = useState<Record<string, boolean>>({});
@@ -148,7 +155,7 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
 
 
   // Define all available analysis types
-  const allAnalysisTypes = ['technical', 'market', 'differentiation', 'financial', 'bmc', 'roast'];
+  const allAnalysisTypes = ['technical', 'market', 'differentiation', 'financial', 'bmc', 'roast', 'processes'];
 
   // Define required analyses for roast (exclude roast itself)
   const requiredForRoast = ['technical', 'market', 'differentiation', 'financial', 'bmc'];
@@ -688,7 +695,8 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
       differentiation: 'Competitive Differentiation',
       financial: 'Cost & Revenue Analysis',
       bmc: 'Business Model Canvas',
-      roast: 'Roast My Idea'
+      roast: 'Roast My Idea',
+      processes: 'Implementation Processes'
     };
     return labels[type] || type;
   };
@@ -700,7 +708,8 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
       differentiation: <Zap className="w-4 h-4" />,
       financial: <DollarSign className="w-4 h-4" />,
       bmc: <Grid3X3 className="w-4 h-4" />,
-      roast: <Flame className="w-4 h-4" />
+      roast: <Flame className="w-4 h-4" />,
+      processes: <Workflow className="w-4 h-4" />
     };
     return icons[type] || <Brain className="w-4 h-4" />;
   };
@@ -721,34 +730,49 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
       {/* Main Content */}
       <div className="flex-1 flex flex-col lg:flex-row min-h-0 w-full">
         {/* Context Input - Left Panel */}
-        <div className="w-full lg:w-1/3 border-r lg:border-r border-b lg:border-b-0 bg-gray-50 flex flex-col">
+        <div className={`${isAnalysisTypeSidebarCollapsed ? 'w-16' : 'w-full lg:w-80'} transition-all duration-300 ease-in-out border-r lg:border-r border-b lg:border-b-0 bg-gray-50 flex flex-col`}>
           <div className="flex-shrink-0 p-3 sm:p-4 border-b bg-white">
-            <h2 className="font-semibold flex items-center text-sm sm:text-base">
-              <FileText className="w-4 h-4 mr-2" />
-              Project Context
-            </h2>
+            <div className="flex items-center justify-between">
+              {!isAnalysisTypeSidebarCollapsed && (
+                <h2 className="font-semibold flex items-center text-sm sm:text-base">
+                  <FileText className="w-4 h-4 mr-2" />
+                  Project Context
+                </h2>
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsAnalysisTypeSidebarCollapsed(!isAnalysisTypeSidebarCollapsed)}
+                className="h-8 w-8 p-0 hover:bg-muted ml-auto"
+                title={isAnalysisTypeSidebarCollapsed ? 'Expand analysis panel' : 'Collapse analysis panel'}
+              >
+                {isAnalysisTypeSidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+              </Button>
+            </div>
           </div>
 
-          <div className="flex-1 p-3 lg:p-4 space-y-3 lg:space-y-4 overflow-y-auto">
+          <div className={`flex-1 ${isAnalysisTypeSidebarCollapsed ? 'p-2' : 'p-3 lg:p-4'} space-y-3 lg:space-y-4 overflow-y-auto`}>
           <div className="space-y-2 lg:space-y-3">
               {/* Analysis Options */}
               <div>
-                <Button
-                  variant="ghost"
-                  onClick={() => setIsAnalysisOptionsCollapsed(!isAnalysisOptionsCollapsed)}
-                  className="w-full justify-between p-3 text-base font-medium border-b border-gray-200 hover:bg-gray-50"
-                >
-                  <span className="flex items-center">
-                    <FileText className="w-4 h-4 mr-2" />
-                    Choose Analysis Type
-                  </span>
-                  {isAnalysisOptionsCollapsed ? (
-                    <ChevronRight className="w-4 h-4" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4" />
-                  )}
-                </Button>
-                {!isAnalysisOptionsCollapsed && (
+                {!isAnalysisTypeSidebarCollapsed && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => setIsAnalysisOptionsCollapsed(!isAnalysisOptionsCollapsed)}
+                    className="w-full justify-between p-3 text-base font-medium border-b border-gray-200 hover:bg-gray-50"
+                  >
+                    <span className="flex items-center">
+                      <FileText className="w-4 h-4 mr-2" />
+                      Choose Analysis Type
+                    </span>
+                    {isAnalysisOptionsCollapsed ? (
+                      <ChevronRight className="w-4 h-4" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4" />
+                    )}
+                  </Button>
+                )}
+                {!isAnalysisOptionsCollapsed && !isAnalysisTypeSidebarCollapsed && (
                 <div className="space-y-2 mt-3">
                   {/* Read-only notice for non-owners */}
                   {!isOwned && (
@@ -761,7 +785,7 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                   )}
                   <Button
                     variant="outline"
-                    onClick={() => handleAnalyze('technical')}
+                    onClick={() => analysisResults.technical ? setActiveAnalysisTab('technical') : handleAnalyze('technical')}
                     disabled={!isOwned || isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
                     className="justify-start rounded-none border-gray-300 hover:border-blue-300 hover:bg-blue-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
                   >
@@ -771,7 +795,7 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => handleAnalyze('market')}
+                    onClick={() => analysisResults.market ? setActiveAnalysisTab('market-steps') : handleAnalyze('market')}
                     disabled={!isOwned || isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
                     className="justify-start rounded-none border-gray-300 hover:border-purple-300 hover:bg-purple-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
                   >
@@ -781,7 +805,7 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => handleAnalyze('differentiation')}
+                    onClick={() => analysisResults.differentiation ? setActiveAnalysisTab('differentiation') : handleAnalyze('differentiation')}
                     disabled={!isOwned || isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
                     className="justify-start rounded-none border-gray-300 hover:border-indigo-300 hover:bg-indigo-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
                   >
@@ -792,7 +816,7 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                  
                   <Button
                     variant="outline"
-                    onClick={() => handleAnalyze('bmc')}
+                    onClick={() => analysisResults.bmc ? setActiveAnalysisTab('bmc') : handleAnalyze('bmc')}
                     disabled={!isOwned || isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
                     className="justify-start rounded-none border-blue-200 text-blue-700 hover:bg-blue-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
                   >
@@ -802,7 +826,7 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => handleAnalyze('financial')}
+                    onClick={() => analysisResults.financial ? setActiveAnalysisTab('financial') : handleAnalyze('financial')}
                     disabled={!isOwned || isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
                     className="justify-start rounded-none border-gray-300 hover:border-yellow-300 hover:bg-yellow-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
                   >
@@ -812,14 +836,24 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => handleRoastClick()}
-                    disabled={!isOwned || isAnalyzing || !roastAnalysesComplete}
+                    onClick={() => setActiveAnalysisTab('processes')}
+                    disabled={!isOwned}
+                    className="justify-start rounded-none border-gray-300 hover:border-blue-300 hover:bg-blue-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
+                  >
+                    <Workflow className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <span className="flex-1 text-left break-words leading-tight">Processes</span>
+                    <CheckCircle className="w-4 h-4 ml-2 text-green-600 flex-shrink-0" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => analysisResults.roast ? setActiveAnalysisTab('roast') : handleRoastClick()}
+                    disabled={!isOwned || isAnalyzing || (!roastAnalysesComplete && !analysisResults.roast)}
                     className="justify-start rounded-none border-red-200 text-red-700 hover:bg-red-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
                   >
                     <Flame className="w-4 h-4 mr-2 flex-shrink-0" />
                     <span className="flex-1 text-left break-words leading-tight">Roast My Idea</span>
                     {analysisResults.roast && <CheckCircle className="w-4 h-4 ml-2 text-green-600 flex-shrink-0" />}
-                    {!roastAnalysesComplete && (
+                    {!roastAnalysesComplete && !analysisResults.roast && (
                       <Badge variant="secondary" className="ml-2 text-xs flex-shrink-0">
                         {remainingForRoast.length}
                       </Badge>
@@ -827,8 +861,8 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => setShowPitchModal(true)}
-                    disabled={!isOwned || isAnalyzing || !allAnalysesComplete}
+                    onClick={() => allAnalysesComplete ? setActiveAnalysisTab('pitch') : setShowPitchModal(true)}
+                    disabled={!isOwned || isAnalyzing}
                     className="justify-start rounded-none border-purple-200 text-purple-700 hover:bg-purple-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
                   >
                     <Presentation className="w-4 h-4 mr-2 flex-shrink-0" />
@@ -842,8 +876,95 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                   </Button>
                 </div>
                 )}
+                
+                {/* Collapsed Analysis Options - Icon Only */}
+                {isAnalysisTypeSidebarCollapsed && (
+                  <div className="space-y-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => analysisResults.technical ? setActiveAnalysisTab('technical') : handleAnalyze('technical')}
+                      disabled={!isOwned || isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
+                      className="w-full h-12 p-0 flex items-center justify-center hover:bg-blue-50"
+                      title="Technical Analysis"
+                    >
+                      <Lightbulb className="w-5 h-5" />
+                      {analysisResults.technical && <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full" />}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => analysisResults.market ? setActiveAnalysisTab('market-steps') : handleAnalyze('market')}
+                      disabled={!isOwned || isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
+                      className="w-full h-12 p-0 flex items-center justify-center hover:bg-purple-50"
+                      title="Market Analysis"
+                    >
+                      <TrendingUp className="w-5 h-5" />
+                      {analysisResults.market && <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full" />}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => analysisResults.differentiation ? setActiveAnalysisTab('differentiation') : handleAnalyze('differentiation')}
+                      disabled={!isOwned || isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
+                      className="w-full h-12 p-0 flex items-center justify-center hover:bg-indigo-50"
+                      title="Competitive Differentiation"
+                    >
+                      <Zap className="w-5 h-5" />
+                      {analysisResults.differentiation && <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full" />}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => analysisResults.bmc ? setActiveAnalysisTab('bmc') : handleAnalyze('bmc')}
+                      disabled={!isOwned || isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
+                      className="w-full h-12 p-0 flex items-center justify-center hover:bg-blue-50"
+                      title="Business Model Canvas"
+                    >
+                      <Grid3X3 className="w-5 h-5" />
+                      {analysisResults.bmc && <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full" />}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => analysisResults.financial ? setActiveAnalysisTab('financial') : handleAnalyze('financial')}
+                      disabled={!isOwned || isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
+                      className="w-full h-12 p-0 flex items-center justify-center hover:bg-yellow-50"
+                      title="Financial Analysis"
+                    >
+                      <DollarSign className="w-5 h-5" />
+                      {analysisResults.financial && <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full" />}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setActiveAnalysisTab('processes')}
+                      disabled={!isOwned}
+                      className="w-full h-12 p-0 flex items-center justify-center hover:bg-blue-50"
+                      title="Processes"
+                    >
+                      <Workflow className="w-5 h-5" />
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => analysisResults.roast ? setActiveAnalysisTab('roast') : handleRoastClick()}
+                      disabled={!isOwned || isAnalyzing || (!roastAnalysesComplete && !analysisResults.roast)}
+                      className="w-full h-12 p-0 flex items-center justify-center hover:bg-red-50"
+                      title="Roast My Idea"
+                    >
+                      <Flame className="w-5 h-5" />
+                      {analysisResults.roast && <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full" />}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => allAnalysesComplete ? setActiveAnalysisTab('pitch') : setShowPitchModal(true)}
+                      disabled={!isOwned || isAnalyzing}
+                      className="w-full h-12 p-0 flex items-center justify-center hover:bg-purple-50"
+                      title="Generate Pitch"
+                    >
+                      <Presentation className="w-5 h-5" />
+                      {allAnalysesComplete && <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full" />}
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
+            {!isAnalysisTypeSidebarCollapsed && (
             <div>
               <Label className="text-sm font-medium">Documents for Analysis</Label>
 
@@ -966,7 +1087,7 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                 </div>
               )}
             </div>
-
+            )}
             
           </div>
         </div>
@@ -1027,12 +1148,6 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                         Technical
                       </TabsTrigger>
                     )}
-                    {analysisResults.market && (
-                      <TabsTrigger value="market" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
-                        <TrendingUp className="w-3 h-3 mr-1" />
-                        Market
-                      </TabsTrigger>
-                    )}
                     {analysisResults.differentiation && (
                       <TabsTrigger value="differentiation" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
                         <Zap className="w-3 h-3 mr-1" />
@@ -1045,16 +1160,22 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                         BMC
                       </TabsTrigger>
                     )}
+                    <TabsTrigger value="market-steps" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
+                      <TrendingUp className="w-3 h-3 mr-1" />
+                      Market
+                    </TabsTrigger>
                     <TabsTrigger value="financial" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
                       <DollarSign className="w-3 h-3 mr-1" />
                       Financial
                     </TabsTrigger>
-                    {analysisResults.roast && (
-                      <TabsTrigger value="roast" className="text-xs sm:text-sm whitespace-nowrap text-red-700 px-2 sm:px-3">
-                        <Flame className="w-3 h-3 mr-1" />
-                        Roast
-                      </TabsTrigger>
-                    )}
+                    <TabsTrigger value="processes" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
+                      <Workflow className="w-3 h-3 mr-1" />
+                      Processes
+                    </TabsTrigger>
+                    <TabsTrigger value="roast" className="text-xs sm:text-sm whitespace-nowrap px-2 sm:px-3">
+                      <Flame className="w-3 h-3 mr-1" />
+                      Roast
+                    </TabsTrigger>
                     <TabsTrigger
                       value="pitch"
                       className="text-xs sm:text-sm whitespace-nowrap text-purple-700 px-2 sm:px-3"
@@ -1095,6 +1216,7 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                                 {type === 'financial' && <DollarSign className="w-6 h-6 text-green-600" />}
                                 {type === 'bmc' && <Grid3X3 className="w-6 h-6 text-gray-600" />}
                                 {type === 'roast' && <Flame className="w-6 h-6 text-red-600" />}
+                                {type === 'processes' && <Workflow className="w-6 h-6 text-blue-600" />}
                               </div>
                               <h4 className="font-medium text-xs sm:text-sm capitalize">{type} Analysis</h4>
                               <p className="text-xs text-muted-foreground mt-1">
@@ -1246,112 +1368,6 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                   </TabsContent>
                 )}
 
-                {/* Market Analysis Tab */}
-                {analysisResults.market && (
-                  <TabsContent value="market" className="space-y-4">
-                    <Card className="analysis-card">
-                      <CardHeader>
-                        <CardTitle className="text-lg font-semibold flex items-center">
-                          <TrendingUp className="w-5 h-5 mr-2 text-purple-600" />
-                          Market Analysis
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="bg-purple-50 rounded-lg p-4">
-                          {analysisResults.market.marketAnalysis ?
-                            renderMarkdown(analysisResults.market.marketAnalysis.content) :
-                            renderMarkdown(analysisResults.market.summary)
-                          }
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Clock className="w-4 h-4 mr-2" />
-                        Analysis completed at {new Date(analysisResults.market.timestamp).toLocaleString()}
-                      </div>
-                      <div className="flex gap-2">
-                        {savingAnalyses.market && (
-                          <Badge variant="secondary" className="flex items-center">
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Auto-saving...
-                          </Badge>
-                        )}
-                        {savedAnalyses.market && !savingAnalyses.market && (
-                          <Badge variant="default" className="flex items-center">
-                            <CheckCircle className="w-4 h-4 mr-2" />
-                            Auto-saved
-                          </Badge>
-                        )}
-                        
-                        <Dialog open={showImproveDialog.market} onOpenChange={(open) => setShowImproveDialog(prev => ({ ...prev, market: open }))}>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={!isOwned}
-                              className="flex items-center"
-                            >
-                              <Sparkles className="w-4 h-4 mr-2" />
-                              Improve Analysis
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-2xl">
-                            <DialogHeader>
-                              <DialogTitle className="flex items-center">
-                                <Sparkles className="w-5 h-5 mr-2" />
-                                Improve Market Analysis
-                              </DialogTitle>
-                              <DialogDescription>
-                                Describe how you'd like to improve this market analysis. Be specific about what aspects you want enhanced.
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4">
-                              <div>
-                                <Label htmlFor="improve-market" className="text-sm font-medium">
-                                  What would you like to improve or enhance?
-                                </Label>
-                                <Textarea
-                                  id="improve-market"
-                                  value={improveDetails.market || ''}
-                                  onChange={(e) => handleImproveDetailsChange('market', e.target.value)}
-                                  placeholder="e.g., Add more market research data, include competitor analysis, expand on target demographics, add market size estimates..."
-                                  className="min-h-[100px] mt-2"
-                                />
-                              </div>
-                              <div className="flex justify-end gap-2">
-                                <Button
-                                  variant="outline"
-                                  onClick={() => setShowImproveDialog(prev => ({ ...prev, market: false }))}
-                                >
-                                  Cancel
-                                </Button>
-                                <Button
-                                  onClick={() => handleImproveAnalysis('market')}
-                                  disabled={!isOwned || improvingAnalyses.market || !improveDetails.market?.trim()}
-                                  className="flex items-center"
-                                >
-                                  {improvingAnalyses.market ? (
-                                    <>
-                                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                      Improving...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Sparkles className="w-4 h-4 mr-2" />
-                                      Improve Analysis
-                                    </>
-                                  )}
-                                </Button>
-                              </div>
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-                      </div>
-                    </div>
-                  </TabsContent>
-                )}
 
                 {/* Differentiation Analysis Tab */}
                 {analysisResults.differentiation && (
@@ -1681,164 +1697,26 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                   </TabsContent>
                 )}
 
+                {/* Market Analysis Tab */}
+                <TabsContent value="market-steps" className="space-y-4">
+                  <MarketAnalysis projectId={projectId} isOwned={isOwned} />
+                </TabsContent>
+
                 {/* Financial Analysis Tab */}
                 <TabsContent value="financial" className="space-y-4">
                   <FinancialAnalysis projectId={projectId} isOwned={isOwned} />
                 </TabsContent>
 
+                {/* Processes Tab */}
+                <TabsContent value="processes" className="space-y-4 h-full">
+                  <WorkflowBuilderWrapper projectId={projectId} analysisData={analysisResults} />
+                </TabsContent>
+
                 {/* Roast Analysis Tab */}
-                {analysisResults.roast && analysisResults.roast.roastIdea && (
-                  <TabsContent value="roast" className="space-y-4">
-                    <div className="space-y-6">
-                      <div className="bg-red-50 border border-red-200 p-4 rounded-none">
-                        <div className="flex items-center mb-2">
-                          <Flame className="w-5 h-5 text-red-600 mr-2" />
-                          <h3 className="text-lg font-semibold text-red-800">Honest Reality Check</h3>
-                        </div>
-                        <p className="text-red-700 text-sm">
-                          ⚠️ Warning: This analysis provides brutally honest feedback. Prepare for some tough love!
-                        </p>
-                      </div>
+                <TabsContent value="roast" className="space-y-4">
+                  <RoastAnalysis projectId={projectId} isOwned={isOwned} />
+                </TabsContent>
 
-                      {/* Summary */}
-                      <div className="bg-gray-50 p-4 rounded-none border">
-                        <h4 className="font-medium text-base mb-3">The Harsh Truth</h4>
-                        <p className="text-gray-700 whitespace-pre-wrap">{analysisResults.roast.roastIdea.summary}</p>
-                      </div>
-
-                      {/* Brutally Critical */}
-                      <div className="space-y-3">
-                        <h4 className="font-medium text-base text-foreground">🔥 What's Wrong With This Idea</h4>
-                        <div className="space-y-2">
-                          {analysisResults.roast.roastIdea.brutallyCritical.map((criticism, index) => {
-                            const mitigationKey = `brutallyCritical-${criticism.substring(0, 50)}`;
-                            const mitigation = mitigations[mitigationKey];
-                            return (
-                              <div key={index} className="bg-muted/50 border border-muted rounded-none">
-                                <div className="flex items-start justify-between p-3">
-                                  <div className="flex items-start space-x-3 flex-1">
-                                    <Flame className="w-4 h-4 text-muted-foreground mt-1 flex-shrink-0" />
-                                    <p className="text-sm text-foreground">{criticism}</p>
-                                  </div>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleGenerateMitigation(criticism, 'brutallyCritical')}
-                                    disabled={!isOwned || mitigation?.isGenerating}
-                                    className="ml-3 text-xs px-2 py-1 h-auto border-gray-300 text-gray-700 hover:bg-gray-50"
-                                  >
-                                    {mitigation?.isGenerating ? (
-                                      <Loader2 className="w-3 h-3 animate-spin" />
-                                    ) : (
-                                      <Shield className="w-3 h-3 mr-1" />
-                                    )}
-                                    {mitigation?.isGenerating ? 'Generating...' : 'Fix This'}
-                                  </Button>
-                                </div>
-                                {mitigation?.content && (
-                                  <div className="mx-3 mb-3 p-3 bg-muted/50 border border-muted rounded-none">
-                                    <div className="flex items-center mb-2">
-                                      <Shield className="w-4 h-4 text-muted-foreground mr-2" />
-                                      <span className="text-sm font-medium text-foreground">Mitigation Strategy</span>
-                                    </div>
-                                    <p className="text-sm text-muted-foreground">{mitigation.content}</p>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Other roast sections would go here... */}
-
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center text-sm text-muted-foreground">
-                          <Clock className="w-4 h-4 mr-2" />
-                          Analysis completed at {new Date(analysisResults.roast.timestamp).toLocaleString()}
-                        </div>
-                        <div className="flex gap-2">
-                          {savingAnalyses.roast && (
-                            <Badge variant="secondary" className="flex items-center">
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Auto-saving...
-                            </Badge>
-                          )}
-                          {savedAnalyses.roast && !savingAnalyses.roast && (
-                            <Badge variant="default" className="flex items-center">
-                              <CheckCircle className="w-4 h-4 mr-2" />
-                              Auto-saved
-                            </Badge>
-                          )}
-                          
-                          <Dialog open={showImproveDialog.roast} onOpenChange={(open) => setShowImproveDialog(prev => ({ ...prev, roast: open }))}>
-                            <DialogTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                disabled={!isOwned}
-                                className="flex items-center"
-                              >
-                                <Sparkles className="w-4 h-4 mr-2" />
-                                Improve Analysis
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-2xl">
-                              <DialogHeader>
-                                <DialogTitle className="flex items-center">
-                                  <Sparkles className="w-5 h-5 mr-2" />
-                                  Improve Roast Analysis
-                                </DialogTitle>
-                                <DialogDescription>
-                                  Describe how you'd like to improve this critical analysis of your idea.
-                                </DialogDescription>
-                              </DialogHeader>
-                              <div className="space-y-4">
-                                <div>
-                                  <Label htmlFor="improve-roast" className="text-sm font-medium">
-                                    What would you like to improve or enhance?
-                                  </Label>
-                                  <Textarea
-                                    id="improve-roast"
-                                    value={improveDetails.roast || ''}
-                                    onChange={(e) => handleImproveDetailsChange('roast', e.target.value)}
-                                    placeholder="e.g., Add more specific criticisms, include industry-specific challenges, expand on realistic obstacles, provide more constructive feedback..."
-                                    className="min-h-[100px] mt-2"
-                                  />
-                                </div>
-                                <div className="flex justify-end gap-2">
-                                  <Button
-                                    variant="outline"
-                                    onClick={() => setShowImproveDialog(prev => ({ ...prev, roast: false }))}
-                                  >
-                                    Cancel
-                                  </Button>
-                                  <Button
-                                                                      onClick={() => handleImproveAnalysis('roast')}
-                                  disabled={!isOwned || improvingAnalyses.roast || !improveDetails.roast?.trim()}
-                                    className="flex items-center"
-                                  >
-                                    {improvingAnalyses.roast ? (
-                                      <>
-                                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                        Improving...
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Sparkles className="w-4 h-4 mr-2" />
-                                        Improve Analysis
-                                      </>
-                                    )}
-                                  </Button>
-                                </div>
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-                        </div>
-                      </div>
-                    </div>
-                  </TabsContent>
-                )}
 
                 <TabsContent value="pitch" className="space-y-6">
                   {allAnalysesComplete ? (

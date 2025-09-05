@@ -26,9 +26,10 @@ interface ProjectNavigationProps {
   progress: ProgressData;
   onNavigate?: (tab: string) => void;
   isOwned?: boolean;
+  isCollapsed?: boolean;
 }
 
-export function ProjectNavigation({ projectId, activeTab, progress, onNavigate, isOwned = true }: ProjectNavigationProps) {
+export function ProjectNavigation({ projectId, activeTab, progress, onNavigate, isOwned = true, isCollapsed = false }: ProjectNavigationProps) {
   const allNavItems = [
     {
       id: 'overview',
@@ -131,11 +132,13 @@ export function ProjectNavigation({ projectId, activeTab, progress, onNavigate, 
 
   return (
     <Card className="rounded-none">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm">Navigation</CardTitle>
-      </CardHeader>
+      {!isCollapsed && (
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm">Navigation</CardTitle>
+        </CardHeader>
+      )}
       
-      <CardContent className="p-3">
+      <CardContent className={isCollapsed ? "p-2" : "p-3"}>
         <nav>
           <ul className="space-y-2">
             {navItems.map((item) => {
@@ -145,24 +148,29 @@ export function ProjectNavigation({ projectId, activeTab, progress, onNavigate, 
                 <li key={item.id}>
                   <button
                     onClick={() => onNavigate?.(item.id)}
-                    className={`group flex items-center w-full px-4 py-3 text-sm font-medium rounded-none transition-all duration-200 ${
+                    title={isCollapsed ? item.name : undefined}
+                    className={`group flex items-center w-full ${isCollapsed ? 'px-2 py-3 justify-center' : 'px-4 py-3'} text-sm font-medium rounded-none transition-all duration-200 ${
                       isActive
                         ? 'bg-primary text-primary-foreground shadow-sm'
                         : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     }`}
                   >
-                    <span className={`mr-3 flex-shrink-0 ${
+                    <span className={`${isCollapsed ? '' : 'mr-3'} flex-shrink-0 ${
                       isActive ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-foreground'
                     }`}>
                       {item.icon}
                     </span>
-                    <span className="truncate flex-1 text-left">{item.name}</span>
-                    
-                    {/* Show task count for tasks tab */}
-                    {item.id === 'tasks' && (
-                      <Badge variant={isActive ? "secondary" : "outline"} className="ml-auto">
-                        {progress.completedTasks}/{progress.totalTasks}
-                      </Badge>
+                    {!isCollapsed && (
+                      <>
+                        <span className="truncate flex-1 text-left">{item.name}</span>
+                        
+                        {/* Show task count for tasks tab */}
+                        {item.id === 'tasks' && (
+                          <Badge variant={isActive ? "secondary" : "outline"} className="ml-auto">
+                            {progress.completedTasks}/{progress.totalTasks}
+                          </Badge>
+                        )}
+                      </>
                     )}
                   </button>
                 </li>
@@ -172,19 +180,21 @@ export function ProjectNavigation({ projectId, activeTab, progress, onNavigate, 
         </nav>
       </CardContent>
       
-      {/* Progress Summary */}
-      <CardContent className="pt-0 border-t bg-muted/30">
-        <div className="space-y-3">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-medium">Overall Progress</span>
-            <span className="font-bold">{progress.percentage}%</span>
+      {/* Progress Summary - only show when not collapsed */}
+      {!isCollapsed && (
+        <CardContent className="pt-0 border-t bg-muted/30">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium">Overall Progress</span>
+              <span className="font-bold">{progress.percentage}%</span>
+            </div>
+            <Progress value={progress.percentage} className="h-2" />
+            <div className="text-xs text-muted-foreground text-center">
+              {progress.completedTasks} of {progress.totalTasks} tasks completed
+            </div>
           </div>
-          <Progress value={progress.percentage} className="h-2" />
-          <div className="text-xs text-muted-foreground text-center">
-            {progress.completedTasks} of {progress.totalTasks} tasks completed
-          </div>
-        </div>
-      </CardContent>
+        </CardContent>
+      )}
     </Card>
   );
 }

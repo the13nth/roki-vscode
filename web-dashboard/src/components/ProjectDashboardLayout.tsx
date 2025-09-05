@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight, PanelLeft, PanelRight } from 'lucide-react';
 
 import { ProjectDashboard } from '@/types';
 import { ProjectNavigation } from './ProjectNavigation';
@@ -35,6 +37,7 @@ export function ProjectDashboardLayout({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentTab, setCurrentTab] = useState(activeTab);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   useEffect(() => {
     loadProject();
@@ -122,28 +125,79 @@ export function ProjectDashboardLayout({
       {/* Main Content Area */}
       <div className="flex-1 p-2 relative">
         <div className="w-full">
-          <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 w-full">
-            {/* Sidebar */}
-            <div className="xl:col-span-1 space-y-2 hidden xl:block">
-              {/* Navigation */}
-              <ProjectNavigation 
-                projectId={projectId} 
-                activeTab={currentTab}
-                progress={project.progress}
-                onNavigate={handleTabChange}
-                isOwned={(project as any).isOwned ?? true}
-              />
-              
-              {/* Sync Status */}
-              <SyncStatus 
-                projectId={projectId}
-                isOwned={project.isOwned}
-                onSync={loadProject}
-              />
+          {/* Mobile Navigation Toggle */}
+          <div className="lg:hidden mb-4">
+            <Button
+              variant="outline"
+              onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+              className="w-full justify-center"
+            >
+              {isSidebarCollapsed ? 'Show Navigation' : 'Hide Navigation'}
+            </Button>
+          </div>
+          
+          <div className="flex gap-6 w-full">
+            {/* Desktop Sidebar */}
+            <div className={`${isSidebarCollapsed ? 'w-16' : 'w-80'} transition-all duration-300 ease-in-out hidden lg:block`}>
+              <div className="space-y-2">
+                {/* Collapse Toggle Button */}
+                <div className="flex justify-end mb-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                    className="h-8 w-8 p-0 hover:bg-muted"
+                    title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                  >
+                    {isSidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+                  </Button>
+                </div>
+
+                {/* Navigation */}
+                <ProjectNavigation 
+                  projectId={projectId} 
+                  activeTab={currentTab}
+                  progress={project.progress}
+                  onNavigate={handleTabChange}
+                  isOwned={(project as any).isOwned ?? true}
+                  isCollapsed={isSidebarCollapsed}
+                />
+                
+                {/* Sync Status */}
+                {!isSidebarCollapsed && (
+                  <SyncStatus 
+                    projectId={projectId}
+                    isOwned={project.isOwned}
+                    onSync={loadProject}
+                  />
+                )}
+              </div>
             </div>
 
+            {/* Mobile Sidebar */}
+            {!isSidebarCollapsed && (
+              <div className="lg:hidden w-full mb-4">
+                <div className="space-y-2">
+                  <ProjectNavigation 
+                    projectId={projectId} 
+                    activeTab={currentTab}
+                    progress={project.progress}
+                    onNavigate={handleTabChange}
+                    isOwned={(project as any).isOwned ?? true}
+                    isCollapsed={false}
+                  />
+                  
+                  <SyncStatus 
+                    projectId={projectId}
+                    isOwned={project.isOwned}
+                    onSync={loadProject}
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Main Content */}
-            <div className="xl:col-span-4 w-full">
+            <div className="flex-1 w-full">
               <Card className="min-h-[600px] rounded-none w-full">
                 <CardContent className="p-0 w-full">
                   {currentTab === 'overview' && (

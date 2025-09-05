@@ -109,19 +109,10 @@ export async function POST(
         id: 'product_costs',
         step: 3,
         category: 'COGS',
-        question: 'What are your direct product/service costs per customer?',
+        question: 'What are your main cost components for delivering your product/service?',
         type: 'textarea',
         required: true,
-        placeholder: 'Describe costs like hosting, payment processing, third-party services...'
-      },
-      {
-        id: 'cogs_per_customer',
-        step: 3,
-        category: 'COGS',
-        question: 'What is your estimated Cost of Goods Sold (COGS) per customer per month?',
-        type: 'number',
-        required: true,
-        placeholder: 'Enter COGS per customer per month in USD'
+        placeholder: 'Describe your main cost categories (hosting, payment processing, third-party services, materials, etc.)...'
       },
       {
         id: 'scaling_costs',
@@ -231,15 +222,6 @@ export async function POST(
         type: 'select',
         options: ['3 months', '6 months', '12 months', '18 months', '24 months', '36+ months'],
         required: true
-      },
-      {
-        id: 'breakeven_customers',
-        step: 8,
-        category: 'Breakeven',
-        question: 'How many customers do you need to reach breakeven?',
-        type: 'number',
-        required: true,
-        placeholder: 'Enter number of customers needed'
       },
 
       // Step 9: Scenario Analysis
