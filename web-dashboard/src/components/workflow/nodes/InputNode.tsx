@@ -4,7 +4,7 @@ import React from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Database, FileInput, Globe } from 'lucide-react';
 
-export function InputNode({ data, selected }: NodeProps) {
+export function InputNode({ data, selected, isConnectable }: NodeProps) {
   const getIcon = () => {
     if (data.type === 'api-input') return <Globe className="w-4 h-4" />;
     if (data.type === 'file-input') return <FileInput className="w-4 h-4" />;
@@ -55,11 +55,19 @@ export function InputNode({ data, selected }: NodeProps) {
         </div>
       )}
 
-      <Handle
-        type="source"
-        position={Position.Right}
-        className="w-3 h-3 bg-blue-500"
-      />
+      {/* Top handles */}
+      <Handle type="source" position={Position.Top} isConnectable={isConnectable} className="w-3 h-3 bg-blue-500" id="top-center" />
+      <Handle type="source" position={Position.Top} isConnectable={isConnectable} className="w-2 h-2 bg-blue-400" style={{ left: '25%' }} id="top-left" />
+      <Handle type="source" position={Position.Top} isConnectable={isConnectable} className="w-2 h-2 bg-blue-400" style={{ left: '75%' }} id="top-right" />
+      
+      {/* Bottom handles */}
+      <Handle type="source" position={Position.Bottom} isConnectable={isConnectable} className="w-3 h-3 bg-blue-500" id="bottom-center" />
+      <Handle type="source" position={Position.Bottom} isConnectable={isConnectable} className="w-2 h-2 bg-blue-400" style={{ left: '25%' }} id="bottom-left" />
+      <Handle type="source" position={Position.Bottom} isConnectable={isConnectable} className="w-2 h-2 bg-blue-400" style={{ left: '75%' }} id="bottom-right" />
+      
+      {/* Side handles */}
+      <Handle type="source" position={Position.Left} isConnectable={isConnectable} className="w-2 h-2 bg-blue-400" id="left-center" />
+      <Handle type="source" position={Position.Right} isConnectable={isConnectable} className="w-2 h-2 bg-blue-400" id="right-center" />
     </div>
   );
 }

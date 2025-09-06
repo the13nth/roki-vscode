@@ -10,15 +10,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { X, Save, Settings, Code, Database, Globe, Mail, Users } from 'lucide-react';
+import { X, Save, Settings, Code, Database, Globe, Mail, Users, Trash2 } from 'lucide-react';
 
 interface NodeConfigPanelProps {
   node: Node;
   onUpdateNode: (node: Node) => void;
+  onDeleteNode: (nodeId: string) => void;
   onClose: () => void;
 }
 
-export function NodeConfigPanel({ node, onUpdateNode, onClose }: NodeConfigPanelProps) {
+export function NodeConfigPanel({ node, onUpdateNode, onDeleteNode, onClose }: NodeConfigPanelProps) {
   const [config, setConfig] = useState<{
     label: string;
     description: string;
@@ -56,6 +57,13 @@ export function NodeConfigPanel({ node, onUpdateNode, onClose }: NodeConfigPanel
       },
     };
     onUpdateNode(updatedNode);
+  };
+
+  const handleDelete = () => {
+    if (window.confirm('Are you sure you want to delete this node? This action cannot be undone.')) {
+      onDeleteNode(node.id);
+      onClose();
+    }
   };
 
   const getNodeIcon = (type: string) => {
@@ -395,10 +403,19 @@ return processData(input);"
       </CardContent>
 
       <div className="flex-shrink-0 p-4 border-t">
-        <Button onClick={handleSave} className="w-full flex items-center">
-          <Save className="w-4 h-4 mr-2" />
-          Save Configuration
-        </Button>
+        <div className="flex space-x-2">
+          <Button onClick={handleSave} className="flex-1 flex items-center">
+            <Save className="w-4 h-4 mr-2" />
+            Save Configuration
+          </Button>
+          <Button 
+            onClick={handleDelete} 
+            variant="destructive" 
+            className="flex items-center"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );

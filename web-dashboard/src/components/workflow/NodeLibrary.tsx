@@ -14,7 +14,14 @@ import {
   Mail,
   BarChart3,
   Users,
-  Zap
+  Zap,
+  Truck,
+  Shield,
+  User,
+  UserCheck,
+  Crown,
+  Briefcase,
+  Cpu
 } from 'lucide-react';
 
 interface NodeType {
@@ -99,6 +106,48 @@ const nodeTypes: NodeType[] = [
     category: 'Custom'
   },
 
+  // Business Nodes
+  {
+    type: 'supplier',
+    label: 'Supplier',
+    description: 'External supplier or vendor',
+    icon: <Truck className="w-4 h-4" />,
+    color: 'bg-orange-100 text-orange-700 border-orange-200',
+    category: 'Business'
+  },
+  {
+    type: 'stakeholder',
+    label: 'Stakeholder',
+    description: 'Key stakeholder or partner',
+    icon: <Users className="w-4 h-4" />,
+    color: 'bg-green-100 text-green-700 border-green-200',
+    category: 'Business'
+  },
+  {
+    type: 'regulator',
+    label: 'Regulator',
+    description: 'Regulatory body or authority',
+    icon: <Shield className="w-4 h-4" />,
+    color: 'bg-red-100 text-red-700 border-red-200',
+    category: 'Business'
+  },
+  {
+    type: 'client',
+    label: 'Client',
+    description: 'End customer or client',
+    icon: <User className="w-4 h-4" />,
+    color: 'bg-blue-100 text-blue-700 border-blue-200',
+    category: 'Business'
+  },
+  {
+    type: 'team',
+    label: 'Team Member',
+    description: 'Team member or executive',
+    icon: <UserCheck className="w-4 h-4" />,
+    color: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+    category: 'Business'
+  },
+
   // Output Nodes
   {
     type: 'output',
@@ -126,8 +175,11 @@ const nodeTypes: NodeType[] = [
   },
 ];
 
-const onDragStart = (event: React.DragEvent, nodeType: string) => {
+const onDragStart = (event: React.DragEvent, nodeType: string, nodeData?: any) => {
   event.dataTransfer.setData('application/reactflow', nodeType);
+  if (nodeData) {
+    event.dataTransfer.setData('application/reactflow-data', JSON.stringify(nodeData));
+  }
   event.dataTransfer.effectAllowed = 'move';
 };
 
@@ -186,73 +238,74 @@ export function NodeLibrary() {
           ))}
         </div>
 
-        {/* Analysis Integration Section */}
+        {/* Executive Team Section */}
         <div className="mt-6 pt-4 border-t">
           <h3 className="text-sm font-medium text-muted-foreground mb-2 uppercase tracking-wide">
-            Implementation Phases
+            Executive Team
           </h3>
           <div className="space-y-2">
-            <div className="p-3 rounded-lg border-2 border-dashed bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200 cursor-pointer hover:border-solid hover:shadow-md transition-all duration-200">
+            <div
+              draggable
+              onDragStart={(event) => onDragStart(event, 'team', { 
+                label: 'CEO', 
+                description: 'Chief Executive Officer',
+                role: 'CEO',
+                department: 'Executive'
+              })}
+              className="p-3 rounded-lg border-2 border-dashed bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200 cursor-grab hover:border-solid hover:shadow-md transition-all duration-200 hover:scale-105 active:scale-95"
+            >
               <div className="flex items-center space-x-2">
-                <BarChart3 className="w-4 h-4 text-blue-600" />
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm text-blue-800">
-                    Technical Implementation
-                  </div>
-                  <div className="text-xs text-blue-600">
-                    Development phase based on technical analysis
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="p-3 rounded-lg border-2 border-dashed bg-gradient-to-r from-green-50 to-blue-50 border-green-200 cursor-pointer hover:border-solid hover:shadow-md transition-all duration-200">
-              <div className="flex items-center space-x-2">
-                <Zap className="w-4 h-4 text-green-600" />
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm text-green-800">
-                    Financial Planning
-                  </div>
-                  <div className="text-xs text-green-600">
-                    Budget and revenue implementation
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="p-3 rounded-lg border-2 border-dashed bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 cursor-pointer hover:border-solid hover:shadow-md transition-all duration-200">
-              <div className="flex items-center space-x-2">
-                <Users className="w-4 h-4 text-purple-600" />
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm text-purple-800">
-                    Market Strategy
-                  </div>
-                  <div className="text-xs text-purple-600">
-                    Execute market analysis recommendations
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="p-3 rounded-lg border-2 border-dashed bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200 cursor-pointer hover:border-solid hover:shadow-md transition-all duration-200">
-              <div className="flex items-center space-x-2">
-                <Settings className="w-4 h-4 text-yellow-600" />
+                <Crown className="w-4 h-4 text-yellow-600" />
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-sm text-yellow-800">
-                    Quality Assurance
+                    CEO
                   </div>
                   <div className="text-xs text-yellow-600">
-                    Testing and validation phase
+                    Chief Executive Officer
                   </div>
                 </div>
               </div>
             </div>
-            <div className="p-3 rounded-lg border-2 border-dashed bg-gradient-to-r from-red-50 to-pink-50 border-red-200 cursor-pointer hover:border-solid hover:shadow-md transition-all duration-200">
+            <div
+              draggable
+              onDragStart={(event) => onDragStart(event, 'team', { 
+                label: 'COO', 
+                description: 'Chief Operating Officer',
+                role: 'COO',
+                department: 'Operations'
+              })}
+              className="p-3 rounded-lg border-2 border-dashed bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 cursor-grab hover:border-solid hover:shadow-md transition-all duration-200 hover:scale-105 active:scale-95"
+            >
               <div className="flex items-center space-x-2">
-                <Globe className="w-4 h-4 text-red-600" />
+                <Briefcase className="w-4 h-4 text-blue-600" />
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm text-red-800">
-                    Deployment & Monitoring
+                  <div className="font-medium text-sm text-blue-800">
+                    COO
                   </div>
-                  <div className="text-xs text-red-600">
-                    Production deployment and feedback
+                  <div className="text-xs text-blue-600">
+                    Chief Operating Officer
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div
+              draggable
+              onDragStart={(event) => onDragStart(event, 'team', { 
+                label: 'CTO', 
+                description: 'Chief Technology Officer',
+                role: 'CTO',
+                department: 'Technology'
+              })}
+              className="p-3 rounded-lg border-2 border-dashed bg-gradient-to-r from-green-50 to-emerald-50 border-green-200 cursor-grab hover:border-solid hover:shadow-md transition-all duration-200 hover:scale-105 active:scale-95"
+            >
+              <div className="flex items-center space-x-2">
+                <Cpu className="w-4 h-4 text-green-600" />
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm text-green-800">
+                    CTO
+                  </div>
+                  <div className="text-xs text-green-600">
+                    Chief Technology Officer
                   </div>
                 </div>
               </div>
@@ -263,3 +316,8 @@ export function NodeLibrary() {
     </div>
   );
 }
+
+
+
+
+

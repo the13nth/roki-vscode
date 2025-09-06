@@ -4,7 +4,7 @@ import React from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { FileOutput, Mail, Users, Download } from 'lucide-react';
 
-export function OutputNode({ data, selected }: NodeProps) {
+export function OutputNode({ data, selected, isConnectable }: NodeProps) {
   const getIcon = () => {
     if (data.type === 'email-output') return <Mail className="w-4 h-4" />;
     if (data.type === 'user-notification') return <Users className="w-4 h-4" />;
@@ -57,11 +57,19 @@ export function OutputNode({ data, selected }: NodeProps) {
         </div>
       )}
 
-      <Handle
-        type="target"
-        position={Position.Left}
-        className="w-3 h-3 bg-red-500"
-      />
+      {/* Top handles */}
+      <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="w-3 h-3 bg-red-500" id="top-center" />
+      <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="w-2 h-2 bg-red-400" style={{ left: '25%' }} id="top-left" />
+      <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="w-2 h-2 bg-red-400" style={{ left: '75%' }} id="top-right" />
+      
+      {/* Bottom handles */}
+      <Handle type="target" position={Position.Bottom} isConnectable={isConnectable} className="w-3 h-3 bg-red-500" id="bottom-center" />
+      <Handle type="target" position={Position.Bottom} isConnectable={isConnectable} className="w-2 h-2 bg-red-400" style={{ left: '25%' }} id="bottom-left" />
+      <Handle type="target" position={Position.Bottom} isConnectable={isConnectable} className="w-2 h-2 bg-red-400" style={{ left: '75%' }} id="bottom-right" />
+      
+      {/* Side handles */}
+      <Handle type="target" position={Position.Left} isConnectable={isConnectable} className="w-2 h-2 bg-red-400" id="left-center" />
+      <Handle type="target" position={Position.Right} isConnectable={isConnectable} className="w-2 h-2 bg-red-400" id="right-center" />
     </div>
   );
 }

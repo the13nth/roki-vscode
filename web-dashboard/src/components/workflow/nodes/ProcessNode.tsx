@@ -19,13 +19,19 @@ export const ProcessNode = memo(({ data, isConnectable }: NodeProps) => {
 
       {(data.processType as string) && <div className="mt-2 text-xs bg-gray-100 p-1 rounded">Process: {data.processType as string}</div>}
 
-      <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="w-3 h-3 bg-purple-500" />
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        isConnectable={isConnectable}
-        className="w-3 h-3 bg-purple-500"
-      />
+      {/* Top handles */}
+      <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="w-3 h-3 bg-purple-500" id="top-center" />
+      <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="w-2 h-2 bg-purple-400" style={{ left: '25%' }} id="top-left" />
+      <Handle type="target" position={Position.Top} isConnectable={isConnectable} className="w-2 h-2 bg-purple-400" style={{ left: '75%' }} id="top-right" />
+      
+      {/* Bottom handles */}
+      <Handle type="source" position={Position.Bottom} isConnectable={isConnectable} className="w-3 h-3 bg-purple-500" id="bottom-center" />
+      <Handle type="source" position={Position.Bottom} isConnectable={isConnectable} className="w-2 h-2 bg-purple-400" style={{ left: '25%' }} id="bottom-left" />
+      <Handle type="source" position={Position.Bottom} isConnectable={isConnectable} className="w-2 h-2 bg-purple-400" style={{ left: '75%' }} id="bottom-right" />
+      
+      {/* Side handles */}
+      <Handle type="target" position={Position.Left} isConnectable={isConnectable} className="w-2 h-2 bg-purple-400" id="left-center" />
+      <Handle type="source" position={Position.Right} isConnectable={isConnectable} className="w-2 h-2 bg-purple-400" id="right-center" />
     </div>
   )
 })
