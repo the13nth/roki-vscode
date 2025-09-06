@@ -717,9 +717,9 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
   return (
     <div className="h-full flex flex-col w-full">
       {/* Header */}
-      <div className="flex-shrink-0 p-4 sm:p-6 border-b bg-white w-full">
-        <h1 className="text-xl sm:text-2xl font-bold mb-2">Project Analysis</h1>
-        <p className="text-sm sm:text-base text-muted-foreground">
+      <div className="flex-shrink-0 p-3 sm:p-4 lg:p-6 border-b bg-white w-full">
+        <h1 className="text-lg sm:text-xl lg:text-2xl font-bold mb-2">Project Analysis</h1>
+        <p className="text-xs sm:text-sm lg:text-base text-muted-foreground">
           {projectTemplate === 'business'
             ? 'AI-powered business analysis to provide strategic insights, regulatory guidance, and operational recommendations.'
             : 'AI-powered analysis of your project context to provide technical insights, recommendations, and identify potential improvements.'
@@ -730,12 +730,12 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
       {/* Main Content */}
       <div className="flex-1 flex flex-col lg:flex-row min-h-0 w-full">
         {/* Context Input - Left Panel */}
-        <div className={`${isAnalysisTypeSidebarCollapsed ? 'w-16' : 'w-full lg:w-80'} transition-all duration-300 ease-in-out border-r lg:border-r border-b lg:border-b-0 bg-gray-50 flex flex-col`}>
-          <div className="flex-shrink-0 p-3 sm:p-4 border-b bg-white">
+        <div className={`${isAnalysisTypeSidebarCollapsed ? 'w-12 sm:w-16' : 'w-full lg:w-80'} transition-all duration-300 ease-in-out border-r lg:border-r border-b lg:border-b-0 bg-gray-50 flex flex-col`}>
+          <div className="flex-shrink-0 p-2 sm:p-3 lg:p-4 border-b bg-white">
             <div className="flex items-center justify-between">
               {!isAnalysisTypeSidebarCollapsed && (
-                <h2 className="font-semibold flex items-center text-sm sm:text-base">
-                  <FileText className="w-4 h-4 mr-2" />
+                <h2 className="font-semibold flex items-center text-xs sm:text-sm lg:text-base">
+                  <FileText className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                   Project Context
                 </h2>
               )}
@@ -743,15 +743,15 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsAnalysisTypeSidebarCollapsed(!isAnalysisTypeSidebarCollapsed)}
-                className="h-8 w-8 p-0 hover:bg-muted ml-auto"
+                className="h-6 w-6 sm:h-8 sm:w-8 p-0 hover:bg-muted ml-auto"
                 title={isAnalysisTypeSidebarCollapsed ? 'Expand analysis panel' : 'Collapse analysis panel'}
               >
-                {isAnalysisTypeSidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+                {isAnalysisTypeSidebarCollapsed ? <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" /> : <ChevronLeft className="h-3 w-3 sm:h-4 sm:w-4" />}
               </Button>
             </div>
           </div>
 
-          <div className={`flex-1 ${isAnalysisTypeSidebarCollapsed ? 'p-2' : 'p-3 lg:p-4'} space-y-3 lg:space-y-4 overflow-y-auto`}>
+          <div className={`flex-1 ${isAnalysisTypeSidebarCollapsed ? 'p-1 sm:p-2' : 'p-2 sm:p-3 lg:p-4'} space-y-2 sm:space-y-3 lg:space-y-4 overflow-y-auto`}>
           <div className="space-y-2 lg:space-y-3">
               {/* Analysis Options */}
               <div>
@@ -759,26 +759,26 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                   <Button
                     variant="ghost"
                     onClick={() => setIsAnalysisOptionsCollapsed(!isAnalysisOptionsCollapsed)}
-                    className="w-full justify-between p-3 text-base font-medium border-b border-gray-200 hover:bg-gray-50"
+                    className="w-full justify-between p-2 sm:p-3 text-xs sm:text-sm lg:text-base font-medium border-b border-gray-200 hover:bg-gray-50"
                   >
                     <span className="flex items-center">
-                      <FileText className="w-4 h-4 mr-2" />
+                      <FileText className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                       Choose Analysis Type
                     </span>
                     {isAnalysisOptionsCollapsed ? (
-                      <ChevronRight className="w-4 h-4" />
+                      <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
                     ) : (
-                      <ChevronDown className="w-4 h-4" />
+                      <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4" />
                     )}
                   </Button>
                 )}
                 {!isAnalysisOptionsCollapsed && !isAnalysisTypeSidebarCollapsed && (
-                <div className="space-y-2 mt-3">
+                <div className="space-y-1 sm:space-y-2 mt-2 sm:mt-3">
                   {/* Read-only notice for non-owners */}
                   {!isOwned && (
-                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                      <div className="flex items-center gap-2 text-sm text-blue-700">
-                        <Eye className="w-4 h-4" />
+                    <div className="p-2 sm:p-3 bg-blue-50 border border-blue-200 rounded-md">
+                      <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-blue-700">
+                        <Eye className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
                         <span>Read-only view: You can view existing analysis results but cannot generate new analyses.</span>
                       </div>
                     </div>
@@ -787,74 +787,74 @@ export function ProjectAnalysis({ projectId, isOwned = true }: ProjectAnalysisPr
                     variant="outline"
                     onClick={() => analysisResults.technical ? setActiveAnalysisTab('technical') : handleAnalyze('technical')}
                     disabled={!isOwned || isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
-                    className="justify-start rounded-none border-gray-300 hover:border-blue-300 hover:bg-blue-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
+                    className="justify-start rounded-none border-gray-300 hover:border-blue-300 hover:bg-blue-50 text-xs sm:text-sm py-2 sm:py-3 px-2 sm:px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[40px] sm:min-h-[50px] w-full"
                   >
-                    <Lightbulb className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <Lightbulb className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
                     <span className="flex-1 text-left break-words leading-tight">Technical Analysis</span>
-                    {analysisResults.technical && <CheckCircle className="w-4 h-4 ml-2 text-green-600 flex-shrink-0" />}
+                    {analysisResults.technical && <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 ml-1 sm:ml-2 text-green-600 flex-shrink-0" />}
                   </Button>
                   <Button
                     variant="outline"
                     onClick={() => analysisResults.market ? setActiveAnalysisTab('market-steps') : handleAnalyze('market')}
                     disabled={!isOwned || isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
-                    className="justify-start rounded-none border-gray-300 hover:border-purple-300 hover:bg-purple-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
+                    className="justify-start rounded-none border-gray-300 hover:border-purple-300 hover:bg-purple-50 text-xs sm:text-sm py-2 sm:py-3 px-2 sm:px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[40px] sm:min-h-[50px] w-full"
                   >
-                    <TrendingUp className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
                     <span className="flex-1 text-left break-words leading-tight">Market Analysis</span>
-                    {analysisResults.market && <CheckCircle className="w-4 h-4 ml-2 text-green-600 flex-shrink-0" />}
+                    {analysisResults.market && <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 ml-1 sm:ml-2 text-green-600 flex-shrink-0" />}
                   </Button>
                   <Button
                     variant="outline"
                     onClick={() => analysisResults.differentiation ? setActiveAnalysisTab('differentiation') : handleAnalyze('differentiation')}
                     disabled={!isOwned || isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
-                    className="justify-start rounded-none border-gray-300 hover:border-indigo-300 hover:bg-indigo-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
+                    className="justify-start rounded-none border-gray-300 hover:border-indigo-300 hover:bg-indigo-50 text-xs sm:text-sm py-2 sm:py-3 px-2 sm:px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[40px] sm:min-h-[50px] w-full"
                   >
-                    <Zap className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <Zap className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
                     <span className="flex-1 text-left break-words leading-tight">Competitive Differentiation</span>
-                    {analysisResults.differentiation && <CheckCircle className="w-4 h-4 ml-2 text-green-600 flex-shrink-0" />}
+                    {analysisResults.differentiation && <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 ml-1 sm:ml-2 text-green-600 flex-shrink-0" />}
                   </Button>
                  
                   <Button
                     variant="outline"
                     onClick={() => analysisResults.bmc ? setActiveAnalysisTab('bmc') : handleAnalyze('bmc')}
                     disabled={!isOwned || isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
-                    className="justify-start rounded-none border-blue-200 text-blue-700 hover:bg-blue-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
+                    className="justify-start rounded-none border-blue-200 text-blue-700 hover:bg-blue-50 text-xs sm:text-sm py-2 sm:py-3 px-2 sm:px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[40px] sm:min-h-[50px] w-full"
                   >
-                    <Grid3X3 className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <Grid3X3 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
                     <span className="flex-1 text-left break-words leading-tight">Business Model Canvas</span>
-                    {analysisResults.bmc && <CheckCircle className="w-4 h-4 ml-2 text-green-600 flex-shrink-0" />}
+                    {analysisResults.bmc && <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 ml-1 sm:ml-2 text-green-600 flex-shrink-0" />}
                   </Button>
                   <Button
                     variant="outline"
                     onClick={() => analysisResults.financial ? setActiveAnalysisTab('financial') : handleAnalyze('financial')}
                     disabled={!isOwned || isAnalyzing || (projectDocuments.length === 0 && contextDocuments.length === 0)}
-                    className="justify-start rounded-none border-gray-300 hover:border-yellow-300 hover:bg-yellow-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
+                    className="justify-start rounded-none border-gray-300 hover:border-yellow-300 hover:bg-yellow-50 text-xs sm:text-sm py-2 sm:py-3 px-2 sm:px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[40px] sm:min-h-[50px] w-full"
                   >
-                    <DollarSign className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <DollarSign className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
                     <span className="flex-1 text-left break-words leading-tight">Financial Analysis</span>
-                    {analysisResults.financial && <CheckCircle className="w-4 h-4 ml-2 text-green-600 flex-shrink-0" />}
+                    {analysisResults.financial && <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 ml-1 sm:ml-2 text-green-600 flex-shrink-0" />}
                   </Button>
                   <Button
                     variant="outline"
                     onClick={() => setActiveAnalysisTab('processes')}
                     disabled={!isOwned}
-                    className="justify-start rounded-none border-gray-300 hover:border-blue-300 hover:bg-blue-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
+                    className="justify-start rounded-none border-gray-300 hover:border-blue-300 hover:bg-blue-50 text-xs sm:text-sm py-2 sm:py-3 px-2 sm:px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[40px] sm:min-h-[50px] w-full"
                   >
-                    <Workflow className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <Workflow className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
                     <span className="flex-1 text-left break-words leading-tight">Processes</span>
-                    <CheckCircle className="w-4 h-4 ml-2 text-green-600 flex-shrink-0" />
+                    <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 ml-1 sm:ml-2 text-green-600 flex-shrink-0" />
                   </Button>
                   <Button
                     variant="outline"
                     onClick={() => analysisResults.roast ? setActiveAnalysisTab('roast') : handleRoastClick()}
                     disabled={!isOwned || isAnalyzing || (!roastAnalysesComplete && !analysisResults.roast)}
-                    className="justify-start rounded-none border-red-200 text-red-700 hover:bg-red-50 text-sm py-3 px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[50px] w-full"
+                    className="justify-start rounded-none border-red-200 text-red-700 hover:bg-red-50 text-xs sm:text-sm py-2 sm:py-3 px-2 sm:px-4 transition-all duration-200 hover:shadow-md hover:scale-[1.02] h-auto min-h-[40px] sm:min-h-[50px] w-full"
                   >
-                    <Flame className="w-4 h-4 mr-2 flex-shrink-0" />
+                    <Flame className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
                     <span className="flex-1 text-left break-words leading-tight">Roast My Idea</span>
-                    {analysisResults.roast && <CheckCircle className="w-4 h-4 ml-2 text-green-600 flex-shrink-0" />}
+                    {analysisResults.roast && <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 ml-1 sm:ml-2 text-green-600 flex-shrink-0" />}
                     {!roastAnalysesComplete && !analysisResults.roast && (
-                      <Badge variant="secondary" className="ml-2 text-xs flex-shrink-0">
+                      <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs flex-shrink-0">
                         {remainingForRoast.length}
                       </Badge>
                     )}

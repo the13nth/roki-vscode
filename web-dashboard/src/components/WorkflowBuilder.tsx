@@ -1077,31 +1077,31 @@ export function WorkflowBuilder({ projectId, analysisData }: WorkflowBuilderProp
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex-shrink-0 p-4 border-b bg-white">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Workflow className="w-6 h-6 text-blue-600" />
-            <div>
-              <h2 className="text-xl font-semibold">Implementation Workflow Builder</h2>
-              <p className="text-sm text-muted-foreground">
+      <div className="flex-shrink-0 p-3 sm:p-4 border-b bg-white">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            <Workflow className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 flex-shrink-0" />
+            <div className="min-w-0 flex-1">
+              <h2 className="text-lg sm:text-xl font-semibold truncate">Implementation Workflow Builder</h2>
+              <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
                 Auto-generate implementation plans from your analysis or design custom workflows
               </p>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
             {analysisData && Object.keys(analysisData).length > 0 ? (
-              <Badge variant="default" className="flex items-center bg-green-100 text-green-800">
-                <div className="w-2 h-2 bg-green-500 rounded-full mr-2" />
+              <Badge variant="default" className="flex items-center bg-green-100 text-green-800 text-xs">
+                <div className="w-2 h-2 bg-green-500 rounded-full mr-1 sm:mr-2" />
                 {Object.keys(analysisData).length} analyses available
               </Badge>
             ) : (
-              <Badge variant="outline" className="flex items-center">
-                <div className="w-2 h-2 bg-yellow-500 rounded-full mr-2" />
+              <Badge variant="outline" className="flex items-center text-xs">
+                <div className="w-2 h-2 bg-yellow-500 rounded-full mr-1 sm:mr-2" />
                 No analysis data
               </Badge>
             )}
-            <Badge variant="outline" className="flex items-center">
-              <div className="w-2 h-2 bg-blue-500 rounded-full mr-2" />
+            <Badge variant="outline" className="flex items-center text-xs">
+              <div className="w-2 h-2 bg-blue-500 rounded-full mr-1 sm:mr-2" />
               {nodes.length} nodes, {edges.length} connections
             </Badge>
           </div>
@@ -1109,47 +1109,53 @@ export function WorkflowBuilder({ projectId, analysisData }: WorkflowBuilderProp
       </div>
 
       {/* Toolbar */}
-      <div className="flex-shrink-0 p-3 border-b bg-gray-50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
+      <div className="flex-shrink-0 p-2 sm:p-3 border-b bg-gray-50">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+          <div className="flex flex-wrap items-center gap-1 sm:gap-2">
             <Button
               onClick={executeWorkflow}
               disabled={isExecuting}
-              className="flex items-center"
+              className="flex items-center text-xs sm:text-sm"
+              size="sm"
             >
-              <Play className="w-4 h-4 mr-2" />
-              {isExecuting ? 'Executing...' : 'Execute Workflow'}
+              <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">{isExecuting ? 'Executing...' : 'Execute Workflow'}</span>
+              <span className="sm:hidden">{isExecuting ? 'Executing...' : 'Execute'}</span>
             </Button>
             <Button
               onClick={saveWorkflow}
               variant="outline"
-              className="flex items-center"
+              className="flex items-center text-xs sm:text-sm"
+              size="sm"
             >
-              <Save className="w-4 h-4 mr-2" />
+              <Save className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
               Save
             </Button>
             <Button
               onClick={loadWorkflow}
               variant="outline"
-              className="flex items-center"
+              className="flex items-center text-xs sm:text-sm"
+              size="sm"
             >
-              <Upload className="w-4 h-4 mr-2" />
+              <Upload className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
               Load
             </Button>
             <Button
               onClick={exportWorkflow}
               variant="outline"
-              className="flex items-center"
+              className="flex items-center text-xs sm:text-sm"
+              size="sm"
             >
-              <Download className="w-4 h-4 mr-2" />
+              <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
               Export
             </Button>
             <Button
               onClick={clearWorkflow}
               variant="outline"
-              className="flex items-center text-red-600 hover:text-red-700"
+              className="flex items-center text-red-600 hover:text-red-700 text-xs sm:text-sm"
+              size="sm"
             >
-              <Trash2 className="w-4 h-4 mr-2" />
+              <Trash2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
               Clear
             </Button>
             <Button
@@ -1161,30 +1167,32 @@ export function WorkflowBuilder({ projectId, analysisData }: WorkflowBuilderProp
                 }
               }}
               variant="outline"
-              className="flex items-center text-blue-600 hover:text-blue-700"
+              className="flex items-center text-blue-600 hover:text-blue-700 text-xs sm:text-sm"
+              size="sm"
             >
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Regenerate
+              <RotateCcw className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Regenerate</span>
+              <span className="sm:hidden">Regen</span>
             </Button>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0">
         {/* Node Library Sidebar */}
-        <div className="w-48 border-r bg-white">
+        <div className="w-full lg:w-48 border-r bg-white order-2 lg:order-1">
           <NodeLibrary />
         </div>
 
         {/* React Flow Canvas */}
-        <div className="flex-1 relative">
+        <div className="flex-1 relative order-1 lg:order-2">
           {nodes.length === 0 && edges.length === 0 ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-50 p-4">
               <div className="text-center max-w-md">
-                <Workflow className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-                <h3 className="text-xl font-semibold mb-2">Create Your Implementation Workflow</h3>
-                <p className="text-gray-600 mb-6">
+                <Workflow className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 text-gray-400" />
+                <h3 className="text-lg sm:text-xl font-semibold mb-2">Create Your Implementation Workflow</h3>
+                <p className="text-sm sm:text-base text-gray-600 mb-6">
                   {analysisData && Object.keys(analysisData).length > 0 
                     ? "A workflow will be automatically generated based on your analysis results, or you can drag nodes from the sidebar to build a custom workflow."
                     : "Run some analyses first to automatically generate an implementation plan, or drag nodes from the sidebar to build a custom workflow."
@@ -1215,7 +1223,7 @@ export function WorkflowBuilder({ projectId, analysisData }: WorkflowBuilderProp
 
         {/* Node Configuration Panel */}
         {selectedNode && (
-          <div className="w-80 border-l bg-white">
+          <div className="w-full lg:w-80 border-l bg-white order-3">
             <NodeConfigPanel
               node={selectedNode}
               onUpdateNode={(updatedNode: Node) => {
@@ -1235,13 +1243,13 @@ export function WorkflowBuilder({ projectId, analysisData }: WorkflowBuilderProp
 
       {/* Workflow Results Modal */}
       <Dialog open={showResultsModal} onOpenChange={setShowResultsModal}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto w-[95vw] sm:w-full">
           <DialogHeader>
-            <DialogTitle className="flex items-center">
-              <CheckCircle className="w-6 h-6 text-green-600 mr-2" />
+            <DialogTitle className="flex items-center text-lg sm:text-xl">
+              <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6 text-green-600 mr-2 flex-shrink-0" />
               Business Analysis Results
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-sm">
               Business analysis completed successfully on {workflowResults?.timestamp ? new Date(workflowResults.timestamp).toLocaleString() : 'Unknown time'}
             </DialogDescription>
           </DialogHeader>

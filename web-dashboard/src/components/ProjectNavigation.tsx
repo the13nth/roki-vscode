@@ -133,14 +133,14 @@ export function ProjectNavigation({ projectId, activeTab, progress, onNavigate, 
   return (
     <Card className="rounded-none">
       {!isCollapsed && (
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm">Navigation</CardTitle>
+        <CardHeader className="pb-2 sm:pb-3">
+          <CardTitle className="text-xs sm:text-sm">Navigation</CardTitle>
         </CardHeader>
       )}
       
-      <CardContent className={isCollapsed ? "p-2" : "p-3"}>
+      <CardContent className={isCollapsed ? "p-1 sm:p-2" : "p-2 sm:p-3"}>
         <nav>
-          <ul className="space-y-2">
+          <ul className="space-y-1 sm:space-y-2">
             {navItems.map((item) => {
               const isActive = activeTab === item.id;
               
@@ -149,13 +149,13 @@ export function ProjectNavigation({ projectId, activeTab, progress, onNavigate, 
                   <button
                     onClick={() => onNavigate?.(item.id)}
                     title={isCollapsed ? item.name : undefined}
-                    className={`group flex items-center w-full ${isCollapsed ? 'px-2 py-3 justify-center' : 'px-4 py-3'} text-sm font-medium rounded-none transition-all duration-200 ${
+                    className={`group flex items-center w-full ${isCollapsed ? 'px-1 sm:px-2 py-2 sm:py-3 justify-center' : 'px-2 sm:px-4 py-2 sm:py-3'} text-xs sm:text-sm font-medium rounded-none transition-all duration-200 ${
                       isActive
                         ? 'bg-primary text-primary-foreground shadow-sm'
                         : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     }`}
                   >
-                    <span className={`${isCollapsed ? '' : 'mr-3'} flex-shrink-0 ${
+                    <span className={`${isCollapsed ? '' : 'mr-2 sm:mr-3'} flex-shrink-0 ${
                       isActive ? 'text-primary-foreground' : 'text-muted-foreground group-hover:text-foreground'
                     }`}>
                       {item.icon}
@@ -166,7 +166,7 @@ export function ProjectNavigation({ projectId, activeTab, progress, onNavigate, 
                         
                         {/* Show task count for tasks tab */}
                         {item.id === 'tasks' && (
-                          <Badge variant={isActive ? "secondary" : "outline"} className="ml-auto">
+                          <Badge variant={isActive ? "secondary" : "outline"} className="ml-auto text-xs">
                             {progress.completedTasks}/{progress.totalTasks}
                           </Badge>
                         )}
@@ -183,12 +183,12 @@ export function ProjectNavigation({ projectId, activeTab, progress, onNavigate, 
       {/* Progress Summary - only show when not collapsed */}
       {!isCollapsed && (
         <CardContent className="pt-0 border-t bg-muted/30">
-          <div className="space-y-3">
-            <div className="flex items-center justify-between text-sm">
+          <div className="space-y-2 sm:space-y-3">
+            <div className="flex items-center justify-between text-xs sm:text-sm">
               <span className="font-medium">Overall Progress</span>
               <span className="font-bold">{progress.percentage}%</span>
             </div>
-            <Progress value={progress.percentage} className="h-2" />
+            <Progress value={progress.percentage} className="h-1 sm:h-2" />
             <div className="text-xs text-muted-foreground text-center">
               {progress.completedTasks} of {progress.totalTasks} tasks completed
             </div>

@@ -120,25 +120,23 @@ export function ProjectDashboardLayout({
 
   return (
     <div className="min-h-screen bg-background/80 flex flex-col">
-
-
       {/* Main Content Area */}
-      <div className="flex-1 p-2 relative">
+      <div className="flex-1 p-1 sm:p-2 relative">
         <div className="w-full">
           {/* Mobile Navigation Toggle */}
-          <div className="lg:hidden mb-4">
+          <div className="lg:hidden mb-2 sm:mb-4">
             <Button
               variant="outline"
               onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-              className="w-full justify-center"
+              className="w-full justify-center text-sm"
             >
               {isSidebarCollapsed ? 'Show Navigation' : 'Hide Navigation'}
             </Button>
           </div>
           
-          <div className="flex gap-6 w-full">
+          <div className="flex flex-col lg:flex-row gap-2 sm:gap-4 lg:gap-6 w-full">
             {/* Desktop Sidebar */}
-            <div className={`${isSidebarCollapsed ? 'w-16' : 'w-80'} transition-all duration-300 ease-in-out hidden lg:block`}>
+            <div className={`${isSidebarCollapsed ? 'w-16' : 'w-full lg:w-80'} transition-all duration-300 ease-in-out hidden lg:block`}>
               <div className="space-y-2">
                 {/* Collapse Toggle Button */}
                 <div className="flex justify-end mb-2">
@@ -176,7 +174,7 @@ export function ProjectDashboardLayout({
 
             {/* Mobile Sidebar */}
             {!isSidebarCollapsed && (
-              <div className="lg:hidden w-full mb-4">
+              <div className="lg:hidden w-full mb-2 sm:mb-4">
                 <div className="space-y-2">
                   <ProjectNavigation 
                     projectId={projectId} 
@@ -198,7 +196,7 @@ export function ProjectDashboardLayout({
 
             {/* Main Content */}
             <div className="flex-1 w-full">
-              <Card className="min-h-[600px] rounded-none w-full">
+              <Card className="min-h-[400px] sm:min-h-[600px] rounded-none w-full">
                 <CardContent className="p-0 w-full">
                   {currentTab === 'overview' && (
                     <ProjectOverviewTab 
