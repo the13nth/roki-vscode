@@ -185,8 +185,86 @@ export class PineconeOperationsService {
     text: string,
     options: QueryOptions = {}
   ): Promise<any> {
-    const embedding = await embeddingService.generateEmbedding(text);
+    const embedding = await embeddingService.generateEmbeddingWithFallback(text);
     return this.query(embedding, options);
+  }
+
+  /**
+   * Search for analysis-related content using semantic similarity
+   */
+  async searchAnalysisContent(
+    query: string,
+    projectId: string,
+    analysisTypes?: string[],
+    topK: number = 10
+  ): Promise<any> {
+    try {
+      console.log(`🔍 Searching analysis content for project ${projectId} with query: "${query}"`);
+      
+      const embedding = await embeddingService.generateEmbeddingWithFallback(query);
+      
+      const filter: Record<string, any> = {
+        projectId: { $eq: projectId },
+        type: { $in: ['analysis', 'context', 'requirements', 'design'] }
+      };
+
+      if (analysisTypes && analysisTypes.length > 0) {
+        filter.analysisType = { $in: analysisTypes };
+      }
+
+      const queryResponse = await this.query(embedding, {
+        topK,
+        filter,
+        includeMetadata: true,
+        includeValues: false
+      });
+
+      console.log(`📊 Found ${queryResponse.matches?.length || 0} relevant analysis documents`);
+      return queryResponse;
+    } catch (error) {
+      console.error('Failed to search analysis content:', error);
+      return { matches: [] };
+    }
+  }
+
+  /**
+   * Get related analyses for a given analysis type
+   */
+  async getRelatedAnalyses(
+    analysisType: string,
+    projectId: string,
+    excludeId?: string,
+    topK: number = 5
+  ): Promise<any> {
+    try {
+      console.log(`🔍 Finding related analyses for ${analysisType} in project ${projectId}`);
+      
+      // Create a query embedding based on the analysis type
+      const queryText = `${analysisType} analysis insights recommendations market technical financial`;
+      const embedding = await embeddingService.generateEmbeddingWithFallback(queryText);
+      
+      const filter: Record<string, any> = {
+        projectId: { $eq: projectId },
+        type: { $eq: 'analysis' }
+      };
+
+      if (excludeId) {
+        filter.id = { $ne: excludeId };
+      }
+
+      const queryResponse = await this.query(embedding, {
+        topK,
+        filter,
+        includeMetadata: true,
+        includeValues: false
+      });
+
+      console.log(`📊 Found ${queryResponse.matches?.length || 0} related analyses`);
+      return queryResponse;
+    } catch (error) {
+      console.error('Failed to get related analyses:', error);
+      return { matches: [] };
+    }
   }
 
   /**

@@ -115,6 +115,15 @@ export async function POST(
         placeholder: 'Describe your main cost categories (hosting, payment processing, third-party services, materials, etc.)...'
       },
       {
+        id: 'cogs_per_month',
+        step: 3,
+        category: 'COGS',
+        question: 'What is your estimated monthly COGS (Cost of Goods Sold)?',
+        type: 'number',
+        required: false,
+        placeholder: 'Enter monthly COGS in USD (optional - will be inferred if not provided)'
+      },
+      {
         id: 'scaling_costs',
         step: 3,
         category: 'COGS',

@@ -275,6 +275,55 @@ export class EmbeddingService {
     }
     return vector;
   }
+
+  /**
+   * Generate embedding with retry and fallback for critical operations
+   */
+  async generateEmbeddingWithFallback(text: string, useCache: boolean = true): Promise<number[]> {
+    try {
+      return await this.generateEmbedding(text, useCache);
+    } catch (error) {
+      console.error('Failed to generate embedding, using fallback:', error);
+      return this.generateFallbackEmbedding(text);
+    }
+  }
+
+  /**
+   * Generate embeddings for analysis content with enhanced text processing
+   */
+  async generateAnalysisEmbedding(analysisData: any, analysisType: string): Promise<number[]> {
+    try {
+      // Extract and combine all relevant text content
+      const contentForEmbedding = [
+        analysisData.summary || '',
+        analysisData.title || '',
+        analysisType,
+        ...(analysisData.insights || []).map((insight: any) => 
+          typeof insight === 'object' ? insight.content || insight.title || insight.text || '' : insight
+        ),
+        ...(analysisData.recommendations || []).map((rec: any) => 
+          typeof rec === 'object' ? rec.content || rec.title || rec.text || '' : rec
+        ),
+        analysisData.marketAnalysis?.content || analysisData.marketAnalysis?.text || '',
+        analysisData.differentiationAnalysis?.content || analysisData.differentiationAnalysis?.text || '',
+        analysisData.financialProjections?.content || analysisData.financialProjections?.text || '',
+        analysisData.technicalAnalysis?.content || analysisData.technicalAnalysis?.text || '',
+        analysisData.riskAnalysis?.content || analysisData.riskAnalysis?.text || '',
+        analysisData.competitiveAnalysis?.content || analysisData.competitiveAnalysis?.text || ''
+      ].filter(text => text && text.length > 0).join(' ');
+
+      if (!contentForEmbedding.trim()) {
+        console.warn('No content found for analysis embedding, using fallback');
+        return this.generateFallbackEmbedding(`${analysisType}-analysis`);
+      }
+
+      console.log(`🔄 Generating analysis embedding for ${analysisType}, content length: ${contentForEmbedding.length}`);
+      return await this.generateEmbeddingWithFallback(contentForEmbedding);
+    } catch (error) {
+      console.error('Failed to generate analysis embedding:', error);
+      return this.generateFallbackEmbedding(`${analysisType}-analysis`);
+    }
+  }
 }
 
 // Export singleton instance

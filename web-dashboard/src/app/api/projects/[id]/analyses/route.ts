@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPineconeClient, PINECONE_INDEX_NAME } from '@/lib/pinecone';
+import { embeddingService } from '@/lib/embeddingService';
+import { analysisVectorService } from '@/lib/analysisVectorService';
 
 function getPineconeIndex() {
   const pinecone = getPineconeClient();
@@ -91,50 +93,17 @@ export async function POST(
     const analysisContent = `${analysisType} analysis: ${analysisData.summary || ''} ${JSON.stringify(analysisData)}`;
     
     // Create a more meaningful embedding based on the analysis content
-    let vector = new Array(1024).fill(0);
+    // Generate proper embedding for the analysis using the enhanced embedding service
+    let vector: number[];
     
     try {
-      // Generate embeddings using a simple approach - you could enhance this with actual embeddings
-      const contentForEmbedding = [
-        analysisData.summary || '',
-        ...(analysisData.insights || []).map((insight: any) => 
-          typeof insight === 'object' ? insight.content || insight.title || '' : insight
-        ),
-        ...(analysisData.recommendations || []).map((rec: any) => 
-          typeof rec === 'object' ? rec.content || rec.title || '' : rec
-        ),
-        analysisData.marketAnalysis?.content || '',
-        analysisData.differentiationAnalysis?.content || '',
-        analysisData.financialProjections?.content || '',
-        analysisType // Include the analysis type to help with categorization
-      ].filter(text => text.length > 0).join(' ');
-
-      // Simple hash-based approach for creating distinctive vectors
-      // In live environment, you'd use OpenAI embeddings or similar
-      const hash = contentForEmbedding.split('').reduce((acc, char, i) => {
-        return ((acc << 5) - acc + char.charCodeAt(0) + i) >>> 0;
-      }, 0);
-      
-      // Fill vector with a pattern based on content hash and analysis type
-      const typeMultipliers: Record<string, number> = {
-        'technical': 1.1,
-        'market': 1.2,
-        'differentiation': 1.3,
-        'financial': 1.4,
-        'bmc': 1.5,
-        'roast': 1.6
-      };
-      const typeMultiplier = typeMultipliers[analysisType] || 1.0;
-      
-      for (let i = 0; i < 1024; i++) {
-        const seed = (hash + i * 37) * typeMultiplier;
-        vector[i] = (Math.sin(seed) + Math.cos(seed * 1.3)) * 0.1;
-      }
-      
-      console.log(`🔍 Created semantic vector for ${analysisType} analysis`);
+      console.log(`🔄 Generating embedding for ${analysisType} analysis`);
+      vector = await embeddingService.generateAnalysisEmbedding(analysisData, analysisType);
+      console.log(`✅ Generated embedding with ${vector.length} dimensions for ${analysisType} analysis`);
     } catch (error) {
-      console.warn('⚠️ Failed to create enhanced embedding, using default:', error);
-      vector = new Array(1024).fill(0);
+      console.error('❌ Failed to generate analysis embedding:', error);
+      // Use fallback embedding
+      vector = embeddingService.generateFallbackEmbedding(`${analysisType}-analysis-${Date.now()}`);
     }
 
     // Upsert the analysis to Pinecone

@@ -44,7 +44,6 @@ import {
   Presentation,
   ChevronDown,
   ChevronRight,
-  Sparkles,
   Calculator,
   BarChart3,
   PieChart,
@@ -54,7 +53,9 @@ import {
   CreditCard,
   TrendingDown,
   Activity,
-  HelpCircle
+  HelpCircle,
+  Sparkles,
+  Save
 } from 'lucide-react';
 
 interface FinancialAnalysisProps {
@@ -108,6 +109,12 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
   const [financialData, setFinancialData] = useState<FinancialData | null>(null);
   const [showResults, setShowResults] = useState(false);
   const [bmcDataLoaded, setBmcDataLoaded] = useState(false);
+  const [isImproving, setIsImproving] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showImproveDialog, setShowImproveDialog] = useState(false);
+  const [improveDetails, setImproveDetails] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Load existing context and generate questions
   useEffect(() => {
@@ -151,41 +158,41 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
     const costStructure = bmc.costStructure || '';
     const keyResources = bmc.keyResources || '';
     
-    let productCosts = `Direct Product/Service Costs per Customer:\n\n`;
+    let productCosts = `Direct Product/Service Costs:\n\n`;
     
     // Technology Platform Costs
     productCosts += `**Technology Platform Costs:**\n`;
-    productCosts += `• Hosting & Infrastructure: $[X] per customer/month\n`;
+    productCosts += `• Hosting & Infrastructure: $[X] per month\n`;
     productCosts += `• Payment Processing: 2-3% of transaction value\n`;
-    productCosts += `• Third-party APIs & Services: $[X] per customer/month\n`;
-    productCosts += `• Mobile App Maintenance: $[X] per customer/month\n`;
-    productCosts += `• Database & Storage: $[X] per customer/month\n\n`;
+    productCosts += `• Third-party APIs & Services: $[X] per month\n`;
+    productCosts += `• Mobile App Maintenance: $[X] per month\n`;
+    productCosts += `• Database & Storage: $[X] per month\n\n`;
     
     // E-Mobility Specific Costs
     if (segments.includes('Drivers') || segments.includes('Moto-Taxi')) {
       productCosts += `**E-Mobility Platform Costs:**\n`;
-      productCosts += `• Vehicle Maintenance Support: $[X] per driver/month\n`;
-      productCosts += `• Insurance Processing: $[X] per driver/month\n`;
-      productCosts += `• Driver Training & Support: $[X] per driver/month\n`;
-      productCosts += `• GPS & Tracking Services: $[X] per driver/month\n`;
-      productCosts += `• Customer Support: $[X] per customer/month\n\n`;
+      productCosts += `• Vehicle Maintenance Support: $[X] per month\n`;
+      productCosts += `• Insurance Processing: $[X] per month\n`;
+      productCosts += `• Driver Training & Support: $[X] per month\n`;
+      productCosts += `• GPS & Tracking Services: $[X] per month\n`;
+      productCosts += `• Customer Support: $[X] per month\n\n`;
     }
     
     // Investment Platform Costs
     if (segments.includes('Investors')) {
       productCosts += `**Investment Platform Costs:**\n`;
-      productCosts += `• Investment Processing: $[X] per investor/month\n`;
-      productCosts += `• Financial Reporting: $[X] per investor/month\n`;
-      productCosts += `• Compliance & Legal: $[X] per investor/month\n`;
-      productCosts += `• Portfolio Management Tools: $[X] per investor/month\n\n`;
+      productCosts += `• Investment Processing: $[X] per month\n`;
+      productCosts += `• Financial Reporting: $[X] per month\n`;
+      productCosts += `• Compliance & Legal: $[X] per month\n`;
+      productCosts += `• Portfolio Management Tools: $[X] per month\n\n`;
     }
     
     // Operational Costs
     productCosts += `**Operational Costs:**\n`;
     productCosts += `• Customer Onboarding: $[X] per new customer\n`;
-    productCosts += `• Account Management: $[X] per customer/month\n`;
-    productCosts += `• Security & Fraud Prevention: $[X] per customer/month\n`;
-    productCosts += `• Data Analytics & Reporting: $[X] per customer/month\n\n`;
+    productCosts += `• Account Management: $[X] per month\n`;
+    productCosts += `• Security & Fraud Prevention: $[X] per month\n`;
+    productCosts += `• Data Analytics & Reporting: $[X] per month\n\n`;
     
     // Add context from BMC
     if (costStructure) {
@@ -445,34 +452,42 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
   };
 
   // Intelligent calculation functions
-  const calculateCOGSPerCustomer = (answers: Record<string, string>) => {
-    // Extract pricing information from pricing strategy
-    const pricingStrategy = answers.pricing_strategy || '';
-    const revenueModel = answers.revenue_model || '';
-    
-    // Estimate COGS based on revenue model and pricing
-    let estimatedCOGS = 0;
-    
-    if (revenueModel === 'Subscription/SaaS') {
-      // For SaaS, COGS is typically 20-40% of revenue
-      estimatedCOGS = 15; // Conservative estimate
-    } else if (revenueModel === 'Marketplace Commission') {
-      // For marketplace, COGS is typically 5-15% of revenue
-      estimatedCOGS = 8;
-    } else if (revenueModel === 'One-time Purchase') {
-      // For one-time purchases, COGS is typically 30-60% of revenue
-      estimatedCOGS = 25;
-    } else {
-      // Default estimate
-      estimatedCOGS = 12;
+  const inferCOGSFromAnalysis = (answers: Record<string, string>, existingAnalysis?: any) => {
+    // First, try to infer from existing analysis if available
+    if (existingAnalysis && existingAnalysis.cogs) {
+      // Extract COGS value from existing analysis
+      const cogsMatch = existingAnalysis.cogs.match(/\$(\d+(?:\.\d+)?)/);
+      if (cogsMatch) {
+        return parseFloat(cogsMatch[1]);
+      }
     }
     
-    return estimatedCOGS;
+    // If user has provided product_costs, try to extract cost information
+    const productCosts = answers.product_costs || '';
+    if (productCosts) {
+      // Look for cost patterns in the text
+      const costMatches = productCosts.match(/\$(\d+(?:\.\d+)?)/g);
+      if (costMatches && costMatches.length > 0) {
+        // Sum up all mentioned costs
+        const totalCosts = costMatches.reduce((sum, match) => {
+          const value = parseFloat(match.replace('$', ''));
+          return sum + value;
+        }, 0);
+        return totalCosts > 0 ? totalCosts : null;
+      }
+    }
+    
+    // If user has provided a specific COGS value
+    if (answers.cogs_per_month) {
+      return parseFloat(answers.cogs_per_month);
+    }
+    
+    return null; // No inference possible
   };
 
-  const calculateBreakevenCustomers = (answers: Record<string, string>) => {
+  const calculateBreakevenCustomers = (answers: Record<string, string>, existingAnalysis?: any) => {
     const monthlyBurn = parseFloat(answers.monthly_burn || '0');
-    const estimatedCOGS = calculateCOGSPerCustomer(answers);
+    const estimatedCOGS = inferCOGSFromAnalysis(answers, existingAnalysis);
     const pricingStrategy = answers.pricing_strategy || '';
     
     // Extract average revenue per customer from pricing strategy
@@ -486,7 +501,7 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
       }
     }
     
-    if (monthlyBurn > 0 && avgRevenuePerCustomer > estimatedCOGS) {
+    if (monthlyBurn > 0 && estimatedCOGS && avgRevenuePerCustomer > estimatedCOGS) {
       const contributionMargin = avgRevenuePerCustomer - estimatedCOGS;
       return Math.ceil(monthlyBurn / contributionMargin);
     }
@@ -693,15 +708,15 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
     try {
       setIsAnalyzing(true);
       
-      // Calculate intelligent values
-      const calculatedCOGS = calculateCOGSPerCustomer(answers);
-      const calculatedBreakevenCustomers = calculateBreakevenCustomers(answers);
+      // Infer values from existing analysis or user inputs
+      const inferredCOGS = inferCOGSFromAnalysis(answers, financialData);
+      const calculatedBreakevenCustomers = calculateBreakevenCustomers(answers, financialData);
       
-      // Add calculated values to answers
+      // Add inferred values to answers
       const enhancedAnswers = {
         ...answers,
-        calculated_cogs_per_customer: calculatedCOGS.toString(),
-        calculated_breakeven_customers: calculatedBreakevenCustomers.toString()
+        ...(inferredCOGS && { inferred_cogs_per_month: inferredCOGS.toString() }),
+        ...(calculatedBreakevenCustomers > 0 && { calculated_breakeven_customers: calculatedBreakevenCustomers.toString() })
       };
       
       const response = await fetch(`/api/projects/${projectId}/financial/analyze`, {
@@ -742,7 +757,8 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
       'customer_lifetime': 'Average number of months a customer stays with your service. Higher lifetime value means more revenue per customer.',
       
       // Step 3: Cost of Revenues / COGS
-      'product_costs': 'Main cost components for delivering your product/service. Include hosting, payment processing, third-party services, materials, and operational costs.',
+      'product_costs': 'Main cost components for delivering your product/service. Include hosting, payment processing, third-party services, materials, and operational costs. Use "per month" units for all costs.',
+      'cogs_per_month': 'Your estimated monthly Cost of Goods Sold. This will be inferred from your cost descriptions if not provided directly.',
       'scaling_costs': 'How your costs change as you grow. Linear scaling means costs increase proportionally, while economies of scale mean lower per-unit costs.',
       
       // Step 4: Operating Expenses
@@ -875,8 +891,21 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
             </CardHeader>
             <CardContent>
               <div className="text-sm text-gray-600 mb-4">{step.description}</div>
-              <div className="prose max-w-none">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              <div className="prose prose-sm max-w-none">
+                <ReactMarkdown 
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    h1: ({ children }) => <h1 className="text-xl font-bold mb-3 text-gray-900">{children}</h1>,
+                    h2: ({ children }) => <h2 className="text-lg font-semibold mb-2 text-gray-800">{children}</h2>,
+                    h3: ({ children }) => <h3 className="text-base font-medium mb-2 text-gray-700">{children}</h3>,
+                    p: ({ children }) => <p className="text-sm text-gray-700 mb-2 leading-relaxed">{children}</p>,
+                    ul: ({ children }) => <ul className="list-disc list-inside space-y-1 mb-3 text-sm text-gray-700">{children}</ul>,
+                    ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 mb-3 text-sm text-gray-700">{children}</ol>,
+                    li: ({ children }) => <li className="text-sm text-gray-700">{children}</li>,
+                    strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
+                    code: ({ children }) => <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono text-gray-800">{children}</code>,
+                  }}
+                >
                   {getStepContent(step.id)}
                 </ReactMarkdown>
               </div>
@@ -904,11 +933,119 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
     }
   };
 
+  const handleImproveAnalysis = async () => {
+    if (!improveDetails?.trim()) {
+      setError('Please provide details on how to improve the analysis');
+      setTimeout(() => setError(null), 3000);
+      return;
+    }
+
+    if (!financialData) {
+      setError('No analysis found to improve');
+      return;
+    }
+
+    try {
+      setIsImproving(true);
+      setError(null);
+
+      // Convert financial data to string format for improvement
+      const originalAnalysis = JSON.stringify(financialData, null, 2);
+
+      const response = await fetch(`/api/projects/${projectId}/improve-analysis`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          analysisType: 'financial',
+          originalAnalysis,
+          improvementDetails: improveDetails,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to improve analysis');
+      }
+
+      const result = await response.json();
+      
+      // Try to parse the improved analysis back to the expected format
+      let improvedAnalysisData;
+      try {
+        improvedAnalysisData = JSON.parse(result.improvedAnalysis);
+      } catch {
+        // If parsing fails, create a new analysis object with the improved content
+        improvedAnalysisData = {
+          ...financialData,
+          summary: result.improvedAnalysis,
+          timestamp: new Date().toISOString()
+        };
+      }
+
+      // Update the financial data with the improved version
+      setFinancialData(improvedAnalysisData);
+
+      // Clear the improvement details and close dialog
+      setImproveDetails('');
+      setShowImproveDialog(false);
+
+      setSuccessMessage('Financial analysis improved successfully!');
+      setTimeout(() => setSuccessMessage(null), 3000);
+
+    } catch (error: any) {
+      console.error('Financial analysis improvement error:', error);
+      setError(error.message || 'Failed to improve analysis');
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setIsImproving(false);
+    }
+  };
+
+  const handleSaveAnalysis = async () => {
+    if (!financialData) {
+      setError('No analysis to save');
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      setError(null);
+
+      const response = await fetch(`/api/projects/${projectId}/analyses`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          analysisType: 'financial',
+          analysisData: financialData,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save analysis');
+      }
+
+      setSuccessMessage('Financial analysis saved successfully!');
+      setTimeout(() => setSuccessMessage(null), 3000);
+
+    } catch (error: any) {
+      console.error('Save analysis error:', error);
+      setError(error.message || 'Failed to save analysis');
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const renderCalculatedValues = () => {
     if (Object.keys(answers).length === 0) return null;
 
-    const calculatedCOGS = calculateCOGSPerCustomer(answers);
-    const calculatedBreakevenCustomers = calculateBreakevenCustomers(answers);
+    const inferredCOGS = inferCOGSFromAnalysis(answers, financialData);
+    const calculatedBreakevenCustomers = calculateBreakevenCustomers(answers, financialData);
 
     return (
       <Card className="mb-4 border-blue-200 bg-blue-50">
@@ -919,10 +1056,16 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          <div className="flex justify-between items-center">
-            <span className="text-sm font-medium">Estimated COGS per customer:</span>
-            <span className="text-sm font-bold text-blue-700">${calculatedCOGS}/month</span>
-          </div>
+          {inferredCOGS ? (
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Estimated COGS:</span>
+              <span className="text-sm font-bold text-blue-700">${inferredCOGS}/month</span>
+            </div>
+          ) : (
+            <div className="text-sm text-gray-600">
+              COGS will be calculated based on your cost inputs and market analysis
+            </div>
+          )}
           {calculatedBreakevenCustomers > 0 && (
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium">Breakeven customers needed:</span>
@@ -930,7 +1073,7 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
             </div>
           )}
           <div className="text-xs text-blue-600 mt-2">
-            * Values calculated based on your revenue model and pricing strategy
+            * Values inferred from your inputs and existing analysis
           </div>
         </CardContent>
       </Card>
@@ -940,17 +1083,117 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
   if (showResults && financialData) {
     return (
       <div className="space-y-6">
+        {/* Error and Success Messages */}
+        {error && (
+          <Alert className="border-red-200 bg-red-50">
+            <AlertDescription className="text-red-800">{error}</AlertDescription>
+          </Alert>
+        )}
+        {successMessage && (
+          <Alert className="border-green-200 bg-green-50">
+            <AlertDescription className="text-green-800">{successMessage}</AlertDescription>
+          </Alert>
+        )}
+
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold flex items-center">
             <Calculator className="w-6 h-6 mr-2" />
             Financial Analysis Results
           </h2>
-          <Button 
-            variant="outline" 
-            onClick={() => setShowResults(false)}
-          >
-            Back to Questions
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* Improve Analysis Button */}
+            <Dialog open={showImproveDialog} onOpenChange={setShowImproveDialog}>
+              <DialogTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  disabled={!isOwned}
+                  className="flex items-center"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Improve Analysis
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center">
+                    <Sparkles className="w-5 h-5 mr-2" />
+                    Improve Financial Analysis
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="improve-details">How would you like to improve this analysis?</Label>
+                    <Textarea
+                      id="improve-details"
+                      placeholder="Describe what aspects of the financial analysis you'd like to improve, add, or modify..."
+                      value={improveDetails}
+                      onChange={(e) => setImproveDetails(e.target.value)}
+                      className="mt-2"
+                      rows={4}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowImproveDialog(false);
+                        setImproveDetails('');
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleImproveAnalysis}
+                      disabled={isImproving || !improveDetails.trim()}
+                      className="flex items-center"
+                    >
+                      {isImproving ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Improving...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4 mr-2" />
+                          Improve Analysis
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Save Analysis Button */}
+            <Button 
+              variant="outline" 
+              size="sm"
+              disabled={!isOwned || isSaving}
+              onClick={handleSaveAnalysis}
+              className="flex items-center"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Analysis
+                </>
+              )}
+            </Button>
+
+            {/* Back to Questions Button */}
+            <Button 
+              variant="outline" 
+              onClick={() => setShowResults(false)}
+            >
+              Back to Questions
+            </Button>
+          </div>
         </div>
         {renderFinancialResults()}
       </div>
@@ -989,7 +1232,7 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
               <ul className="mt-2 ml-4 list-disc space-y-1 text-green-700">
                 <li><strong>Customer Segments</strong> → Target customer questions</li>
                 <li><strong>Revenue Streams</strong> → Revenue model questions</li>
-                <li><strong>Cost Structure + Key Resources</strong> → Product/service costs per customer</li>
+                <li><strong>Cost Structure + Key Resources</strong> → Product/service costs per month</li>
                 <li><strong>Revenue Streams + Customer Segments</strong> → Structured pricing strategy by segment</li>
                 <li><strong>Channels</strong> → Distribution cost questions</li>
                 <li><strong>Key Activities</strong> → Team structure questions</li>
@@ -1006,7 +1249,7 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
               <ul className="mt-2 ml-4 list-disc space-y-1">
                 <li><strong>Customer Segments</strong> → Target customer questions</li>
                 <li><strong>Revenue Streams</strong> → Revenue model questions</li>
-                <li><strong>Cost Structure + Key Resources</strong> → Product/service costs per customer</li>
+                <li><strong>Cost Structure + Key Resources</strong> → Product/service costs per month</li>
                 <li><strong>Revenue Streams + Customer Segments</strong> → Structured pricing strategy by segment</li>
                 <li><strong>Channels</strong> → Distribution cost questions</li>
                 <li><strong>Value Proposition + Partnerships</strong> → Funding plans and timeline</li>

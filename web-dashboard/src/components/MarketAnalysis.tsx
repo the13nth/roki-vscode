@@ -402,9 +402,24 @@ export function MarketAnalysis({ projectId, isOwned = true }: MarketAnalysisProp
                       <CardTitle className="text-lg">Target Market</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {marketData.targetMarket || 'No data available'}
-                      </ReactMarkdown>
+                      <div className="prose prose-sm max-w-none">
+                        <ReactMarkdown 
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            h1: ({ children }) => <h1 className="text-xl font-bold mb-3 text-gray-900">{children}</h1>,
+                            h2: ({ children }) => <h2 className="text-lg font-semibold mb-2 text-gray-800">{children}</h2>,
+                            h3: ({ children }) => <h3 className="text-base font-medium mb-2 text-gray-700">{children}</h3>,
+                            p: ({ children }) => <p className="text-sm text-gray-700 mb-2 leading-relaxed">{children}</p>,
+                            ul: ({ children }) => <ul className="list-disc list-inside space-y-1 mb-3 text-sm text-gray-700">{children}</ul>,
+                            ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 mb-3 text-sm text-gray-700">{children}</ol>,
+                            li: ({ children }) => <li className="text-sm text-gray-700">{children}</li>,
+                            strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
+                            code: ({ children }) => <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono text-gray-800">{children}</code>,
+                          }}
+                        >
+                          {marketData.targetMarket || 'No data available'}
+                        </ReactMarkdown>
+                      </div>
                     </CardContent>
                   </Card>
                   
@@ -413,9 +428,24 @@ export function MarketAnalysis({ projectId, isOwned = true }: MarketAnalysisProp
                       <CardTitle className="text-lg">Customer Pain Points</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {marketData.customerPainPoints || 'No data available'}
-                      </ReactMarkdown>
+                      <div className="prose prose-sm max-w-none">
+                        <ReactMarkdown 
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            h1: ({ children }) => <h1 className="text-xl font-bold mb-3 text-gray-900">{children}</h1>,
+                            h2: ({ children }) => <h2 className="text-lg font-semibold mb-2 text-gray-800">{children}</h2>,
+                            h3: ({ children }) => <h3 className="text-base font-medium mb-2 text-gray-700">{children}</h3>,
+                            p: ({ children }) => <p className="text-sm text-gray-700 mb-2 leading-relaxed">{children}</p>,
+                            ul: ({ children }) => <ul className="list-disc list-inside space-y-1 mb-3 text-sm text-gray-700">{children}</ul>,
+                            ol: ({ children }) => <ol className="list-decimal list-inside space-y-1 mb-3 text-sm text-gray-700">{children}</ol>,
+                            li: ({ children }) => <li className="text-sm text-gray-700">{children}</li>,
+                            strong: ({ children }) => <strong className="font-semibold text-gray-900">{children}</strong>,
+                            code: ({ children }) => <code className="bg-gray-100 px-1 py-0.5 rounded text-xs font-mono text-gray-800">{children}</code>,
+                          }}
+                        >
+                          {marketData.customerPainPoints || 'No data available'}
+                        </ReactMarkdown>
+                      </div>
                     </CardContent>
                   </Card>
                 </div>

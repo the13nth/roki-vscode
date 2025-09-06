@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
+import { analysisVectorService } from '@/lib/analysisVectorService';
 
 export async function POST(
   request: NextRequest,
@@ -18,17 +19,40 @@ export async function POST(
       );
     }
 
-    // Get project context
+    // Get relevant context using vector search
+    console.log(`🔍 Getting vector search context for market analysis`);
+    let vectorContext = '';
+    try {
+      const context = await analysisVectorService.getAnalysisContext(
+        projectId,
+        'market',
+        Object.entries(answers).map(([key, value]) => `${key}: ${value}`).join(' ')
+      );
+      
+      if (context.relevantDocuments.length > 0 || context.relatedAnalyses.length > 0 || context.projectInfo.length > 0) {
+        vectorContext = analysisVectorService.formatContextForAnalysis(context, 'market');
+        console.log(`✅ Retrieved vector context: ${context.relevantDocuments.length} docs, ${context.relatedAnalyses.length} analyses, ${context.projectInfo.length} project info`);
+      } else {
+        console.log('⚠️ No relevant context found via vector search');
+      }
+    } catch (error) {
+      console.error('❌ Failed to get vector search context:', error);
+      // Continue without vector context rather than failing
+    }
+
+    // Get project context (fallback to existing method)
     const contextResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/projects/${projectId}/context/full`);
     const contextData = await contextResponse.json();
     const projectContext = contextData.context || '';
+
+    const contextSection = vectorContext ? `\n\n## RELEVANT PROJECT CONTEXT (VECTOR SEARCH):\n${vectorContext}` : '';
 
     // Create comprehensive market analysis prompt
     const analysisPrompt = `
 You are a market research expert analyzing a business project. Based on the project context and the provided answers, generate a comprehensive market analysis.
 
 ## PROJECT CONTEXT:
-${projectContext}
+${projectContext}${contextSection}
 
 ## MARKET RESEARCH DATA:
 ${Object.entries(answers).map(([key, value]) => `**${key.replace(/_/g, ' ').toUpperCase()}**: ${value}`).join('\n\n')}

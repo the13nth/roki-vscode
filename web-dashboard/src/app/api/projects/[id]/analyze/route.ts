@@ -4,6 +4,7 @@ import { getGoogleAIConfig, getGoogleAIConfigWithFallback, validateSecureConfig,
 import { getApiConfiguration } from '@/lib/apiConfig';
 import { PineconeSyncServiceInstance } from '@/lib/pineconeSyncService';
 import { getPineconeClient, PINECONE_INDEX_NAME } from '@/lib/pinecone';
+import { analysisVectorService } from '@/lib/analysisVectorService';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { TokenTrackingService } from '@/lib/tokenTrackingService';
@@ -252,8 +253,34 @@ export async function POST(
       });
     }
 
+    // Get relevant context using vector search
+    console.log(`🔍 Getting vector search context for ${analysisType} analysis`);
+    let vectorContext = '';
+    try {
+      const vectorSearchContext = await analysisVectorService.getAnalysisContext(
+        id,
+        analysisType,
+        context || '' // Use the context parameter as search query
+      );
+      
+      if (vectorSearchContext.relevantDocuments.length > 0 || vectorSearchContext.relatedAnalyses.length > 0 || vectorSearchContext.projectInfo.length > 0) {
+        vectorContext = analysisVectorService.formatContextForAnalysis(vectorSearchContext, analysisType);
+        console.log(`✅ Retrieved vector context: ${vectorSearchContext.relevantDocuments.length} docs, ${vectorSearchContext.relatedAnalyses.length} analyses, ${vectorSearchContext.projectInfo.length} project info`);
+      } else {
+        console.log('⚠️ No relevant context found via vector search');
+      }
+    } catch (error) {
+      console.error('❌ Failed to get vector search context:', error);
+      // Continue without vector context rather than failing
+    }
+
     // Build comprehensive context from Pinecone data
     let analysisContext = `# Project Analysis Context\n\n`;
+
+    // Add vector search context if available
+    if (vectorContext) {
+      analysisContext += `## Relevant Project Context (Vector Search)\n${vectorContext}\n\n`;
+    }
 
     // Add project overview
     analysisContext += `## Project Overview\n`;

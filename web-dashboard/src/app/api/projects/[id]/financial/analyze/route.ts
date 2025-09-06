@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
+import { analysisVectorService } from '@/lib/analysisVectorService';
+import { getApiConfiguration } from '@/lib/apiConfig';
+import { validateSecureConfig } from '@/lib/secureConfig';
 
 export async function POST(
   request: NextRequest,
@@ -14,11 +17,65 @@ export async function POST(
     const { id: projectId } = await params;
     const { context, answers, step } = await request.json();
 
+    // Get relevant context using vector search
+    console.log(`🔍 Getting vector search context for financial analysis`);
+    let vectorContext = '';
+    try {
+      const context = await analysisVectorService.getAnalysisContext(
+        projectId,
+        'financial',
+        Object.entries(answers).map(([key, value]) => `${key}: ${value}`).join(' ')
+      );
+      
+      if (context.relevantDocuments.length > 0 || context.relatedAnalyses.length > 0 || context.projectInfo.length > 0) {
+        vectorContext = analysisVectorService.formatContextForAnalysis(context, 'financial');
+        console.log(`✅ Retrieved vector context: ${context.relevantDocuments.length} docs, ${context.relatedAnalyses.length} analyses, ${context.projectInfo.length} project info`);
+      } else {
+        console.log('⚠️ No relevant context found via vector search');
+      }
+    } catch (error) {
+      console.error('❌ Failed to get vector search context:', error);
+      // Continue without vector context rather than failing
+    }
+
+    const contextSection = vectorContext ? `\n\n**Relevant Project Context (Vector Search):**\n${vectorContext}` : '';
+
+    // Validate secure configuration
+    const configValidation = validateSecureConfig();
+    if (!configValidation.isValid) {
+      console.error('❌ Secure configuration validation failed:', configValidation.errors);
+      return NextResponse.json(
+        { error: `Configuration error: ${configValidation.errors.join(', ')}` },
+        { status: 500 }
+      );
+    }
+
+    // Get the API configuration
+    let apiConfig;
+    try {
+      apiConfig = await getApiConfiguration();
+      console.log(`🔑 API Source: ${apiConfig.source.toUpperCase()}`);
+      console.log(`🤖 Provider: ${apiConfig.provider}, Model: ${apiConfig.model}`);
+      
+      if (apiConfig.source === 'none') {
+        return NextResponse.json(
+          { error: 'No AI configuration found. Please set GOOGLE_AI_API_KEY environment variable or configure your personal API key in profile settings.' },
+          { status: 400 }
+        );
+      }
+    } catch (error) {
+      console.error('Failed to get API configuration:', error);
+      return NextResponse.json(
+        { error: 'Failed to load API configuration. Please check your settings.' },
+        { status: 500 }
+      );
+    }
+
     // Generate comprehensive financial analysis based on FINRO process
     const analysisPrompt = `Based on the project context and the provided answers, generate a comprehensive financial analysis following the FINRO startup financial modeling process.
 
 **Project Context:**
-${context}
+${context}${contextSection}
 
 **User Answers:**
 ${JSON.stringify(answers, null, 2)}
@@ -39,7 +96,7 @@ Please provide a detailed financial analysis covering all 9 FINRO steps:
 - Market penetration assumptions
 
 ## 3. COST OF REVENUES / COGS
-- Direct cost breakdown per customer
+- Direct cost breakdown per month
 - Cost scaling analysis
 - Variable vs fixed cost structure
 - Cost optimization opportunities
@@ -88,27 +145,56 @@ Please provide a detailed financial analysis covering all 9 FINRO steps:
 
 Please provide specific numbers, calculations, and actionable insights based on the provided information. Include charts, tables, and visual representations where appropriate.`;
 
-    // Call your AI service to generate the analysis
-    const aiResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/ai/analyze`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.INTERNAL_API_KEY || 'internal-key'}`
-      },
-      body: JSON.stringify({
-        prompt: analysisPrompt,
-        analysisType: 'financial',
-        projectId: projectId,
-        userId: userId
-      })
-    });
+    // Call AI service directly
+    let analysisContent = '';
+    try {
+      if (apiConfig.provider === 'google') {
+        // Check if context is too long for Gemini (limit is ~30k characters)
+        const maxContextLength = 25000;
+        let truncatedContext = `${analysisPrompt}\n\n${context}${contextSection}`;
+        if (truncatedContext.length > maxContextLength) {
+          console.warn(`⚠️ Context too long (${truncatedContext.length} chars), truncating to ${maxContextLength} chars`);
+          truncatedContext = truncatedContext.substring(0, maxContextLength) + '\n\n[Content truncated due to length limits]';
+        }
 
-    if (!aiResponse.ok) {
-      throw new Error('AI analysis failed');
+        const requestBody = {
+          contents: [{
+            parts: [{
+              text: truncatedContext
+            }]
+          }],
+          generationConfig: {
+            maxOutputTokens: 8000,
+            temperature: 0.3,
+          }
+        };
+
+        console.log(`🤖 Sending request to Gemini API with ${truncatedContext.length} characters of context`);
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${apiConfig.model}:generateContent?key=${apiConfig.apiKey}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody)
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`❌ Gemini API error ${response.status}:`, errorText);
+          throw new Error(`Gemini API error: ${response.status} - ${errorText}`);
+        }
+
+        const result = await response.json();
+        analysisContent = result.candidates[0].content.parts[0].text;
+        console.log('✅ Gemini API response received, length:', analysisContent.length);
+      } else {
+        throw new Error(`Unsupported AI provider: ${apiConfig.provider}`);
+      }
+    } catch (error) {
+      console.error('❌ AI analysis failed:', error);
+      throw new Error(`AI analysis failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
-
-    const aiData = await aiResponse.json();
-    const analysisContent = aiData.analysis || aiData.content || '';
 
     // Parse the analysis into structured sections
     const sections = parseAnalysisSections(analysisContent);
@@ -210,21 +296,27 @@ function generateDefaultKeyFactors(answers: any) {
 }
 
 function generateDefaultCOGS(answers: any) {
-  const cogsPerCustomer = answers.cogs_per_customer || 0;
+  const cogsPerMonth = answers.cogs_per_month || answers.inferred_cogs_per_month || 0;
   
   return `## Cost of Revenues / COGS
 
-**COGS per Customer per Month:** $${cogsPerCustomer}
+**Monthly COGS:** $${cogsPerMonth}
 
 ### Cost Breakdown
-- **Direct Costs:** ${cogsPerCustomer * 0.6} (60%)
-- **Infrastructure:** ${cogsPerCustomer * 0.3} (30%)
-- **Third-party Services:** ${cogsPerCustomer * 0.1} (10%)
+- **Direct Costs:** $${(cogsPerMonth * 0.6).toFixed(2)} (60%)
+- **Infrastructure:** $${(cogsPerMonth * 0.3).toFixed(2)} (30%)
+- **Third-party Services:** $${(cogsPerMonth * 0.1).toFixed(2)} (10%)
 
 ### Scaling Analysis
-- Costs scale linearly with customer growth
+- Costs scale based on your specified scaling model
 - Opportunities for economies of scale as volume increases
-- Focus on cost optimization through automation and efficiency`;
+- Focus on cost optimization through automation and efficiency
+
+### Market Estimation
+Based on your business model and cost structure, this COGS reflects:
+- Industry-standard cost ratios for your sector
+- Your specific cost components and scaling approach
+- Market benchmarks for similar businesses`;
 }
 
 function generateDefaultOperatingExpenses(answers: any) {

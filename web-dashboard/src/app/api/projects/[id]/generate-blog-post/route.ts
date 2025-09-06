@@ -4,6 +4,7 @@ import { getGoogleAIConfig, validateSecureConfig } from '@/lib/secureConfig';
 import { TokenTrackingService } from '@/lib/tokenTrackingService';
 import { getPineconeClient, PINECONE_INDEX_NAME, PINECONE_NAMESPACE_PROJECTS } from '@/lib/pinecone';
 import { createVectorId } from '@/lib/projectService';
+import { analysisVectorService } from '@/lib/analysisVectorService';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -320,12 +321,35 @@ export async function POST(
       );
     }
 
+    // Get relevant context using vector search
+    console.log(`🔍 Getting vector search context for blog post generation`);
+    let vectorContext = '';
+    try {
+      const context = await analysisVectorService.getAnalysisContext(
+        projectId,
+        'blog',
+        `${description} ${tags.join(' ')} ${resourceNeeded} ${fundingStatus}`
+      );
+      
+      if (context.relevantDocuments.length > 0 || context.relatedAnalyses.length > 0 || context.projectInfo.length > 0) {
+        vectorContext = analysisVectorService.formatContextForAnalysis(context, 'blog');
+        console.log(`✅ Retrieved vector context: ${context.relevantDocuments.length} docs, ${context.relatedAnalyses.length} analyses, ${context.projectInfo.length} project info`);
+      } else {
+        console.log('⚠️ No relevant context found via vector search');
+      }
+    } catch (error) {
+      console.error('❌ Failed to get vector search context:', error);
+      // Continue without vector context rather than failing
+    }
+
     // Prepare context for AI
     const projectContext = `
 ACTUAL PROJECT TO WRITE ABOUT:
 
 PROJECT NAME: ${config.name}
 PROJECT DESCRIPTION: ${config.description || 'No description available'}
+
+${vectorContext ? `RELEVANT PROJECT CONTEXT (VECTOR SEARCH):\n${vectorContext}\n` : ''}
 
 PROJECT REQUIREMENTS:
 ${requirements || 'No requirements document available'}

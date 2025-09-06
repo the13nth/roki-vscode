@@ -3,6 +3,7 @@ import { auth } from '@clerk/nextjs/server';
 import { getPineconeClient, PINECONE_INDEX_NAME } from '@/lib/pinecone';
 import { ApplicationQuestion } from '@/types/applications';
 import { v4 as uuidv4 } from 'uuid';
+import { embeddingService } from '@/lib/embeddingService';
 
 function getPineconeIndex() {
   const pinecone = getPineconeClient();
@@ -153,28 +154,17 @@ export async function POST(
       updatedAt: now
     };
 
-    // Create a vector based on question content
-    let vector = new Array(1024).fill(0);
+    // Generate proper embedding for the question
+    let vector: number[];
     
     try {
-      // Generate embeddings using a simple approach
       const contentForEmbedding = question.trim();
-
-      // Simple hash-based approach for creating distinctive vectors
-      const hash = contentForEmbedding.split('').reduce((acc: number, char: string, i: any) => {
-        return ((acc << 5) - acc + char.charCodeAt(0) + i) >>> 0;
-      }, 0);
-      
-      // Fill vector with a pattern based on content hash
-      for (let i = 0; i < 1024; i++) {
-        const seed = (hash + i * 37);
-        vector[i] = (Math.sin(seed) + Math.cos(seed * 1.3)) * 0.1;
-      }
-      
-      console.log(`🔍 Created semantic vector for question`);
+      console.log(`🔄 Generating embedding for question: "${contentForEmbedding.substring(0, 100)}..."`);
+      vector = await embeddingService.generateEmbeddingWithFallback(contentForEmbedding);
+      console.log(`✅ Generated embedding with ${vector.length} dimensions for question`);
     } catch (error) {
-      console.warn('⚠️ Failed to create enhanced embedding, using default:', error);
-      vector = new Array(1024).fill(0);
+      console.error('❌ Failed to generate question embedding:', error);
+      vector = embeddingService.generateFallbackEmbedding(`question-${Date.now()}`);
     }
 
     // Upsert the question to Pinecone

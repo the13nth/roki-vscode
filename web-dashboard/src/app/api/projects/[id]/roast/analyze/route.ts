@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
+import { analysisVectorService } from '@/lib/analysisVectorService';
 
 export async function POST(
   request: NextRequest,
@@ -18,17 +19,40 @@ export async function POST(
       );
     }
 
-    // Get project context
+    // Get project context using vector search
+    console.log(`🔍 Getting vector search context for roast analysis`);
+    let vectorContext = '';
+    try {
+      const context = await analysisVectorService.getAnalysisContext(
+        projectId,
+        'roast',
+        Object.entries(answers).map(([key, value]) => `${key}: ${value}`).join(' ')
+      );
+      
+      if (context.relevantDocuments.length > 0 || context.relatedAnalyses.length > 0 || context.projectInfo.length > 0) {
+        vectorContext = analysisVectorService.formatContextForAnalysis(context, 'roast');
+        console.log(`✅ Retrieved vector context: ${context.relevantDocuments.length} docs, ${context.relatedAnalyses.length} analyses, ${context.projectInfo.length} project info`);
+      } else {
+        console.log('⚠️ No relevant context found via vector search');
+      }
+    } catch (error) {
+      console.error('❌ Failed to get vector search context:', error);
+      // Continue without vector context rather than failing
+    }
+
+    // Get project context (fallback to existing method)
     const contextResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/api/projects/${projectId}/context/full`);
     const contextData = await contextResponse.json();
     const projectContext = contextData.context || '';
+
+    const contextSection = vectorContext ? `\n\n## RELEVANT PROJECT CONTEXT (VECTOR SEARCH):\n${vectorContext}` : '';
 
     // Create comprehensive roast analysis prompt
     const analysisPrompt = `
 You are a brutally honest business critic and startup advisor. Your job is to provide harsh, critical feedback to help identify real problems and improve this project. NO SUGAR-COATING. Be direct, honest, and sometimes harsh.
 
 ## PROJECT CONTEXT:
-${projectContext}
+${projectContext}${contextSection}
 
 ## EXISTING ANALYSES DATA:
 ${Object.entries(existingAnalyses).map(([key, value]) => `**${key.toUpperCase()}**: ${JSON.stringify(value, null, 2)}`).join('\n\n')}

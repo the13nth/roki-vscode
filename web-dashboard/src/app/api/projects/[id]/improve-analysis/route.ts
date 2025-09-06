@@ -4,6 +4,7 @@ import { PineconeSyncServiceInstance } from '@/lib/pineconeSyncService';
 import { getGoogleAIConfig, validateSecureConfig } from '@/lib/secureConfig';
 import { TokenTrackingService } from '@/lib/tokenTrackingService';
 import { ProjectService } from '@/lib/projectService';
+import { analysisVectorService } from '@/lib/analysisVectorService';
 import { promises as fs } from 'fs';
 import path from 'path';
 
@@ -238,15 +239,38 @@ export async function POST(
 
     const focusAreasText = focusAreas.length > 0 ? `\n\nSPECIFIC FOCUS AREAS:\n${focusAreas.map(area => `- ${area}`).join('\n')}` : '';
 
+    // Get relevant context using vector search
+    console.log(`🔍 Getting vector search context for ${analysisType} analysis improvement`);
+    let vectorContext = '';
+    try {
+      const context = await analysisVectorService.getAnalysisContext(
+        projectId,
+        analysisType,
+        `${improvementDetails} ${focusAreas.join(' ')}`
+      );
+      
+      if (context.relevantDocuments.length > 0 || context.relatedAnalyses.length > 0 || context.projectInfo.length > 0) {
+        vectorContext = analysisVectorService.formatContextForAnalysis(context, analysisType);
+        console.log(`✅ Retrieved vector context: ${context.relevantDocuments.length} docs, ${context.relatedAnalyses.length} analyses, ${context.projectInfo.length} project info`);
+      } else {
+        console.log('⚠️ No relevant context found via vector search');
+      }
+    } catch (error) {
+      console.error('❌ Failed to get vector search context:', error);
+      // Continue without context rather than failing
+    }
+
+    const contextSection = vectorContext ? `\n\nRELEVANT PROJECT CONTEXT:\n${vectorContext}` : '';
+
     // Generate improved analysis using AI
     const prompt = `
-You are an expert business and technical analyst. Improve the following ${analysisType} analysis based on the user's specific requirements.
+You are an expert business and technical analyst. Improve the following ${analysisType} analysis based on the user's specific requirements and relevant project context.
 
 ORIGINAL ${analysisType.toUpperCase()} ANALYSIS:
 ${originalAnalysis}
 
 IMPROVEMENT INSTRUCTIONS:
-${improvementDetails}${focusAreasText}
+${improvementDetails}${focusAreasText}${contextSection}
 
 ANALYSIS TYPE GUIDELINES:
 ${analysisTypeInstructions[analysisType as keyof typeof analysisTypeInstructions] || 'Provide comprehensive analysis relevant to the analysis type.'}

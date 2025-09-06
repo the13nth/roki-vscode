@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
 import { getApiConfiguration } from '@/lib/apiConfig';
 import { validateSecureConfig } from '@/lib/secureConfig';
+import { analysisVectorService } from '@/lib/analysisVectorService';
 
 export async function POST(
   request: NextRequest,
@@ -58,8 +59,29 @@ export async function POST(
 
     console.log('🚀 Calling real Gemini API for workflow analysis...');
     
+    // Get relevant context using vector search
+    console.log(`🔍 Getting vector search context for workflow analysis`);
+    let vectorContext = '';
+    try {
+      const context = await analysisVectorService.getAnalysisContext(
+        projectId,
+        'workflow',
+        `workflow analysis business process ${nodes.map((n: any) => n.data?.label).join(' ')}`
+      );
+      
+      if (context.relevantDocuments.length > 0 || context.relatedAnalyses.length > 0 || context.projectInfo.length > 0) {
+        vectorContext = analysisVectorService.formatContextForAnalysis(context, 'workflow');
+        console.log(`✅ Retrieved vector context: ${context.relevantDocuments.length} docs, ${context.relatedAnalyses.length} analyses, ${context.projectInfo.length} project info`);
+      } else {
+        console.log('⚠️ No relevant context found via vector search');
+      }
+    } catch (error) {
+      console.error('❌ Failed to get vector search context:', error);
+      // Continue without vector context rather than failing
+    }
+    
     // Create business analysis prompt
-    const prompt = createBusinessAnalysisPrompt(nodes, edges);
+    const prompt = createBusinessAnalysisPrompt(nodes, edges, vectorContext);
     console.log('📝 Prompt length:', prompt.length);
     
     // Call Gemini API
@@ -108,13 +130,15 @@ export async function POST(
   }
 }
 
-function createBusinessAnalysisPrompt(nodes: any[], edges: any[]): string {
+function createBusinessAnalysisPrompt(nodes: any[], edges: any[], vectorContext?: string): string {
   const workflowData = formatWorkflowForAnalysis(nodes, edges);
+  
+  const contextSection = vectorContext ? `\n\nRELEVANT PROJECT CONTEXT (VECTOR SEARCH):\n${vectorContext}` : '';
   
   return `You are a business strategy consultant analyzing a startup's implementation workflow. Please provide a comprehensive business analysis focusing on organizational structure, process efficiency, and execution readiness.
 
 WORKFLOW DATA:
-${workflowData}
+${workflowData}${contextSection}
 
 Please analyze this workflow from a business/startup perspective and provide insights on:
 
