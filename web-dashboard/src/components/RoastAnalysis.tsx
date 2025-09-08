@@ -69,7 +69,9 @@ import {
   Skull,
   Bomb,
   Target as TargetIcon,
-  Crosshair
+  Crosshair,
+  Save,
+  Download
 } from 'lucide-react';
 
 interface RoastAnalysisProps {
@@ -159,214 +161,168 @@ const RAP_STEPS = [
 ];
 
 export function RoastAnalysis({ projectId, isOwned = true }: RoastAnalysisProps) {
-  const [currentStep, setCurrentStep] = useState(1);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [questions, setQuestions] = useState<Question[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [roastData, setRoastData] = useState<RoastData | null>(null);
   const [existingAnalyses, setExistingAnalyses] = useState<any>({});
-  const [isLoadingQuestions, setIsLoadingQuestions] = useState(false);
+  const [hasAnalyses, setHasAnalyses] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [savedAnalysis, setSavedAnalysis] = useState<RoastData | null>(null);
+  const [hasSavedAnalysis, setHasSavedAnalysis] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  // Load questions and existing analyses
+  // Load existing analyses and saved analysis
   useEffect(() => {
-    loadQuestions();
     loadExistingAnalyses();
+    loadSavedAnalysis();
   }, [projectId]);
-
-  const loadQuestions = async () => {
-    try {
-      setIsLoadingQuestions(true);
-      const response = await fetch(`/api/projects/${projectId}/roast/questions`);
-      if (response.ok) {
-        const data = await response.json();
-        setQuestions(data.questions || []);
-      }
-    } catch (error) {
-      console.error('Error loading roast questions:', error);
-    } finally {
-      setIsLoadingQuestions(false);
-    }
-  };
 
   const loadExistingAnalyses = async () => {
     try {
       const response = await fetch(`/api/projects/${projectId}/analyses`);
       if (response.ok) {
         const responseData = await response.json();
-        setExistingAnalyses(responseData.analyses || {});
+        const analyses = responseData.analyses || {};
+        setExistingAnalyses(analyses);
+        
+        // Check if we have any analyses to roast
+        const analysisTypes = Object.keys(analyses);
+        setHasAnalyses(analysisTypes.length > 0);
+        
+        if (analysisTypes.length === 0) {
+          setError('No analyses found. Please complete other analyses first before running the critical analysis.');
+        } else {
+          console.log(`✅ Found ${analysisTypes.length} analyses for critical review:`, analysisTypes);
+        }
       }
     } catch (error) {
       console.error('Error loading existing analyses:', error);
+      setError('Failed to load existing analyses');
     }
   };
 
-  const getCurrentStepQuestions = () => {
-    const stepQuestions: Record<number, string[]> = {
-      1: ['business_model_focus'],
-      2: ['market_assumptions'],
-      3: ['technical_complexity'],
-      4: ['financial_projections'],
-      5: ['competitive_landscape'],
-      6: ['execution_plan'],
-      7: ['regulatory_requirements'],
-      8: ['overall_assessment']
-    };
-
-    const currentStepQuestionIds = stepQuestions[currentStep] || [];
-    return questions.filter(q => currentStepQuestionIds.includes(q.id));
-  };
-
-  const handleAnswerChange = (questionId: string, value: string) => {
-    setAnswers(prev => ({
-      ...prev,
-      [questionId]: value
-    }));
-  };
-
-  const canProceedToNext = () => {
-    const currentQuestions = getCurrentStepQuestions();
-    return currentQuestions.every(q => !q.required || answers[q.id]?.trim());
-  };
-
-  const nextStep = () => {
-    if (currentStep < RAP_STEPS.length) {
-      setCurrentStep(currentStep + 1);
-    }
-  };
-
-  const prevStep = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
+  const loadSavedAnalysis = async () => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}/analyses`);
+      if (response.ok) {
+        const responseData = await response.json();
+        const analyses = responseData.analyses || {};
+        
+        // Check if we have a saved roast analysis
+        if (analyses.roast) {
+          setSavedAnalysis(analyses.roast);
+          setHasSavedAnalysis(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading saved analysis:', error);
     }
   };
 
   const generateRoastAnalysis = async () => {
+    if (!hasAnalyses) {
+      setError('No analyses available for critical review. Please complete other analyses first.');
+      return;
+    }
+
     try {
       setIsGenerating(true);
+      setError(null);
       
-      const response = await fetch(`/api/projects/${projectId}/roast/analyze`, {
+      const response = await fetch(`/api/projects/${projectId}/roast/auto-analyze`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          answers,
-          existingAnalyses,
-          step: currentStep
-        }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate roast analysis');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate roast analysis');
       }
 
       const data = await response.json();
       setRoastData(data);
       setShowResults(true);
-    } catch (error) {
+      setSuccessMessage('Critical analysis completed successfully!');
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (error: any) {
       console.error('Error generating roast analysis:', error);
+      setError(error.message || 'Failed to generate roast analysis');
+      setTimeout(() => setError(null), 5000);
     } finally {
       setIsGenerating(false);
     }
   };
 
-  // Helper function to get tooltip content for each question
-  const getTooltipContent = (questionId: string) => {
-    const tooltips: Record<string, string> = {
-      // Step 1: Business Model Critique
-      'business_model_focus': 'Focus on the core business model flaws. What are the fundamental assumptions that could be wrong? What key components are missing or unrealistic?',
-      
-      // Step 2: Market Reality Check
-      'market_assumptions': 'Challenge market assumptions. What evidence supports the market size claims? Are there hidden competitors or market barriers?',
-      
-      // Step 3: Technical Challenges
-      'technical_complexity': 'Identify technical implementation risks. What technologies are being used that could fail? What are the integration challenges?',
-      
-      // Step 4: Financial Viability
-      'financial_projections': 'Critique financial assumptions. Are revenue projections realistic? What costs are being underestimated?',
-      
-      // Step 5: Competitive Threats
-      'competitive_landscape': 'Analyze competitive positioning. Who are the real competitors? What advantages do they have?',
-      
-      // Step 6: Execution Risks
-      'execution_plan': 'Evaluate execution feasibility. Is the team capable? Are timelines realistic? What could go wrong?',
-      
-      // Step 7: Regulatory Hurdles
-      'regulatory_requirements': 'Assess legal and regulatory risks. What compliance issues exist? What policies could change?',
-      
-      // Step 8: Overall Assessment
-      'overall_assessment': 'Provide final brutal assessment. What are the biggest red flags? Is this project likely to succeed?'
-    };
+  const handleSaveAnalysis = async () => {
+    if (!roastData) return;
 
-    return tooltips[questionId] || 'This field helps identify critical flaws and risks in the project.';
-  };
+    try {
+      setIsSaving(true);
+      setError(null);
+      
+      const response = await fetch(`/api/projects/${projectId}/analyses`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          analysisType: 'roast',
+          analysisData: roastData,
+        }),
+      });
 
-  const renderQuestion = (question: Question) => {
-    const value = answers[question.id] || '';
-
-    switch (question.type) {
-      case 'textarea':
-        return (
-          <Textarea
-            value={value}
-            onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-            placeholder={question.placeholder}
-            className="min-h-[120px]"
-          />
-        );
-      case 'select':
-        return (
-          <Select value={value} onValueChange={(val) => handleAnswerChange(question.id, val)}>
-            <SelectTrigger>
-              <SelectValue placeholder={question.placeholder} />
-            </SelectTrigger>
-            <SelectContent>
-              {question.options?.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {option}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        );
-      case 'number':
-        return (
-          <Input
-            type="number"
-            value={value}
-            onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-            placeholder={question.placeholder}
-          />
-        );
-      default:
-        return (
-          <Input
-            value={value}
-            onChange={(e) => handleAnswerChange(question.id, e.target.value)}
-            placeholder={question.placeholder}
-          />
-        );
+      if (response.ok) {
+        setSuccessMessage('Critical analysis saved successfully!');
+        setTimeout(() => setSuccessMessage(null), 3000);
+        loadSavedAnalysis(); // Reload saved analysis
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save analysis');
+      }
+    } catch (error: any) {
+      console.error('Error saving analysis:', error);
+      setError(error.message || 'Failed to save analysis');
+      setTimeout(() => setError(null), 5000);
+    } finally {
+      setIsSaving(false);
     }
   };
+
+  const handleViewSavedAnalysis = () => {
+    if (savedAnalysis) {
+      setRoastData(savedAnalysis);
+      setShowResults(true);
+    }
+  };
+
+  const handleStartNewAnalysis = () => {
+    setRoastData(null);
+    setShowResults(false);
+    setError(null);
+    setSuccessMessage(null);
+  };
+
 
   const renderRoastResults = () => {
     if (!roastData) return null;
 
     return (
       <div className="space-y-6">
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-blue-200 bg-blue-50">
           <CardHeader>
-            <CardTitle className="flex items-center text-red-800">
+            <CardTitle className="flex items-center text-blue-800">
               <Flame className="w-5 h-5 mr-2" />
-              Brutal Reality Check - Roast Analysis Results
+              Professional Critical Analysis Results
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Alert className="border-red-300 bg-red-100 mb-4">
-              <AlertTriangle className="h-4 w-4 text-red-600" />
-              <AlertDescription className="text-red-800">
-                <strong>Warning:</strong> This analysis provides brutally honest feedback. Prepare for some tough love!
+            <Alert className="border-blue-300 bg-blue-100 mb-4">
+              <AlertTriangle className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-800">
+                <strong>Professional Assessment:</strong> This analysis provides honest, constructive feedback to help identify areas for improvement and strategic opportunities.
               </AlertDescription>
             </Alert>
             
@@ -523,10 +479,34 @@ export function RoastAnalysis({ projectId, isOwned = true }: RoastAnalysisProps)
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-red-800">Roast Analysis Results</h2>
-          <Button onClick={() => setShowResults(false)} variant="outline">
-            Back to Analysis
-          </Button>
+          <h2 className="text-2xl font-bold text-blue-800">Critical Analysis Results</h2>
+          <div className="flex space-x-2">
+            <Button 
+              onClick={handleSaveAnalysis} 
+              variant="outline" 
+              size="sm"
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Analysis
+                </>
+              )}
+            </Button>
+            <Button onClick={handleStartNewAnalysis} variant="outline" size="sm">
+              <Brain className="w-4 h-4 mr-2" />
+              Start New Analysis
+            </Button>
+            <Button onClick={() => setShowResults(false)} variant="outline">
+              Back to Analysis
+            </Button>
+          </div>
         </div>
         {renderRoastResults()}
       </div>
@@ -535,116 +515,142 @@ export function RoastAnalysis({ projectId, isOwned = true }: RoastAnalysisProps)
 
   return (
     <div className="space-y-6">
-      {/* Warning Notice */}
-      <Alert className="border-red-300 bg-red-100">
-        <Flame className="h-4 w-4 text-red-600" />
-        <AlertDescription className="text-red-800">
-          <strong>Brutal Honesty Mode:</strong> This analysis will provide harsh, critical feedback to help you identify real problems and improve your project. No sugar-coating!
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold flex items-center">
+          <Flame className="w-6 h-6 mr-2 text-red-600" />
+          Critical Analysis - Professional Assessment
+        </h2>
+        <div className="flex items-center space-x-2">
+          {hasSavedAnalysis && (
+            <Button onClick={handleViewSavedAnalysis} variant="outline" size="sm">
+              <Eye className="w-4 h-4 mr-2" />
+              View Saved Analysis
+            </Button>
+          )}
+          {isGenerating && (
+            <Badge variant="secondary" className="flex items-center">
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Generating Roast...
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      {/* Error and Success Messages */}
+      {error && (
+        <Alert className="border-red-200 bg-red-50">
+          <AlertTriangle className="h-4 w-4 text-red-600" />
+          <AlertDescription className="text-red-800">{error}</AlertDescription>
+        </Alert>
+      )}
+      {successMessage && (
+        <Alert className="border-green-200 bg-green-50">
+          <CheckCircle className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-800">{successMessage}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Saved Analysis Alert */}
+      {hasSavedAnalysis && savedAnalysis && (
+        <Alert className="border-blue-200 bg-blue-50">
+          <CheckCircle className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-800">
+            <strong>Saved Critical Analysis Available!</strong> You have a previously saved critical analysis from{' '}
+            {new Date(savedAnalysis.timestamp).toLocaleDateString()}. Click "View Saved Analysis" to review it.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Professional Notice */}
+      <Alert className="border-blue-300 bg-blue-100">
+        <Flame className="h-4 w-4 text-blue-600" />
+        <AlertDescription className="text-blue-800">
+          <strong>Professional Critical Analysis:</strong> This analysis will automatically examine all your project analyses and provide honest, constructive feedback to help you identify potential issues and opportunities for improvement.
         </AlertDescription>
       </Alert>
 
-      {/* Progress Indicator */}
+      {/* Available Analyses */}
       <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center">
-              <h3 className="font-semibold">Progress</h3>
-              <Tooltip content="Roast Analysis Process (RAP) - A systematic 8-step approach to brutally honest project critique. Each step focuses on a different aspect of potential failure to identify real problems and risks.">
-                <HelpCircle className="w-4 h-4 ml-2 text-gray-400 hover:text-gray-600 cursor-help" />
-              </Tooltip>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <FileText className="w-5 h-5 mr-2" />
+            Available Analyses for Critical Review
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {hasAnalyses ? (
+            <div className="space-y-2">
+              <p className="text-sm text-gray-600 mb-3">
+                The critical analysis will examine the following completed analyses:
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {Object.keys(existingAnalyses).map((analysisType) => (
+                  <div key={analysisType} className="flex items-center space-x-2 p-2 bg-gray-50 rounded">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    <span className="text-sm font-medium capitalize">
+                      {analysisType.replace(/([A-Z])/g, ' $1').trim()}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <span className="text-sm text-gray-600">
-              Step {currentStep} of {RAP_STEPS.length}
-            </span>
-          </div>
-          <div className="flex space-x-2">
+          ) : (
+            <div className="text-center py-6">
+              <AlertTriangle className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
+              <p className="text-sm text-gray-600">
+                No analyses found. Please complete other analyses first before running the critical analysis.
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Roast Process Overview */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Target className="w-5 h-5 mr-2" />
+            Critical Analysis Process (CAP)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {RAP_STEPS.map((step) => (
-              <Tooltip key={step.id} content={`${step.title}: ${step.description}`}>
-                <div
-                  className={`flex-1 h-2 rounded-full cursor-help ${
-                    step.id <= currentStep 
-                      ? 'bg-red-600' 
-                      : 'bg-gray-200'
-                  }`}
-                />
-              </Tooltip>
+              <div key={step.id} className="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+                <div className="bg-red-100 text-red-800 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                  {step.id}
+                </div>
+                <div>
+                  <h4 className="font-medium text-sm">{step.title}</h4>
+                  <p className="text-xs text-gray-600 mt-1">{step.description}</p>
+                </div>
+              </div>
             ))}
           </div>
         </CardContent>
       </Card>
 
-      {/* Current Step */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <span className="bg-red-100 text-red-800 rounded-full w-8 h-8 flex items-center justify-center text-sm font-bold mr-3">
-              {currentStep}
-            </span>
-            <span className="flex-1">{RAP_STEPS[currentStep - 1]?.title}</span>
-            <Tooltip content={`${RAP_STEPS[currentStep - 1]?.title}: ${RAP_STEPS[currentStep - 1]?.description}. This step helps identify critical flaws and risks in this specific area.`}>
-              <HelpCircle className="w-4 h-4 ml-2 text-gray-400 hover:text-gray-600 cursor-help" />
-            </Tooltip>
-          </CardTitle>
-          <p className="text-sm text-gray-600">
-            {RAP_STEPS[currentStep - 1]?.description}
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {getCurrentStepQuestions().map((question) => (
-            <div key={question.id} className="space-y-2">
-              <Label className="flex items-center">
-                <span className="flex-1">{question.question}</span>
-                {question.required && <span className="text-red-500 ml-1">*</span>}
-                <Tooltip content={getTooltipContent(question.id)}>
-                  <HelpCircle className="w-4 h-4 ml-2 text-gray-400 hover:text-gray-600 cursor-help" />
-                </Tooltip>
-              </Label>
-              {renderQuestion(question)}
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* Navigation */}
-      <div className="flex items-center justify-between">
+      {/* Generate Roast Button */}
+      <div className="flex justify-center">
         <Button
-          onClick={prevStep}
-          disabled={currentStep === 1}
+          onClick={generateRoastAnalysis}
+          disabled={!hasAnalyses || isGenerating}
           variant="outline"
+          size="lg"
+          className="border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-50"
         >
-          Previous
-        </Button>
-        
-        <div className="flex items-center space-x-2">
-          {currentStep === RAP_STEPS.length ? (
-            <Button
-              onClick={generateRoastAnalysis}
-              disabled={!canProceedToNext() || isGenerating}
-              variant="outline"
-              className="border-red-300 text-red-700 hover:bg-red-50"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Generating Brutal Analysis...
-                </>
-              ) : (
-                <>
-                  <Flame className="w-4 h-4 mr-2" />
-                  Roast My Project
-                </>
-              )}
-            </Button>
+          {isGenerating ? (
+            <>
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              Generating Critical Analysis...
+            </>
           ) : (
-            <Button
-              onClick={nextStep}
-              disabled={!canProceedToNext()}
-              variant="outline"
-            >
-              Next Step
-            </Button>
+            <>
+              <Flame className="w-5 h-5 mr-2" />
+              Analyze My Project
+            </>
           )}
-        </div>
+        </Button>
       </div>
     </div>
   );

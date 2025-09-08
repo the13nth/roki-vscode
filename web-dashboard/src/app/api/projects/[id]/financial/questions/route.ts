@@ -6,7 +6,7 @@ interface Question {
   step: number;
   category: string;
   question: string;
-  type: 'text' | 'number' | 'select' | 'textarea';
+  type: 'text' | 'number' | 'select' | 'multiselect' | 'textarea';
   options?: string[];
   required: boolean;
   placeholder?: string;
@@ -32,11 +32,11 @@ export async function POST(
         id: 'revenue_model',
         step: 1,
         category: 'Revenue',
-        question: 'What is your primary revenue model?',
-        type: 'select',
+        question: 'What are your revenue models? (Select all that apply)',
+        type: 'multiselect',
         options: ['Subscription/SaaS', 'One-time Purchase', 'Freemium', 'Marketplace Commission', 'Advertising', 'Licensing', 'Other'],
         required: true,
-        placeholder: 'Select revenue model'
+        placeholder: 'Select revenue models'
       },
       {
         id: 'target_customers',

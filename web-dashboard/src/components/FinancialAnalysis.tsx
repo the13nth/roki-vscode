@@ -81,7 +81,7 @@ interface Question {
   step: number;
   category: string;
   question: string;
-  type: 'text' | 'number' | 'select' | 'textarea';
+  type: 'text' | 'number' | 'select' | 'multiselect' | 'textarea';
   options?: string[];
   required: boolean;
   placeholder?: string;
@@ -115,11 +115,14 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
   const [improveDetails, setImproveDetails] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [savedAnalysis, setSavedAnalysis] = useState<FinancialData | null>(null);
+  const [hasSavedAnalysis, setHasSavedAnalysis] = useState(false);
 
   // Load existing context and generate questions
   useEffect(() => {
     loadContextAndGenerateQuestions();
     loadBMCData();
+    loadSavedAnalysis();
   }, [projectId]);
 
   const loadContextAndGenerateQuestions = async () => {
@@ -509,6 +512,34 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
     return 0;
   };
 
+  const loadSavedAnalysis = async () => {
+    try {
+      console.log('🔄 Loading saved financial analysis...');
+      const response = await fetch(`/api/projects/${projectId}/analyses`);
+      if (response.ok) {
+        const responseData = await response.json();
+        console.log('📊 Saved analyses response:', responseData);
+        
+        const analyses = responseData.analyses || {};
+        
+        if (analyses.financial) {
+          console.log('✅ Found saved financial analysis:', analyses.financial);
+          setSavedAnalysis(analyses.financial);
+          setHasSavedAnalysis(true);
+        } else {
+          console.log('⚠️ No saved financial analysis found');
+          setHasSavedAnalysis(false);
+        }
+      } else {
+        console.error('❌ Failed to load saved analyses:', response.status);
+        setHasSavedAnalysis(false);
+      }
+    } catch (error) {
+      console.error('❌ Error loading saved analysis:', error);
+      setHasSavedAnalysis(false);
+    }
+  };
+
   const loadBMCData = async () => {
     try {
       console.log('🔄 Loading BMC data for financial analysis...');
@@ -536,12 +567,45 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
           
           // Revenue streams from BMC - use for both revenue model and pricing strategy
           if (bmc.revenueStreams) {
-            prePopulatedAnswers.revenue_model = bmc.revenueStreams;
-            console.log('✅ Mapped revenue streams:', bmc.revenueStreams);
+            // Convert revenue streams to array format for multiselect
+            const revenueStreamsText = bmc.revenueStreams;
+            const revenueModels: string[] = [];
+            
+            // Map common revenue model keywords to our predefined options
+            const modelMappings = {
+              'subscription': 'Subscription/SaaS',
+              'saas': 'Subscription/SaaS',
+              'recurring': 'Subscription/SaaS',
+              'one-time': 'One-time Purchase',
+              'purchase': 'One-time Purchase',
+              'freemium': 'Freemium',
+              'commission': 'Marketplace Commission',
+              'marketplace': 'Marketplace Commission',
+              'advertising': 'Advertising',
+              'ads': 'Advertising',
+              'licensing': 'Licensing',
+              'license': 'Licensing'
+            };
+            
+            // Check for matches in the revenue streams text
+            Object.entries(modelMappings).forEach(([keyword, model]) => {
+              if (revenueStreamsText.toLowerCase().includes(keyword)) {
+                if (!revenueModels.includes(model)) {
+                  revenueModels.push(model);
+                }
+              }
+            });
+            
+            // If no matches found, use the text as-is or default to "Other"
+            if (revenueModels.length === 0) {
+              revenueModels.push('Other');
+            }
+            
+            prePopulatedAnswers.revenue_model = revenueModels;
+            console.log('✅ Mapped revenue streams to models:', revenueModels);
             
             // Use revenue streams for pricing strategy
             // Parse revenue streams to extract pricing information
-            const revenueStreamsText = bmc.revenueStreams;
             let pricingInfo = '';
             
             // Create structured pricing strategy based on customer segments and revenue streams
@@ -745,7 +809,7 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
   const getTooltipContent = (questionId: string) => {
     const tooltips: Record<string, string> = {
       // Step 1: Revenue Projections
-      'revenue_model': 'Your primary way of generating income. Common models include subscription (SaaS), one-time purchase, freemium, marketplace commission, advertising, licensing, or other models.',
+      'revenue_model': 'Your ways of generating income. You can select multiple revenue models if your business uses different approaches. Common models include subscription (SaaS), one-time purchase, freemium, marketplace commission, advertising, licensing, or other models.',
       'target_customers': 'Specific groups of people or organizations who will use your product/service. Be detailed about demographics, needs, and characteristics.',
       'pricing_strategy': 'How you plan to price your product/service for different customer segments. Include pricing tiers, expected price points, and value-based pricing rationale.',
       'revenue_timeline': 'When you expect to start generating actual revenue from customers. This helps plan cash flow and funding needs.',
@@ -851,6 +915,46 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
               </SelectItem>
             </SelectContent>
           </Select>
+        );
+      case 'multiselect':
+        const selectedValues = Array.isArray(value) ? value : [];
+        return (
+          <div className="space-y-2">
+            <div className="grid grid-cols-1 gap-2">
+              {question.options?.map((option) => (
+                <label key={option} className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedValues.includes(option)}
+                    onChange={(e) => {
+                      const newValues = e.target.checked
+                        ? [...selectedValues, option]
+                        : selectedValues.filter(v => v !== option);
+                      handleAnswerChange(question.id, newValues);
+                    }}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm">{option}</span>
+                </label>
+              ))}
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => handleAnswerChange(question.id, ["I don't know yet"])}
+              className="text-gray-500"
+            >
+              I don't know yet
+            </Button>
+            {selectedValues.length > 0 && (
+              <div className="mt-2 p-2 bg-blue-50 rounded-md">
+                <p className="text-sm text-blue-800">
+                  <strong>Selected:</strong> {selectedValues.join(', ')}
+                </p>
+              </div>
+            )}
+          </div>
         );
       default:
         return (
@@ -1031,6 +1135,9 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
 
       setSuccessMessage('Financial analysis saved successfully!');
       setTimeout(() => setSuccessMessage(null), 3000);
+      
+      // Reload saved analysis to update the state
+      await loadSavedAnalysis();
 
     } catch (error: any) {
       console.error('Save analysis error:', error);
@@ -1038,6 +1145,13 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
       setTimeout(() => setError(null), 5000);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleViewSavedAnalysis = () => {
+    if (savedAnalysis) {
+      setFinancialData(savedAnalysis);
+      setShowResults(true);
     }
   };
 
@@ -1193,6 +1307,21 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
             >
               Back to Questions
             </Button>
+            
+            {/* Start New Analysis Button */}
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowResults(false);
+                setFinancialData(null);
+                setAnswers({});
+                setCurrentStep(1);
+              }}
+              className="flex items-center"
+            >
+              <Brain className="w-4 h-4 mr-2" />
+              Start New Analysis
+            </Button>
           </div>
         </div>
         {renderFinancialResults()}
@@ -1207,12 +1336,25 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
           <Calculator className="w-6 h-6 mr-2" />
           Financial Analysis - FINRO Process
         </h2>
-        {isGeneratingQuestions && (
-          <Badge variant="secondary" className="flex items-center">
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            Generating Questions...
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {hasSavedAnalysis && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleViewSavedAnalysis}
+              className="flex items-center"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              View Saved Analysis
+            </Button>
+          )}
+          {isGeneratingQuestions && (
+            <Badge variant="secondary" className="flex items-center">
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Generating Questions...
+            </Badge>
+          )}
+        </div>
       </div>
 
       {/* BMC Integration Notice */}
@@ -1261,6 +1403,31 @@ export function FinancialAnalysis({ projectId, isOwned = true }: FinancialAnalys
           )}
         </AlertDescription>
       </Alert>
+
+      {/* Saved Analysis Notice */}
+      {hasSavedAnalysis && (
+        <Alert className="border-blue-200 bg-blue-50">
+          <FileText className="h-4 w-4" />
+          <AlertDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center mb-2">
+                  <CheckCircle className="w-4 h-4 text-blue-600 mr-2" />
+                  <strong className="text-blue-800">Saved Financial Analysis Available!</strong>
+                </div>
+                <p className="text-blue-700">
+                  You have a previously saved financial analysis. Click "View Saved Analysis" above to review it, or continue with a new analysis below.
+                  {savedAnalysis?.timestamp && (
+                    <span className="block text-sm text-blue-600 mt-1">
+                      Last saved: {new Date(savedAnalysis.timestamp).toLocaleDateString()} at {new Date(savedAnalysis.timestamp).toLocaleTimeString()}
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Progress Indicator */}
       <Card>
