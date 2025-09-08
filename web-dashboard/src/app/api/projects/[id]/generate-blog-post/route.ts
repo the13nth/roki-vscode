@@ -30,11 +30,65 @@ function getGlobalConfigPath(): string {
   return path.join(process.cwd(), '.ai-project', 'global-api-config.json');
 }
 
+// Helper function to get preset-specific instructions
+function getPresetInstructions(preset: string): string {
+  switch (preset) {
+    case 'linkedin':
+      return `
+LINKEDIN BLOG POST REQUIREMENTS:
+- Professional tone suitable for LinkedIn's business audience
+- Focus on technical achievements, challenges overcome, and lessons learned
+- Include specific metrics, technologies used, and business impact
+- Use industry-relevant keywords and hashtags
+- Structure: Hook → Challenge → Solution → Results → Lessons → Call-to-action
+- Length: 800-1200 words
+- Include professional insights and career growth aspects
+- Make it shareable and engaging for professional networks`;
+
+    case 'launch':
+      return `
+LAUNCH POST REQUIREMENTS:
+- Exciting and celebratory tone for product/service launch
+- Focus on key features, benefits, and unique value proposition
+- Include clear problem-solution narrative
+- Add compelling call-to-action for early users/testers
+- Structure: Announcement → Problem → Solution → Features → Benefits → CTA
+- Length: 600-1000 words
+- Include launch metrics, early user feedback, or beta results
+- Make it viral-worthy and shareable`;
+
+    case 'investors':
+      return `
+INVESTORS NEWSLETTER REQUIREMENTS:
+- Professional, data-driven tone for investor audience
+- Focus on business metrics, market opportunities, and growth potential
+- Include financial projections, milestones achieved, and future roadmap
+- Structure: Executive Summary → Progress → Metrics → Market → Roadmap → Ask
+- Length: 1000-1500 words
+- Include specific numbers, percentages, and business KPIs
+- Address investor concerns and highlight competitive advantages
+- Professional formatting with clear sections and bullet points`;
+
+    case 'custom':
+    default:
+      return `
+CUSTOM BLOG POST REQUIREMENTS:
+- Adapt tone and structure based on the user's specific description
+- Focus on the topics and angles specified by the user
+- Maintain professional quality while being flexible in approach
+- Structure: Follow user's guidance or use standard blog structure
+- Length: 800-1500 words
+- Include relevant details from project analysis
+- Ensure content is engaging and informative`;
+  }
+}
+
 interface BlogPostGenerationRequest {
   description: string;
   fundingStatus?: 'fully funded' | 'funding needed' | 'N/A';
   resourceNeeded?: 'cofounder needed' | 'dev needed' | 'business manager needed' | 'N/A';
   tags?: string[];
+  preset?: 'linkedin' | 'launch' | 'investors' | 'custom';
   analysisData?: Record<string, any>; // Pre-loaded analyses from frontend
 }
 
@@ -72,11 +126,13 @@ export async function POST(
       fundingStatus = 'N/A',
       resourceNeeded = 'N/A',
       tags = [],
+      preset = 'custom',
       analysisData: preloadedAnalyses = null
     } = body;
 
     console.log(`📝 Generating blog post for project ${projectId}`);
     console.log(`🎯 Description: ${description.substring(0, 100)}...`);
+    console.log(`📊 Preset: ${preset}`);
     console.log(`📊 Preloaded analyses: ${preloadedAnalyses ? Object.keys(preloadedAnalyses).length : 0}`);
 
     // Load project data from Pinecone
@@ -321,6 +377,76 @@ export async function POST(
       );
     }
 
+    // Process analyses sequentially to ensure equal consideration
+    console.log(`🔄 Processing analyses sequentially for blog generation...`);
+    let sequentialAnalysisContext = '';
+    
+    if (Object.keys(analysisResults).length > 0) {
+      const analysisTypes = Object.keys(analysisResults);
+      console.log(`📊 Found ${analysisTypes.length} analyses to process: ${analysisTypes.join(', ')}`);
+      
+      for (const analysisType of analysisTypes) {
+        const analysis = analysisResults[analysisType];
+        console.log(`🔍 Processing ${analysisType} analysis...`);
+        
+        try {
+          // Get vector context for this specific analysis type
+          const analysisContext = await analysisVectorService.getAnalysisContext(
+            projectId,
+            analysisType,
+            `${description} ${preset} blog post`
+          );
+          
+          let analysisSummary = '';
+          if (analysis && typeof analysis === 'object') {
+            // Extract meaningful content from the analysis
+            if (analysis.summary) {
+              analysisSummary = analysis.summary;
+            } else if (analysis.content) {
+              analysisSummary = analysis.content;
+            } else if (typeof analysis === 'string') {
+              analysisSummary = analysis;
+            } else {
+              // For complex objects, try to extract key insights
+              const keys = Object.keys(analysis);
+              if (keys.length > 0) {
+                const firstKey = keys[0];
+                const firstValue = analysis[firstKey];
+                if (typeof firstValue === 'string') {
+                  analysisSummary = firstValue;
+                } else {
+                  analysisSummary = `${analysisType} analysis with ${keys.length} sections`;
+                }
+              }
+            }
+          }
+          
+          // Add this analysis to the sequential context
+          sequentialAnalysisContext += `
+${analysisType.toUpperCase()} ANALYSIS INSIGHTS:
+${analysisSummary}
+
+${analysisContext.relevantDocuments.length > 0 ? `RELEVANT CONTEXT FOR ${analysisType.toUpperCase()}:` : ''}
+${analysisContext.relevantDocuments.map(doc => `- ${doc.content.substring(0, 200)}...`).join('\n')}
+
+`;
+          
+          console.log(`✅ Processed ${analysisType} analysis (${analysisSummary.length} chars, ${analysisContext.relevantDocuments.length} relevant docs)`);
+          
+          // Add delay to avoid overwhelming the vector search
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+        } catch (error) {
+          console.warn(`⚠️ Failed to process ${analysisType} analysis:`, error);
+          // Continue with other analyses
+        }
+      }
+      
+      console.log(`✅ Sequential analysis processing complete. Total context length: ${sequentialAnalysisContext.length} characters`);
+    } else {
+      console.log('⚠️ No analyses available for sequential processing');
+    }
+
     // Get relevant context using vector search
     console.log(`🔍 Getting vector search context for blog post generation`);
     let vectorContext = '';
@@ -363,11 +489,7 @@ ${tasks || 'No tasks document available'}
 PROJECT PROGRESS:
 ${progress ? JSON.stringify(progress, null, 2) : 'No progress data available'}
 
-PROJECT ANALYSIS RESULTS:
-${Object.entries(analysisResults).map(([type, analysis]) => `
-${type.toUpperCase()} ANALYSIS FOR THIS PROJECT:
-${JSON.stringify(analysis, null, 2)}
-`).join('\n')}
+${sequentialAnalysisContext ? `SEQUENTIAL ANALYSIS INSIGHTS (PROCESSED FOR EQUAL CONSIDERATION):\n${sequentialAnalysisContext}\n` : ''}
 
 PROJECT FUNDING STATUS: ${fundingStatus}
 PROJECT RESOURCE NEEDED: ${resourceNeeded}
@@ -385,12 +507,17 @@ ${projectContext}
 USER REQUEST:
 ${description}
 
+BLOG POST PRESET: ${preset.toUpperCase()}
+${getPresetInstructions(preset)}
+
 CRITICAL REQUIREMENTS:
 1. Write ONLY about the project described in the PROJECT CONTEXT above
 2. Use the actual project name, description, and details from the context
 3. Reference specific technical details, requirements, and analysis results provided
 4. Do NOT create fictional or generic project content
 5. Base your content entirely on the provided project information
+6. Follow the preset-specific requirements above for tone, structure, and focus
+7. Ensure all analyses are considered equally in your content
 
 Create a blog post that includes:
 
@@ -399,7 +526,7 @@ Create a blog post that includes:
 3. Detailed content that covers:
    - What THIS SPECIFIC PROJECT is about (use the actual project name and description)
    - The technical challenges and solutions for THIS PROJECT
-   - Key insights from the analysis results provided
+   - Key insights from ALL analysis results provided (ensure equal consideration)
    - Lessons learned from THIS PROJECT
    - Future plans or next steps for THIS PROJECT
 4. A conclusion that wraps up the main points about THIS PROJECT
@@ -407,11 +534,10 @@ Create a blog post that includes:
 
 The blog post should be:
 - Well-structured with clear sections
-- Technical but accessible to a general developer audience
+- Follow the preset-specific tone and structure requirements
 - Engaging and informative
-- 800-1500 words in length
-- Professional in tone
 - Include specific details from the project context provided
+- Consider all analyses equally in the content
 
 If the funding status is not "N/A", mention it appropriately in the content.
 If resource needs are specified, include them in a relevant section.
@@ -420,6 +546,7 @@ IMPORTANT:
 - Write about the ACTUAL PROJECT described in the context
 - Use the REAL project name and details
 - Reference the SPECIFIC analysis results provided
+- Follow the preset requirements for tone and structure
 - Return ONLY valid JSON in the following format:
 
 {

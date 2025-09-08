@@ -68,18 +68,49 @@ export default function CreateBlogPostPage() {
     tagInput: '',
     fundingStatus: 'N/A' as 'fully funded' | 'funding needed' | 'N/A',
     resourceNeeded: 'N/A' as 'cofounder needed' | 'dev needed' | 'business manager needed' | 'N/A',
-    description: ''
+    description: '',
+    preset: 'custom' as 'linkedin' | 'launch' | 'investors' | 'custom'
   });
 
   // User projects and analysis data
   const [userProjects, setUserProjects] = useState<UserProject[]>([]);
-  const [analysisData, setAnalysisData] = useState<Record<string, AnalysisResult>>({});
+  const [analysisData, setAnalysisData] = useState<Record<string, any>>({});
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
+  const [hasAnalyses, setHasAnalyses] = useState(false);
 
   // Generated content
   const [generatedPost, setGeneratedPost] = useState<BlogPostResult | null>(null);
   const [improvedContent, setImprovedContent] = useState<string>('');
   const [improveDetails, setImproveDetails] = useState<string>('');
+
+  // Helper functions for presets
+  const getPresetDescription = (preset: string): string => {
+    switch (preset) {
+      case 'linkedin':
+        return 'Write a professional LinkedIn blog post that showcases the project\'s technical achievements, challenges overcome, and lessons learned. Focus on professional growth, technical insights, and industry impact.';
+      case 'launch':
+        return 'Create an exciting launch announcement post that introduces the project to the world. Highlight key features, the problem it solves, and what makes it unique. Include a call-to-action for early users.';
+      case 'investors':
+        return 'Write a comprehensive investors newsletter that covers project progress, key milestones achieved, market opportunities, financial projections, and future roadmap. Focus on business value and growth potential.';
+      case 'custom':
+      default:
+        return '';
+    }
+  };
+
+  const getPresetPlaceholder = (preset: string): string => {
+    switch (preset) {
+      case 'linkedin':
+        return 'Describe the technical challenges, solutions, or insights you want to highlight for your professional network...';
+      case 'launch':
+        return 'Describe the key features, benefits, or unique aspects you want to emphasize in your launch announcement...';
+      case 'investors':
+        return 'Describe the business metrics, market opportunities, or strategic insights you want to communicate to investors...';
+      case 'custom':
+      default:
+        return 'Describe the topic, focus, or angle you want for your blog post...';
+    }
+  };
 
   useEffect(() => {
     if (isSignedIn) {
@@ -103,16 +134,29 @@ export default function CreateBlogPostPage() {
   const loadProjectAnalysis = async (projectId: string) => {
     try {
       setIsLoadingAnalysis(true);
+      setError(null);
       const response = await fetch(`/api/projects/${projectId}/analyses`);
       
       if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.analyses) {
-          setAnalysisData(data.analyses);
+        const responseData = await response.json();
+        const analyses = responseData.analyses || {};
+        setAnalysisData(analyses);
+        
+        // Check if we have any analyses
+        const analysisTypes = Object.keys(analyses);
+        setHasAnalyses(analysisTypes.length > 0);
+        
+        if (analysisTypes.length === 0) {
+          setError('No analyses found. Please complete other analyses first before generating a blog post.');
+        } else {
+          console.log(`✅ Found ${analysisTypes.length} analyses for blog generation:`, analysisTypes);
         }
+      } else {
+        setError('Failed to load project analyses');
       }
     } catch (error) {
       console.error('Failed to load analysis data:', error);
+      setError('Failed to load project analyses');
     } finally {
       setIsLoadingAnalysis(false);
     }
@@ -124,6 +168,7 @@ export default function CreateBlogPostPage() {
       loadProjectAnalysis(projectId);
     } else {
       setAnalysisData({});
+      setHasAnalyses(false);
     }
   };
 
@@ -139,7 +184,7 @@ export default function CreateBlogPostPage() {
     }
 
     // Check if we have analysis data for the selected project
-    if (Object.keys(analysisData).length === 0) {
+    if (!hasAnalyses || Object.keys(analysisData).length === 0) {
       setError('No project analysis data available. Please ensure the project has been analyzed or try selecting a different project.');
       return;
     }
@@ -162,6 +207,7 @@ export default function CreateBlogPostPage() {
           fundingStatus: formData.fundingStatus,
           resourceNeeded: formData.resourceNeeded,
           tags: formData.tags,
+          preset: formData.preset,
           analysisData: analysisData // Pass the already-loaded analyses
         }),
         signal: controller.signal
@@ -392,12 +438,41 @@ export default function CreateBlogPostPage() {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {Object.keys(analysisData).length > 0 ? (
-                      Object.entries(analysisData).map(([type, analysis]) => (
-                        <div key={type} className="text-sm">
-                          <span className="font-medium capitalize">{type}:</span> {analysis && analysis.summary ? analysis.summary.substring(0, 100) : 'No summary available'}...
-                        </div>
-                      ))
+                    {hasAnalyses && Object.keys(analysisData).length > 0 ? (
+                      Object.entries(analysisData).map(([type, analysis]) => {
+                        // Get summary or first part of content for display
+                        let summary = '';
+                        if (analysis && typeof analysis === 'object') {
+                          if (analysis.summary) {
+                            summary = analysis.summary;
+                          } else if (analysis.content) {
+                            summary = analysis.content;
+                          } else if (typeof analysis === 'string') {
+                            summary = analysis;
+                          } else {
+                            // For complex objects like roast analysis, try to get a meaningful summary
+                            const keys = Object.keys(analysis);
+                            if (keys.length > 0) {
+                              const firstKey = keys[0];
+                              const firstValue = analysis[firstKey];
+                              if (typeof firstValue === 'string') {
+                                summary = firstValue;
+                              } else {
+                                summary = `${type} analysis with ${keys.length} sections`;
+                              }
+                            }
+                          }
+                        }
+                        
+                        return (
+                          <div key={type} className="text-sm border-l-2 border-blue-200 pl-3">
+                            <span className="font-medium capitalize text-blue-700">{type}:</span> 
+                            <span className="ml-2 text-gray-700">
+                              {summary ? summary.substring(0, 120) + (summary.length > 120 ? '...' : '') : 'No summary available'}
+                            </span>
+                          </div>
+                        );
+                      })
                     ) : (
                       <div className="text-sm text-muted-foreground">
                         No analysis data available for this project
@@ -408,6 +483,29 @@ export default function CreateBlogPostPage() {
               </div>
             )}
 
+            {/* Blog Preset Selection */}
+            <div>
+              <Label htmlFor="preset">Blog Post Type</Label>
+              <select
+                id="preset"
+                value={formData.preset}
+                onChange={(e) => {
+                  const preset = e.target.value as 'linkedin' | 'launch' | 'investors' | 'custom';
+                  setFormData(prev => ({ 
+                    ...prev, 
+                    preset,
+                    description: getPresetDescription(preset)
+                  }));
+                }}
+                className="w-full px-3 py-2 border border-input rounded-md bg-background text-sm mt-1"
+              >
+                <option value="linkedin">LinkedIn Blog Post</option>
+                <option value="launch">Launch Post</option>
+                <option value="investors">Investors Newsletter</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+
             {/* Description Input */}
             <div>
               <Label htmlFor="description">What do you want to write about?</Label>
@@ -415,7 +513,7 @@ export default function CreateBlogPostPage() {
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                placeholder="Describe the topic, focus, or angle you want for your blog post..."
+                placeholder={getPresetPlaceholder(formData.preset)}
                 rows={4}
                 className="mt-1"
               />
@@ -424,7 +522,7 @@ export default function CreateBlogPostPage() {
             {/* Generate Button */}
             <Button 
               onClick={handleGeneratePost} 
-              disabled={isGenerating || !formData.projectId || !formData.description.trim() || Object.keys(analysisData).length === 0}
+              disabled={isGenerating || !formData.projectId || !formData.description.trim() || !hasAnalyses}
               className="w-full"
             >
               {isGenerating ? (
@@ -432,7 +530,7 @@ export default function CreateBlogPostPage() {
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Generating Blog Post...
                 </>
-              ) : Object.keys(analysisData).length === 0 ? (
+              ) : !hasAnalyses ? (
                 <>
                   <AlertCircle className="h-4 w-4 mr-2" />
                   No Project Data Available
@@ -445,7 +543,7 @@ export default function CreateBlogPostPage() {
               )}
             </Button>
             
-            {Object.keys(analysisData).length === 0 && formData.projectId && (
+            {!hasAnalyses && formData.projectId && !isLoadingAnalysis && (
               <div className="text-sm text-amber-600 bg-amber-50 p-3 rounded-md">
                 <AlertCircle className="h-4 w-4 inline mr-2" />
                 No analysis data found for this project. Please ensure the project has been analyzed or try selecting a different project.
