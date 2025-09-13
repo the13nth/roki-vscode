@@ -84,6 +84,9 @@ roki/
 ### Installation
 
 #### 1. Web Dashboard
+First, visit [roki.pro](https://roki.pro) to create your account and set up your first project.
+
+Then, to run the dashboard locally:
 ```bash
 cd web-dashboard
 yarn install
