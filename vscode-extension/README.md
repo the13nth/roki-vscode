@@ -1,6 +1,6 @@
-# ROKI Project Manager - VSCode Extension
+# ROKI Project Manager - Universal VSCode Extension
 
-An intelligent VSCode extension that provides AI-powered project management capabilities with context injection, progress tracking, and seamless integration with the ROKI dashboard.
+An intelligent, universal VSCode extension that provides AI-powered project management capabilities with context injection, progress tracking, and seamless integration with the ROKI dashboard. **Compatible with all VSCode-based editors** including Visual Studio Code, Cursor, Code-Server, Theia, and any other editor built on the VSCode platform.
 
 ## Features
 
@@ -28,12 +28,28 @@ An intelligent VSCode extension that provides AI-powered project management capa
 - Intelligent file organization
 - Progress evidence collection
 
+### 🌐 Universal Compatibility
+- **Cross-Editor Support**: Works with all VSCode-based editors
+- **Platform Agnostic**: Compatible with Windows, macOS, and Linux
+- **Cloud Ready**: Functions in browser-based and cloud development environments
+- **Remote Development**: Supports remote development and SSH connections
+- **Consistent Experience**: Identical functionality across all supported editors
+
 ## Installation
 
+### Universal Compatibility
+This extension works seamlessly across all VSCode-based editors:
+- **Visual Studio Code** (Windows, macOS, Linux)
+- **Cursor** (AI-powered code editor)
+- **Code-Server** (Browser-based VSCode)
+- **Theia** (Cloud and desktop IDE)
+- **GitHub Codespaces** (Cloud development environment)
+- **Any VSCode-compatible editor**
+
 ### From VSIX Package
-1. Download the latest `.vsix` file from the [Releases](https://github.com/your-username/roki-vscode-extension/releases) page
-2. Open VS Code
-3. Go to Extensions view (`Ctrl+Shift+X`)
+1. Download the latest `.vsix` file from the [Releases](https://github.com/the13nth/roki-vscode/releases) page
+2. Open your VSCode-based editor
+3. Go to Extensions view (`Ctrl+Shift+X` or `Cmd+Shift+X`)
 4. Click the "..." menu and select "Install from VSIX..."
 5. Select the downloaded `.vsix` file
 
@@ -46,7 +62,7 @@ An intelligent VSCode extension that provides AI-powered project management capa
 
 ## Quick Start
 
-1. **Open a project** in VS Code
+1. **Open a project** in your VSCode-based editor
 2. **Create an AI project** using the command palette:
    - Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (Mac)
    - Type "AI Project Manager: Create New Project"
@@ -60,10 +76,17 @@ An intelligent VSCode extension that provides AI-powered project management capa
    - Press `Ctrl+Alt+I` to inject context into AI chat
    - Or enable auto-injection in settings
 
+### Cross-Platform Support
+The extension maintains full functionality across different operating systems and VSCode-based environments, ensuring a consistent experience whether you're using:
+- Desktop applications (VS Code, Cursor)
+- Web-based editors (Code-Server, GitHub Codespaces)
+- Cloud development environments
+- Remote development setups
+
 ## Configuration
 
 ### Dashboard Connection
-Configure your ROKI dashboard URL in VS Code settings:
+Configure your ROKI dashboard URL in your VSCode-based editor settings:
 
 ```json
 {
@@ -166,7 +189,7 @@ Interactive task editor with rich features:
 ### Prerequisites
 - Node.js 16+
 - TypeScript 5.3+
-- VS Code 1.74+
+- VSCode-based editor 1.74+ (VS Code, Cursor, Code-Server, Theia, etc.)
 
 ### Building
 ```bash
@@ -214,9 +237,10 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 ### Common Issues
 
 **Extension not activating:**
-- Check VS Code version compatibility (requires 1.74+)
+- Check VSCode-based editor version compatibility (requires 1.74+)
 - Verify the extension is properly installed
 - Check the Output panel for error messages
+- Ensure you're using a compatible VSCode-based editor
 
 **Dashboard connection failed:**
 - Verify dashboard URL in settings
@@ -256,9 +280,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 - Built for the ROKI project management platform
-- Integrates with VS Code's extension API
+- Integrates with VSCode's universal extension API
 - Uses TypeScript for type safety and better development experience
+- Designed for maximum compatibility across all VSCode-based editors
 
 ---
 
-**Note**: This extension is designed to work with the ROKI web dashboard. While it can function independently for local project management, full features require dashboard connectivity.
+**Note**: This extension is designed to work with the ROKI web dashboard. While it can function independently for local project management, full features require dashboard connectivity. The extension's universal design ensures it works seamlessly across all VSCode-based editors, providing a consistent experience regardless of your development environment.
