@@ -156,13 +156,6 @@ Once logged in, all your project details, requirements, tasks, and progress will
 - **API Integration**: Connect with external tools and services
 - **Export Capabilities**: Generate pitch decks, reports, and documentation
 
-### 🔐 Platform Access & Pricing
-
-The web dashboard operates on a **subscription-based model** with different tiers:
-- **Free Tier**: Basic project management and limited AI analysis
-- **Pro Tier**: Advanced AI features, unlimited projects, team collaboration
-- **Enterprise**: Custom solutions, advanced analytics, dedicated support
-
 **Important**: The web dashboard source code is **not open source** and is hosted as a proprietary service. Only the VSCode extension is open source and available on GitHub.
 
 
@@ -188,7 +181,7 @@ The open-source VSCode extension provides seamless integration between your IDE 
 - **Conflict Resolution**: Handle merge conflicts between local and cloud changes
 - **Sync Status**: Visual indicators for sync status and last update time
 
-### **AI Context Integration**
+### **AI Context Integration (coming soon)**
 - **Context Injection**: Automatically inject project context into AI chat sessions
 - **Smart Document Selection**: Intelligent prioritization of relevant files and documents
 - **Progress Integration**: Include current project status and task progress in AI context
@@ -212,29 +205,7 @@ The open-source VSCode extension provides seamless integration between your IDE 
 - **Keyboard Shortcuts**: Quick access to common functions
 - **Error Handling**: Comprehensive error handling with user-friendly messages
 
-## 📋 API Endpoints
 
-### Core Project APIs
-- `GET/POST /api/projects` - List and create projects
-- `GET/PUT /api/projects/[id]` - Project details and updates
-- `POST /api/projects/[id]/analyze` - Comprehensive project analysis
-- `GET/POST /api/projects/[id]/analyses` - Save and retrieve analysis results
-
-### Social Media APIs
-- `POST /api/projects/[id]/generate-social-posts` - Generate social content
-- `POST /api/projects/[id]/enhance-social-post` - Improve existing posts
-- `POST /api/projects/[id]/social-posts/save` - Save posts with status
-- `GET /api/projects/[id]/social-posts/saved` - Retrieve saved posts
-- `PUT /api/projects/[id]/social-posts/[postId]/performance` - Update metrics
-
-### VS Code Integration APIs
-- `POST /api/auth/generate-vscode-token` - Generate authentication tokens
-- `POST /api/auth/verify-token` - Verify and validate tokens
-- `GET/POST /api/vscode/projects` - VS Code project management
-- `POST /api/file-watcher/events` - File change notifications
-
-### Additional APIs
-- Document management, context handling, embeddings, backups, and more
 
 ## 🎨 UI Components
 
@@ -252,17 +223,7 @@ The open-source VSCode extension provides seamless integration between your IDE 
 - **ApiConfiguration**: Flexible AI service configuration
 - **TokenUsageVisualization**: AI token usage tracking and analytics
 
-## 🔧 Configuration
 
-### VS Code Extension Settings
-```json
-{
-  "aiProjectManager.autoInject": true,
-  "aiProjectManager.maxContextSize": 8000,
-  "aiProjectManager.dashboardUrl": "http://localhost:3000",
-  "aiProjectManager.includeProgress": true
-}
-```
 
 ### Project File Structure
 ```
