@@ -84,14 +84,7 @@ roki/
 ### Installation
 
 #### 1. Web Dashboard
-First, visit [roki.pro](https://roki.pro) to create your account and set up your first project.
-
-Then, to run the dashboard locally:
-```bash
-cd web-dashboard
-yarn install
-yarn dev
-```
+Visit [roki.pro](https://roki.pro) to create your account and set up your first project. The web dashboard is available directly in your browser - no local installation required.
 
 #### 2. VS Code Extension
 ```bash
