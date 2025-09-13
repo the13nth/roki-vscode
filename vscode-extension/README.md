@@ -275,7 +275,9 @@ Check the Output panel for detailed logs and error messages.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - an OSI (Open Source Initiative) approved license. See the [LICENSE](LICENSE) file for details.
+
+The MIT License is a permissive free software license that is OSI-compliant and allows for maximum freedom in using, modifying, and distributing the software.
 
 ## Acknowledgments
 

@@ -6,7 +6,7 @@
   "publisher": "ai-project-manager",
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/roki-vscode-extension.git"
+    "url": "https://github.com/the13nth/roki-vscode.git"
   },
   "license": "MIT",
   "engines": {
