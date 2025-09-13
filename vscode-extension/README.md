@@ -1,291 +1,281 @@
-# ROKI Project Manager - Universal VSCode Extension
+# AI Project Manager (Roki)
 
-An intelligent, universal VSCode extension that provides AI-powered project management capabilities with context injection, progress tracking, and seamless integration with the ROKI dashboard. **Compatible with all VSCode-based editors** including Visual Studio Code, Cursor, Code-Server, Theia, and any other editor built on the VSCode platform.
+A comprehensive AI-powered project management platform that combines intelligent analysis, social media content generation, and seamless VS Code integration. Transform your development projects with structured documentation, real-time synchronization, and AI-driven insights.
 
-## Features
+![AI Project Manager](https://img.shields.io/badge/Version-0.0.5-blue.svg)
+![License](https://img.shields.io/badge/License-MIT-green.svg)
+![Tech Stack](https://img.shields.io/badge/Tech-Next.js%20%7C%20React%20%7C%20TypeScript%20%7C%20Pinecone-orange.svg)
 
-### 🤖 AI Context Injection (coming soon)
-- Automatically injects project context into AI chat sessions
-- Intelligent document selection and prioritization
-- Configurable context size and preferences
-- Support for multiple AI models and providers
+## 🚀 Key Features
+
+### 🧠 AI-Powered Project Analysis
+- **Comprehensive Analysis**: Multi-faceted AI analysis covering technical, market, business, and financial aspects
+- **Smart Insights**: Generate actionable recommendations and strategic direction
+- **Risk Assessment**: Identify potential challenges with mitigation strategies
+- **Business Model Canvas**: Auto-generate strategic business frameworks
+- **"Roast My Idea"**: Brutally honest critiques for project validation
+
+### 📱 Social Media Content Generation
+- **Multi-Platform Support**: Generate content for Twitter/X, LinkedIn, Instagram, Facebook, TikTok, YouTube
+- **AI-Enhanced Posts**: Improve existing posts with detailed instructions
+- **Performance Tracking**: Save posts with status tracking and performance metrics
+- **Smart Optimization**: Platform-specific character limits and best practices
+- **Draft Management**: Save drafts and track posted content
+
+### 🔗 VS Code Integration
+- **Seamless Sync**: Real-time bidirectional synchronization between VS Code and web dashboard
+- **Context Injection**: Intelligent AI context injection with project awareness
+- **Auto-Detection**: Automatic project detection and setup
+- **File Watching**: Real-time file change monitoring and sync
+- **Token Management**: Secure authentication and user management
 
 ### 📊 Project Management
-- Real-time progress tracking and analytics
-- Task management with interactive task editor
-- Requirements and design document management
-- Automatic project state updates
+- **Structured Documentation**: Requirements, design, tasks, and progress tracking
+- **Progress Visualization**: Charts, timelines, and completion metrics
+- **Task Management**: Add, edit, and track project tasks
+- **Context Documents**: Manage custom context for AI interactions
+- **Export/Import**: Backup and restore project data
 
-### 🔄 Cloud Synchronization
-- Seamless sync with ROKI web dashboard
-- Real-time collaboration features
-- Project backup and restore capabilities
-- Multi-device project access
+### 🎯 Advanced Features
+- **Embeddings & Search**: Pinecone-powered semantic search and document embedding
+- **Conflict Resolution**: Smart handling of sync conflicts
+- **API Configuration**: Flexible AI model and API key management
+- **Security**: Secure configuration and token management
+- **Real-time Updates**: Live sync status and progress tracking
 
-### 🎯 Smart Project Detection
-- Automatic AI project structure detection
-- Project template generation
-- Intelligent file organization
-- Progress evidence collection
+## 🏗️ Architecture
 
-### 🌐 Universal Compatibility
-- **Cross-Editor Support**: Works with all VSCode-based editors
-- **Platform Agnostic**: Compatible with Windows, macOS, and Linux
-- **Cloud Ready**: Functions in browser-based and cloud development environments
-- **Remote Development**: Supports remote development and SSH connections
-- **Consistent Experience**: Identical functionality across all supported editors
-
-## Installation
-
-### Universal Compatibility
-This extension works seamlessly across all VSCode-based editors:
-- **Visual Studio Code** (Windows, macOS, Linux)
-- **Cursor** (AI-powered code editor)
-- **Code-Server** (Browser-based VSCode)
-- **Theia** (Cloud and desktop IDE)
-- **GitHub Codespaces** (Cloud development environment)
-- **Any VSCode-compatible editor**
-
-### From VSIX Package
-1. Download the latest `.vsix` file from the [Releases](https://github.com/the13nth/roki-vscode/releases) page
-2. Open your VSCode-based editor
-3. Go to Extensions view (`Ctrl+Shift+X` or `Cmd+Shift+X`)
-4. Click the "..." menu and select "Install from VSIX..."
-5. Select the downloaded `.vsix` file
-
-### From Source
-1. Clone this repository
-2. Install dependencies: `npm install`
-3. Compile the extension: `npm run compile`
-4. Package the extension: `npm run package`
-5. Install the generated `.vsix` file
-
-## Quick Start
-
-1. **Open a project** in your VSCode-based editor
-2. **Create an AI project** using the command palette:
-   - Press `Ctrl+Shift+P` (Windows/Linux) or `Cmd+Shift+P` (Mac)
-   - Type "AI Project Manager: Create New Project"
-   - Follow the setup wizard
-
-3. **Connect to dashboard** (optional):
-   - Use "AI Project Manager: Connect to Dashboard" command
-   - Configure your dashboard URL in settings
-
-4. **Start using AI context injection**:
-   - Press `Ctrl+Alt+I` to inject context into AI chat
-   - Or enable auto-injection in settings
-
-### Cross-Platform Support
-The extension maintains full functionality across different operating systems and VSCode-based environments, ensuring a consistent experience whether you're using:
-- Desktop applications (VS Code, Cursor)
-- Web-based editors (Code-Server, GitHub Codespaces)
-- Cloud development environments
-- Remote development setups
-
-## Configuration
-
-### Dashboard Connection
-Configure your ROKI dashboard URL in your VSCode-based editor settings:
-
-```json
-{
-  "aiProjectManager.dashboardUrl": "https://your-dashboard-url.com"
-}
+### Project Structure
+```
+roki/
+├── web-dashboard/          # Next.js 15 web application
+│   ├── src/
+│   │   ├── app/           # App router with 40+ API endpoints
+│   │   ├── components/    # 30+ React components
+│   │   ├── lib/          # Utilities, Pinecone, and services
+│   │   ├── types/        # TypeScript definitions
+│   │   └── hooks/        # Custom React hooks
+│   └── package.json
+├── vscode-extension/       # VS Code extension (v0.0.5)
+│   ├── src/
+│   │   ├── lib/          # 10 core services
+│   │   ├── types/        # Shared type definitions
+│   │   └── extension.ts  # Main extension entry point
+│   └── package.json
+└── shared-types/          # Common TypeScript interfaces
 ```
 
-### Context Preferences
-Customize AI context injection:
+### Tech Stack
+- **Frontend**: Next.js 15, React 19, TypeScript, Tailwind CSS
+- **Backend**: Next.js API Routes, Clerk Authentication
+- **AI**: Google Gemini API, OpenAI-compatible endpoints
+- **Database**: Pinecone Vector Database for embeddings and search
+- **UI**: Radix UI, Lucide Icons, Monaco Editor
+- **Development**: VS Code Extension API, File System Integration
 
-```json
-{
-  "aiProjectManager.autoInject": true,
-  "aiProjectManager.maxContextSize": 8000,
-  "aiProjectManager.prioritizeRecent": true,
-  "aiProjectManager.includeProgress": true,
-  "aiProjectManager.includeCurrentTask": true
-}
-```
-
-### Authentication
-For cloud features, you'll need to authenticate:
-
-1. Use "AI Project Manager: Open Browser to Login" command
-2. Copy the authentication token from the browser
-3. Use "AI Project Manager: Enter Token" to save it
-
-## Commands
-
-### Core Commands
-- `AI Project Manager: Inject Context` - Manually inject project context
-- `AI Project Manager: Create New Project` - Set up a new AI project
-- `AI Project Manager: Update Project State` - Analyze and update project progress
-- `AI Project Manager: Connect to Dashboard` - Connect to ROKI dashboard
-
-### Project Management
-- `AI Project Manager: Load Project from Cloud` - Load project from dashboard
-- `AI Project Manager: List My Projects` - View your cloud projects
-- `AI Project Manager: Open Task Editor` - Open interactive task editor
-- `AI Project Manager: Validate Project` - Check project structure
-
-### Authentication
-- `AI Project Manager: Login` - Authenticate with dashboard
-- `AI Project Manager: Logout` - Clear authentication
-- `AI Project Manager: Check Token` - Verify authentication token
-
-## Keyboard Shortcuts
-
-- `Ctrl+Alt+I` / `Cmd+Alt+I` - Inject context
-- `Ctrl+Alt+Shift+I` / `Cmd+Alt+Shift+I` - Auto-inject context
-- `Ctrl+Alt+U` / `Cmd+Alt+U` - Update project state
-
-## Project Structure
-
-The extension creates the following structure in your projects:
-
-```
-your-project/
-├── .kiro/
-│   └── specs/
-│       └── ai-project-manager/
-│           ├── config.json          # Project configuration
-│           ├── requirements.md      # Project requirements
-│           ├── design.md           # System design
-│           ├── tasks.md            # Task management
-│           └── progress.json       # Progress tracking
-└── .ai-project/
-    └── context/
-        └── project-overview.md     # Context documents
-```
-
-## Features in Detail
-
-### AI Context Injection
-The extension intelligently selects and formats project context for AI interactions:
-
-- **Document Prioritization**: Recent and relevant files are prioritized
-- **Size Management**: Context is truncated to fit within token limits
-- **Progress Integration**: Current project status is included
-- **Task Context**: Active tasks and requirements are highlighted
-
-### Progress Tracking
-Automatic progress detection and tracking:
-
-- **File Analysis**: Monitors code changes and documentation updates
-- **Task Completion**: Detects completed tasks and requirements
-- **Evidence Collection**: Gathers proof of progress and implementation
-- **Dashboard Sync**: Real-time synchronization with web dashboard
-
-### Task Management
-Interactive task editor with rich features:
-
-- **Status Tracking**: TODO, In Progress, Review, Done
-- **Progress Indicators**: Visual progress bars and completion percentages
-- **Evidence Markers**: Links to implementation and proof
-- **Cloud Sync**: Tasks sync across devices via dashboard
-
-## Development
+## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 16+
-- TypeScript 5.3+
-- VSCode-based editor 1.74+ (VS Code, Cursor, Code-Server, Theia, etc.)
+- Node.js 18+ and npm/yarn
+- VS Code (for extension)
+- API keys for AI services (Google Gemini, etc.)
+- Pinecone account for vector storage
 
-### Building
-```bash
-# Install dependencies
-npm install
+### Getting Started
 
-# Compile TypeScript
-npm run compile
+#### 1. Get VSCode Extension
+Download the ROKI Project Manager extension from the [GitHub Releases](https://github.com/the13nth/roki-vscode/releases) page.
 
-# Watch for changes
-npm run watch
+#### 2. Install the Extension
+1. Open VS Code (or any VSCode-based editor like Cursor)
+2. Go to Extensions view (`Ctrl+Shift+X` or `Cmd+Shift+X`)
+3. Click the "..." menu and select "Install from VSIX..."
+4. Select the downloaded `.vsix` file
+5. The extension will be installed and activated automatically
 
-# Package extension
-npm run package
+#### 3. Create Your Project on ROKI
+1. Visit [roki.pro](https://roki.pro) in your browser
+2. Create your account and log in
+3. Create your first project using the web dashboard
+4. Your project will be saved to the cloud
+
+#### 4. Login to VSCode Extension
+1. In VS Code, open the extension and click on open Browser to login
+2. A web window will be open on roki.pro with a token, copy it and go back to the extension.
+3. Click on Enter token and paste your token in the provided space.
+
+#### 5. Access Your Projects in IDE
+Once logged in, all your project details, requirements, tasks, and progress will be accessible directly in your IDE through the ROKI Project Manager sidebar and commands.
+
+## 🌐 Web Dashboard Features (roki.pro)
+
+**Note**: The web dashboard at [roki.pro](https://roki.pro) is a **proprietary, non-open source** hosted service that provides the core project management platform. The VSCode extension connects to this service to sync your projects.
+
+### 🚀 Core Platform Capabilities
+
+#### **Project Management & Templates**
+- **Technical Project Templates**: Web apps, APIs, mobile applications, data science projects
+- **Business Project Templates**: Startups, enterprise initiatives with regulatory compliance frameworks
+- **Enhanced Project Creation Wizard**: AI-powered project setup with industry-specific configurations
+- **Project Sharing & Collaboration**: Team-based project management with role-based access
+
+#### **AI-Powered Analysis Suite**
+- **Technical Analysis**: Code structure analysis, architecture recommendations, technology stack optimization
+- **Market Intelligence**: Real-time market insights, competitive landscape analysis, emerging technology trends
+- **Financial Modeling**: ROI calculations, funding requirements, revenue projections, cost analysis
+- **Business Model Canvas**: Strategic planning tools, competitive differentiation analysis
+- **Risk Assessment**: Technical and business risk identification with mitigation strategies
+
+#### **Smart Task Management**
+- **AI Task Breakdown**: Automatic task generation based on project requirements and complexity
+- **Progress Tracking**: Visual milestone tracking with automatic progress detection
+- **Intelligent Recommendations**: Context-aware task suggestions and workflow optimization
+- **Evidence Collection**: Automatic proof-of-progress gathering from code changes and documentation
+
+#### **Document Management System**
+- **Requirements Management**: User story creation, acceptance criteria, requirement tracking
+- **Design Documentation**: System architecture, UI/UX wireframes, technical specifications
+- **Context Documents**: Project overview, technical details, development notes
+- **Version Control**: Document history, change tracking, collaborative editing
+
+#### **Social Media Content Generation**
+- **Platform-Specific Content**: Twitter, LinkedIn, Instagram, GitHub-optimized posts
+- **AI Content Creation**: Context-aware social media posts using project analysis data
+- **Content Enhancement**: Improve posts with additional instructions and refinements
+- **Performance Tracking**: Social media metrics and engagement analysis
+
+#### **Advanced Visualization & Analytics**
+- **3D Document Visualization**: Interactive project structure and relationship mapping
+- **Progress Dashboards**: Real-time project health monitoring and milestone tracking
+- **Embeddings Visualization**: Vector-based document similarity and context analysis
+- **Team Analytics**: Collaboration metrics, contribution tracking, productivity insights
+
+#### **Integration & Sync Features**
+- **VSCode Extension Sync**: Real-time synchronization with your IDE
+- **Cloud Storage**: Secure project backup and multi-device access
+- **API Integration**: Connect with external tools and services
+- **Export Capabilities**: Generate pitch decks, reports, and documentation
+
+**Important**: The web dashboard source code is **not open source** and is hosted as a proprietary service. Only the VSCode extension is open source and available on GitHub.
+
+
+
+## 🔌 VSCode Extension Features
+
+The open-source VSCode extension provides seamless integration between your IDE and the ROKI platform:
+
+### **Authentication & Connection**
+- **Browser-based Login**: Click "Open Browser to Login" to authenticate via roki.pro
+- **Token Management**: Secure token storage and automatic verification
+- **Multi-Editor Support**: Works with VS Code, Cursor, Code-Server, Theia, and other VSCode-based editors
+
+### **Project Management**
+- **Cloud Project Loading**: Load projects directly from your ROKI dashboard into your workspace
+- **Project Detection**: Auto-detect existing AI projects in your workspace
+- **Project Creation**: Create new projects with templates directly from your IDE
+- **Project Validation**: Check project structure and repair missing files
+
+### **Real-time Synchronization**
+- **Bidirectional Sync**: Changes in IDE automatically sync to cloud dashboard
+- **File Monitoring**: Track file changes and maintain project state
+- **Conflict Resolution**: Handle merge conflicts between local and cloud changes
+- **Sync Status**: Visual indicators for sync status and last update time
+
+### **AI Context Integration (coming soon)**
+- **Context Injection**: Automatically inject project context into AI chat sessions
+- **Smart Document Selection**: Intelligent prioritization of relevant files and documents
+- **Progress Integration**: Include current project status and task progress in AI context
+- **Configurable Context**: Customize context size, preferences, and content selection
+
+### **Task Management**
+- **Interactive Task Editor**: Rich task editor with status tracking and progress indicators
+- **Task Synchronization**: Tasks sync between IDE and cloud dashboard
+- **Progress Tracking**: Automatic progress detection and milestone tracking
+- **Evidence Collection**: Link implementation files to task completion
+
+### **Document Management**
+- **Cloud Document Access**: Open and edit documents from your cloud projects
+- **Local Document Sync**: Save cloud documents locally for offline editing
+- **Version Control**: Track document changes and maintain history
+- **Collaborative Editing**: Real-time collaboration with team members
+
+### **Advanced Features**
+- **Command Palette Integration**: Access all features through VS Code command palette
+- **Sidebar Integration**: Dedicated sidebar for project management and navigation
+- **Keyboard Shortcuts**: Quick access to common functions
+- **Error Handling**: Comprehensive error handling with user-friendly messages
+
+
+
+## 🎨 UI Components
+
+### Core Components
+- **ProjectDashboardLayout**: Main project interface with tabbed navigation
+- **ProjectAnalysis**: Comprehensive analysis display with save functionality
+- **SocialPostsGenerator**: Multi-platform content generation and management
+- **PromptsViewer**: Transparent AI prompt library and documentation
+- **VSCodeConnectionStatus**: Real-time sync status and controls
+
+### Specialized Components
+- **EmbeddingsVisualization**: 3D visualization of document embeddings
+- **ProgressDashboard**: Charts and metrics for project progress
+- **ConflictResolutionDialog**: Smart conflict handling interface
+- **ApiConfiguration**: Flexible AI service configuration
+- **TokenUsageVisualization**: AI token usage tracking and analytics
+
+
+
+### Project File Structure
+```
+your-project/
+├── .ai-project/
+│   ├── config.json          # Project metadata and settings
+│   ├── requirements.md      # Project requirements documentation
+│   ├── design.md           # System design and architecture
+│   ├── tasks.md            # Task list with progress tracking
+│   ├── progress.json       # Detailed progress data
+│   └── context/            # Custom context documents
+│       ├── api-specs.md
+│       ├── user-research.md
+│       └── technical-notes.md
+└── your-source-code/
 ```
 
-### Testing
-```bash
-# Run tests
-npm test
+## 🤝 Contributing
 
-# Test in VS Code
-npm run test:extension
-```
-
-## Contributing
-
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for details.
-
-### Development Setup
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-### Code Style
-- Use TypeScript strict mode
-- Follow VS Code extension best practices
-- Add JSDoc comments for public APIs
-- Use meaningful variable and function names
+## 📄 License
 
-## Troubleshooting
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-### Common Issues
+## 🆘 Support
 
-**Extension not activating:**
-- Check VSCode-based editor version compatibility (requires 1.74+)
-- Verify the extension is properly installed
-- Check the Output panel for error messages
-- Ensure you're using a compatible VSCode-based editor
+- **Documentation**: Visit our comprehensive docs (coming soon)
+- **Issues**: Report bugs and request features on GitHub
+- **Community**: Join our Discord server (coming soon)
+- **Email**: support@roki.ai (coming soon)
 
-**Dashboard connection failed:**
-- Verify dashboard URL in settings
-- Check network connectivity
-- Ensure authentication token is valid
+## 🎯 Roadmap
 
-**Context injection not working:**
-- Verify project structure is correct
-- Check context preferences in settings
-- Ensure files are properly formatted
+### Current Status (v0.0.5)
+- ✅ Full project analysis suite
+- ✅ Social media content generation
+- ✅ VS Code extension with sync
+- ✅ Pinecone integration
+- ✅ Performance tracking
 
-**Progress tracking issues:**
-- Verify project has proper structure
-- Check file permissions
-- Review generated progress.json file
-
-### Debug Information
-Enable debug logging by setting:
-```json
-{
-  "aiProjectManager.debug": true
-}
-```
-
-Check the Output panel for detailed logs and error messages.
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/your-username/roki-vscode-extension/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-username/roki-vscode-extension/discussions)
-- **Documentation**: [Wiki](https://github.com/your-username/roki-vscode-extension/wiki)
-
-## License
-
-This project is licensed under the MIT License - an OSI (Open Source Initiative) approved license. See the [LICENSE](LICENSE) file for details.
-
-The MIT License is a permissive free software license that is OSI-compliant and allows for maximum freedom in using, modifying, and distributing the software.
-
-## Acknowledgments
-
-- Built for the ROKI project management platform
-- Integrates with VSCode's universal extension API
-- Uses TypeScript for type safety and better development experience
-- Designed for maximum compatibility across all VSCode-based editors
+### Coming Soon
+- 🔄 Enhanced AI models support
+- 🔄 Team collaboration features
+- 🔄 Advanced analytics dashboard
+- 🔄 Mobile app companion
+- 🔄 Integration marketplace
 
 ---
 
-**Note**: This extension is designed to work with the ROKI web dashboard. While it can function independently for local project management, full features require dashboard connectivity. The extension's universal design ensures it works seamlessly across all VSCode-based editors, providing a consistent experience regardless of your development environment.
+**Built with ❤️ by the Roki team. Transform your projects with AI-powered insights and seamless development workflows.**
