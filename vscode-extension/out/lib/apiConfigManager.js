@@ -4,9 +4,12 @@ exports.ApiConfigManager = void 0;
 const vscode = require("vscode");
 const projectDetector_1 = require("./projectDetector");
 class ApiConfigManager {
+    getDashboardUrl() {
+        const config = vscode.workspace.getConfiguration('aiProjectManager');
+        return config.get('dashboardUrl', 'http://localhost:3000');
+    }
     constructor() {
         this.projectDetector = new projectDetector_1.ProjectDetectorImpl();
-        this.dashboardUrl = 'http://localhost:3000'; // TODO: Make configurable
     }
     static getInstance() {
         if (!ApiConfigManager.instance) {
@@ -31,7 +34,7 @@ class ApiConfigManager {
             }
             // Get the API configuration from the dashboard
             // This will automatically respect the user's API key selection
-            const response = await fetch(`${this.dashboardUrl}/api/projects/${projectId}/api-config`);
+            const response = await fetch(`${this.getDashboardUrl()}/api/projects/${projectId}/api-config`);
             if (!response.ok) {
                 console.warn('Failed to get project API configuration:', response.statusText);
                 return null;
@@ -62,7 +65,7 @@ class ApiConfigManager {
             if (!projectId) {
                 return null;
             }
-            const response = await fetch(`${this.dashboardUrl}/api/projects/${projectId}/api-key-selection`);
+            const response = await fetch(`${this.getDashboardUrl()}/api/projects/${projectId}/api-key-selection`);
             if (!response.ok) {
                 console.warn('Failed to get API key selection:', response.statusText);
                 return null;
@@ -87,7 +90,7 @@ class ApiConfigManager {
             if (!projectId) {
                 return false;
             }
-            const response = await fetch(`${this.dashboardUrl}/api/projects/${projectId}/api-key-selection`, {
+            const response = await fetch(`${this.getDashboardUrl()}/api/projects/${projectId}/api-key-selection`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -118,7 +121,7 @@ class ApiConfigManager {
             if (!projectId) {
                 return { success: false, message: 'No project ID found' };
             }
-            const response = await fetch(`${this.dashboardUrl}/api/projects/${projectId}/api-test`, {
+            const response = await fetch(`${this.getDashboardUrl()}/api/projects/${projectId}/api-test`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -161,7 +164,7 @@ class ApiConfigManager {
                     await this.showApiKeySelectionDialog();
                     break;
                 case 'Open Dashboard':
-                    vscode.env.openExternal(vscode.Uri.parse(`${this.dashboardUrl}/project/${await this.getProjectId()}/api`));
+                    vscode.env.openExternal(vscode.Uri.parse(`${this.getDashboardUrl()}/project/${await this.getProjectId()}/api`));
                     break;
             }
         }

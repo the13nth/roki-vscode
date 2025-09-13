@@ -3,8 +3,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.VSCodeTokenTracker = void 0;
 const vscode = require("vscode");
 class VSCodeTokenTracker {
+    getDashboardUrl() {
+        const config = vscode.workspace.getConfiguration('aiProjectManager');
+        return config.get('dashboardUrl', 'http://localhost:3000');
+    }
     constructor() {
-        this.dashboardUrl = 'http://localhost:3000'; // TODO: Make configurable
         this.sessionId = this.generateSessionId();
     }
     static getInstance() {
@@ -57,7 +60,7 @@ class VSCodeTokenTracker {
     }
     async sendToDashboard(tokenUsage) {
         try {
-            const response = await fetch(`${this.dashboardUrl}/api/token-usage/track`, {
+            const response = await fetch(`${this.getDashboardUrl()}/api/token-usage/track`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -74,7 +77,7 @@ class VSCodeTokenTracker {
     }
     async showUsageSummary(projectId) {
         try {
-            const response = await fetch(`${this.dashboardUrl}/api/token-usage?projectId=${projectId}&timeRange=7d`);
+            const response = await fetch(`${this.getDashboardUrl()}/api/token-usage?projectId=${projectId}&timeRange=7d`);
             if (!response.ok) {
                 vscode.window.showErrorMessage('Failed to fetch token usage data');
                 return;
@@ -88,7 +91,7 @@ Requests: ${totals.requestCount}
 Sessions: ${totals.uniqueSessions}`;
             const action = await vscode.window.showInformationMessage(message, 'View Details', 'OK');
             if (action === 'View Details') {
-                vscode.env.openExternal(vscode.Uri.parse(`${this.dashboardUrl}/profile?tab=usage`));
+                vscode.env.openExternal(vscode.Uri.parse(`${this.getDashboardUrl()}/profile?tab=usage`));
             }
         }
         catch (error) {

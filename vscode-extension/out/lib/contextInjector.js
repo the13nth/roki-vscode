@@ -6,9 +6,12 @@ const path = require("path");
 const vscode = require("vscode");
 const projectDetector_1 = require("./projectDetector");
 class ContextInjectorImpl {
+    getDashboardUrl() {
+        const config = vscode.workspace.getConfiguration('aiProjectManager');
+        return config.get('dashboardUrl', 'http://localhost:3000');
+    }
     constructor() {
         this.projectDetector = new projectDetector_1.ProjectDetectorImpl();
-        this.dashboardUrl = 'http://localhost:3000'; // TODO: Make configurable
         this.contextPreferences = this.loadContextPreferences();
         this.setupStatusBar();
         this.setupAIChatWatcher();
@@ -324,7 +327,7 @@ class ContextInjectorImpl {
             const projectId = await this.getProjectId(structure.configPath);
             if (!projectId)
                 return null;
-            const response = await fetch(`${this.dashboardUrl}/api/projects/${projectId}/context/select`, {
+            const response = await fetch(`${this.getDashboardUrl()}/api/projects/${projectId}/context/select`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -358,7 +361,7 @@ class ContextInjectorImpl {
             const projectId = await this.getProjectId(structure.configPath);
             if (!projectId)
                 return null;
-            const response = await fetch(`${this.dashboardUrl}/api/projects/${projectId}/context/select`, {
+            const response = await fetch(`${this.getDashboardUrl()}/api/projects/${projectId}/context/select`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

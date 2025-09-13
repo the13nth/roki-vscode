@@ -42,7 +42,6 @@ class SidebarProvider {
         this.MIN_REFRESH_INTERVAL = 30000; // 30 seconds minimum between refreshes
         this.MAX_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes maximum
         this.refreshCount = 0;
-        console.log('SidebarProvider constructor called');
         // Set up smart periodic refresh with adaptive intervals
         this.setupSmartRefresh();
         // Load user projects on initialization
@@ -52,7 +51,6 @@ class SidebarProvider {
             if (event.affectsConfiguration('aiProjectManager.authToken') ||
                 event.affectsConfiguration('aiProjectManager.userId') ||
                 event.affectsConfiguration('aiProjectManager.userEmail')) {
-                console.log('Auth configuration changed, refreshing sidebar');
                 this.smartRefresh();
             }
         });
@@ -69,7 +67,6 @@ class SidebarProvider {
         const now = Date.now();
         // Check if we're within the minimum refresh interval
         if (now - this.lastRefreshTime < this.MIN_REFRESH_INTERVAL) {
-            console.log('Refresh rate limited, debouncing...');
             // Clear existing timeout and set a new one
             if (this.refreshTimeout) {
                 clearTimeout(this.refreshTimeout);
@@ -101,7 +98,6 @@ class SidebarProvider {
         const now = Date.now();
         this.lastRefreshTime = now;
         this.refreshCount++;
-        console.log(`Performing refresh #${this.refreshCount} at ${new Date(now).toISOString()}`);
         try {
             await this.loadUserProjects();
             this._onDidChangeTreeData.fire();
@@ -135,7 +131,6 @@ class SidebarProvider {
             if (this.authService.isAuthenticated()) {
                 const projectLoader = projectLoader_1.ProjectLoader.getInstance();
                 this.userProjects = await projectLoader.listUserProjects();
-                console.log('Loaded user projects:', this.userProjects.length);
                 // If no project is selected and we have projects, select the first one
                 if (!this.selectedProjectId && this.userProjects.length > 0) {
                     this.selectedProjectId = this.userProjects[0].id;
@@ -170,15 +165,10 @@ class SidebarProvider {
         return element;
     }
     async getChildren(element) {
-        console.log('getChildren called with element:', element?.label || 'root');
-        // Debug authentication status
         const isAuthenticated = this.authService.isAuthenticated();
         const currentUser = this.authService.getCurrentUser();
-        console.log('Auth service authenticated:', isAuthenticated);
-        console.log('Current user:', currentUser?.email || 'none');
         // Check authentication status first
         if (!isAuthenticated) {
-            console.log('Not authenticated, showing login screen');
             // Only return root items when not authenticated, no children
             if (!element) {
                 return this.getNotLoggedInItems();

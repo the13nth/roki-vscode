@@ -103,7 +103,6 @@ class ProgressTrackerImpl {
         await this.monitorWorkspaceChanges();
         // Sync with dashboard on startup
         await this.syncWithDashboard();
-        console.log('Auto progress tracking started with enhanced git analysis');
     }
     /**
      * Stops automatic progress tracking
@@ -113,7 +112,6 @@ class ProgressTrackerImpl {
             this.fileWatcher.dispose();
             this.fileWatcher = undefined;
         }
-        console.log('Auto progress tracking stopped');
     }
     detectTaskCompletion(filePath) {
         // Enhanced implementation with git analysis and file pattern matching
@@ -387,7 +385,6 @@ class ProgressTrackerImpl {
         const lines = content.split('\n');
         let currentParentId;
         let taskCounter = 0;
-        console.log('Parsing tasks from markdown, total lines:', lines.length);
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
             // Skip empty lines and headers
@@ -411,7 +408,6 @@ class ProgressTrackerImpl {
                 taskCounter++;
                 const trimmedTaskId = taskId.trim();
                 const trimmedTitle = title.trim();
-                console.log(`Found task: ${trimmedTaskId} - ${trimmedTitle} - Completed: ${isCompleted}`);
                 // Determine if this is a subtask
                 const isSubtask = level > 0 || trimmedTaskId.includes('.');
                 // Set parent ID for subtasks
@@ -456,8 +452,6 @@ class ProgressTrackerImpl {
                 tasks.push(task);
             }
         }
-        console.log(`Total tasks parsed: ${tasks.length}`);
-        console.log(`Completed tasks: ${tasks.filter(t => t.isCompleted).length}`);
         return tasks;
     }
     calculateProgress(tasks, previousProgress) {
@@ -528,7 +522,6 @@ class ProgressTrackerImpl {
                 console.warn('Failed to sync progress with dashboard:', response.statusText);
             }
             else {
-                console.log('Progress synced with dashboard successfully');
             }
         }
         catch (error) {

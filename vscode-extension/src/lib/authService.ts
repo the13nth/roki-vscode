@@ -1,24 +1,5 @@
 import * as vscode from 'vscode';
 
-// Add DOM types for fetch API
-declare global {
-  interface RequestInit {
-    method?: string;
-    headers?: Record<string, string>;
-    body?: string;
-  }
-  
-  interface Response {
-    ok: boolean;
-    status: number;
-    statusText: string;
-    json(): Promise<any>;
-    text(): Promise<string>;
-  }
-  
-  function fetch(url: string, options?: RequestInit): Promise<Response>;
-}
-
 export interface AuthUser {
   id: string;
   email: string;

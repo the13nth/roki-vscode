@@ -22,7 +22,6 @@ class SyncService {
      */
     async downloadCloudDocuments(projectId, localPath) {
         try {
-            console.log(`📥 Downloading cloud documents for project ${projectId} to ${localPath}`);
             const config = vscode.workspace.getConfiguration('aiProjectManager');
             const dashboardUrl = config.get('dashboardUrl', 'http://localhost:3000');
             // Fetch documents from cloud using VS Code-specific endpoint
@@ -33,7 +32,6 @@ class SyncService {
                 throw new Error(`Failed to fetch cloud documents: ${response.status} ${response.statusText}. Response: ${errorText}`);
             }
             const responseText = await response.text();
-            console.log(`API Response: ${responseText}`);
             let documents;
             try {
                 documents = JSON.parse(responseText);
@@ -45,13 +43,8 @@ class SyncService {
             }
             // Create local directory structure
             const kiroSpecsPath = path.join(localPath, '.kiro', 'specs', 'ai-project-manager');
-            console.log(`📁 Creating directory structure: ${kiroSpecsPath}`);
             if (!fs.existsSync(kiroSpecsPath)) {
                 fs.mkdirSync(kiroSpecsPath, { recursive: true });
-                console.log(`✅ Created directory: ${kiroSpecsPath}`);
-            }
-            else {
-                console.log(`📁 Directory already exists: ${kiroSpecsPath}`);
             }
             // Create backup before updating
             await this.createBackup(kiroSpecsPath);
@@ -65,10 +58,6 @@ class SyncService {
                 if (documents[doc.key] && documents[doc.key].content) {
                     const filePath = path.join(kiroSpecsPath, doc.filename);
                     fs.writeFileSync(filePath, documents[doc.key].content);
-                    console.log(`💾 Downloaded and saved: ${doc.filename} to ${filePath}`);
-                }
-                else {
-                    console.log(`⚠️ No content found for ${doc.key}`);
                 }
             }
             // Update sync status
@@ -77,8 +66,6 @@ class SyncService {
                 status: 'synced',
                 message: 'Documents downloaded successfully'
             });
-            console.log(`✅ Successfully downloaded cloud documents for project ${projectId}`);
-            console.log(`📂 Documents saved to: ${kiroSpecsPath}`);
         }
         catch (error) {
             console.error('Error downloading cloud documents:', error);
@@ -95,7 +82,6 @@ class SyncService {
      */
     async uploadLocalDocuments(projectId, localPath) {
         try {
-            console.log(`Uploading local documents for project ${projectId} from ${localPath}`);
             const config = vscode.workspace.getConfiguration('aiProjectManager');
             const dashboardUrl = config.get('dashboardUrl', 'http://localhost:3000');
             // Read local documents
@@ -134,7 +120,6 @@ class SyncService {
                 status: 'synced',
                 message: 'Documents uploaded successfully'
             });
-            console.log(`Successfully uploaded local documents for project ${projectId}`);
         }
         catch (error) {
             console.error('Error uploading local documents:', error);
@@ -157,7 +142,6 @@ class SyncService {
             // Watch for changes in project files
             const watcher = vscode.workspace.createFileSystemWatcher(new vscode.RelativePattern(kiroSpecsPath, '*.md'));
             watcher.onDidChange(async (uri) => {
-                console.log(`File changed: ${uri.fsPath}`);
                 try {
                     await this.uploadLocalDocuments(projectId, localPath);
                 }
@@ -166,7 +150,6 @@ class SyncService {
                 }
             });
             this.fileWatchers.set(projectId, watcher);
-            console.log(`Started file watching for project ${projectId}`);
         }
         catch (error) {
             console.error('Error starting file watching:', error);
@@ -180,7 +163,6 @@ class SyncService {
         if (watcher) {
             watcher.dispose();
             this.fileWatchers.delete(projectId);
-            console.log(`Stopped file watching for project ${projectId}`);
         }
     }
     /**
@@ -196,7 +178,6 @@ class SyncService {
             }
             const status = await response.json();
             if (status.hasChanges) {
-                console.log(`Cloud changes detected for project ${projectId}, downloading...`);
                 await this.downloadCloudDocuments(projectId, localPath);
                 return true;
             }
@@ -244,7 +225,6 @@ class SyncService {
      */
     async forceSync(projectId, localPath) {
         try {
-            console.log(`Force syncing project ${projectId}`);
             await this.uploadLocalDocuments(projectId, localPath);
             await this.downloadCloudDocuments(projectId, localPath);
         }
