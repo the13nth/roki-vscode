@@ -8,6 +8,7 @@ import { analysisVectorService } from '@/lib/analysisVectorService';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { TokenTrackingService } from '@/lib/tokenTrackingService';
+import { validateAndTruncateContext } from '@/lib/contextValidation';
 
 const tokenTrackingService = new TokenTrackingService();
 
@@ -586,13 +587,9 @@ Focus on providing actionable social media strategies that align with the projec
     let analysisResult: any;
     try {
       if (apiConfig.provider === 'google') {
-        // Check if context is too long for Gemini (limit is ~30k characters)
-        const maxContextLength = 25000;
-        let truncatedContext = analysisContext;
-        if (analysisContext.length > maxContextLength) {
-          console.warn(`⚠️ Context too long (${analysisContext.length} chars), truncating to ${maxContextLength} chars`);
-          truncatedContext = analysisContext.substring(0, maxContextLength) + '\n\n[Content truncated due to length limits]';
-        }
+        // Validate and truncate context using centralized utility
+        const contextValidation = validateAndTruncateContext(analysisContext, 'google');
+        const truncatedContext = contextValidation.isValid ? analysisContext : contextValidation.truncatedContent!;
 
         const requestBody = {
           contents: [{

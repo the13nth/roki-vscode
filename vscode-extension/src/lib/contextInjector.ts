@@ -20,7 +20,10 @@ interface ContextPreferences {
 
 export class ContextInjectorImpl implements ContextInjector {
     private projectDetector = new ProjectDetectorImpl();
-    private dashboardUrl = 'http://localhost:3000'; // TODO: Make configurable
+    private getDashboardUrl(): string {
+        const config = vscode.workspace.getConfiguration('aiProjectManager');
+        return config.get('dashboardUrl', 'http://localhost:3000');
+    }
     private contextPreferences: ContextPreferences;
     private aiChatWatcher?: vscode.Disposable;
     private statusBarItem?: vscode.StatusBarItem;
@@ -396,7 +399,7 @@ export class ContextInjectorImpl implements ContextInjector {
             
             if (!projectId) return null;
             
-            const response = await fetch(`${this.dashboardUrl}/api/projects/${projectId}/context/select`, {
+            const response = await fetch(`${this.getDashboardUrl()}/api/projects/${projectId}/context/select`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -434,7 +437,7 @@ export class ContextInjectorImpl implements ContextInjector {
             
             if (!projectId) return null;
             
-            const response = await fetch(`${this.dashboardUrl}/api/projects/${projectId}/context/select`, {
+            const response = await fetch(`${this.getDashboardUrl()}/api/projects/${projectId}/context/select`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

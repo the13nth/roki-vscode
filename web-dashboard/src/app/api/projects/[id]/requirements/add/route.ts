@@ -215,56 +215,16 @@ export async function POST(
             );
         }
 
-        const projectPath = await findProjectById(id);
-        if (!projectPath) {
-            return NextResponse.json(
-                { error: 'Project not found' },
-                { status: 404 }
-            );
-        }
-
-        const baseDir = await resolveProjectBaseDir(id, projectPath);
-        if (!baseDir) {
-            return NextResponse.json({ error: 'Project structure not found' }, { status: 404 });
-        }
-
-        const requirementsFilePath = path.join(baseDir, 'requirements.md');
-
-        let requirementsContent = '';
-        try {
-            requirementsContent = await fs.readFile(requirementsFilePath, 'utf-8');
-        } catch (error) {
-            if ((error as any).code === 'ENOENT') {
-                requirementsContent = '# Requirements Document\n\n## Introduction\n\nThis document outlines the requirements for the project.\n\n## Requirements\n\n';
-            } else {
-                return NextResponse.json(
-                    { error: 'Failed to read requirements file' },
-                    { status: 500 }
-                );
-            }
-        }
+        // Get requirements content from project data
+        let requirementsContent = project.requirements || '# Requirements Document\n\n## Introduction\n\nThis document outlines the requirements for the project.\n\n## Requirements\n\n';
 
         // Get project context (design and tasks)
         let projectContext = '';
-        try {
-            const designPath = path.join(baseDir, 'design.md');
-            const tasksPath = path.join(baseDir, 'tasks.md');
-
-            try {
-                const design = await fs.readFile(designPath, 'utf-8');
-                projectContext += `DESIGN:\n${design}\n\n`;
-            } catch (e) {
-                // Design file doesn't exist, continue
-            }
-
-            try {
-                const tasks = await fs.readFile(tasksPath, 'utf-8');
-                projectContext += `TASKS:\n${tasks}\n\n`;
-            } catch (e) {
-                // Tasks file doesn't exist, continue
-            }
-        } catch (error) {
-            console.warn('Could not load project context:', error);
+        if (project.design) {
+            projectContext += `DESIGN:\n${project.design}\n\n`;
+        }
+        if (project.tasks) {
+            projectContext += `TASKS:\n${project.tasks}\n\n`;
         }
 
         // Generate requirement with AI
@@ -288,9 +248,18 @@ export async function POST(
         // Insert the new requirement
         lines.splice(insertionIndex, 0, ...newRequirement.split('\n'));
 
-        // Write back to file
+        // Update project requirements in Supabase
         const updatedContent = lines.join('\n');
-        await fs.writeFile(requirementsFilePath, updatedContent, 'utf-8');
+        const updatedProject = await projectService.updateProject(userId, id, {
+            requirements: updatedContent
+        });
+
+        if (!updatedProject) {
+            return NextResponse.json(
+                { error: 'Failed to update project requirements' },
+                { status: 500 }
+            );
+        }
 
         return NextResponse.json({
             success: true,

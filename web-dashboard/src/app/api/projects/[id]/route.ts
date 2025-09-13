@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth, currentUser } from '@clerk/nextjs/server';
 import { ProjectService } from '@/lib/projectService';
 import { ProjectDashboard } from '@/types';
-import { getPineconeClient } from '@/lib/pinecone';
-import { PINECONE_INDEX_NAME, PINECONE_NAMESPACE_PROJECTS } from '@/lib/pinecone';
-import { createVectorId } from '@/lib/projectService';
+import { supabaseService, SupabaseService } from '@/lib/supabase';
 
 // Helper function to parse tasks from markdown content
 function parseTasksFromMarkdown(content: string): { totalTasks: number; completedTasks: number; percentage: number } {
@@ -41,15 +39,11 @@ export async function GET(
     const { userId } = await auth();
     const { id: projectId } = await params;
     
-    // Get project data and metadata from Pinecone
-    const pinecone = getPineconeClient();
-    const index = pinecone.index(PINECONE_INDEX_NAME);
-    const vectorId = createVectorId('user-project', projectId);
+    // Get project from Supabase
+    const supabaseService = SupabaseService.getInstance();
+    const project = await supabaseService.getProject(projectId);
 
-    const fetchResponse = await index.namespace(PINECONE_NAMESPACE_PROJECTS).fetch([vectorId]);
-    const record = fetchResponse.records?.[vectorId];
-
-    if (!record?.metadata) {
+    if (!project) {
       return NextResponse.json(
         { error: 'Project not found' },
         { status: 404 }
@@ -57,8 +51,8 @@ export async function GET(
     }
 
     // Check if user can access this project
-    const isPublic = record.metadata.isPublic as boolean || false;
-    const projectOwnerId = record.metadata.userId as string;
+    const isPublic = project.is_public || false;
+    const projectOwnerId = project.user_id;
     
     // Check if user is the owner
     const isOwner = userId ? projectOwnerId === userId : false;
@@ -70,21 +64,10 @@ export async function GET(
       const userEmail = user?.emailAddresses[0]?.emailAddress;
       
       if (userEmail) {
-        // Check if project is shared with this user and invitation was accepted
-        const sharingResponse = await index.namespace('project_sharing').query({
-          vector: new Array(1024).fill(0.1),
-          filter: {
-            projectId: { $eq: projectId },
-            sharedWithEmail: { $eq: userEmail },
-            status: { $eq: 'accepted' }
-          },
-          topK: 1,
-          includeMetadata: true
-        });
-
-        const hasSharedAccess = sharingResponse.matches && sharingResponse.matches.length > 0;
+        // Check if project is shared with this user
+        const sharingCheck = await supabaseService.checkProjectSharing(projectId, userEmail);
         
-        if (!hasSharedAccess) {
+        if (!sharingCheck) {
           return NextResponse.json(
             { error: 'Project not found' },
             { status: 404 }
@@ -98,35 +81,16 @@ export async function GET(
       }
     }
 
-    // Parse project data
-    let project;
-    try {
-      project = JSON.parse(record.metadata.projectData as string);
-    } catch (error) {
-      console.error('Failed to parse project data:', error);
-      return NextResponse.json(
-        { error: 'Project data corrupted' },
-        { status: 500 }
-      );
-    }
-
-    if (!project) {
-      return NextResponse.json(
-        { error: 'Project not found' },
-        { status: 404 }
-      );
-    }
-
     // Parse tasks from the tasks.md content to get accurate counts
     const tasksContent = project.tasks || '';
     
-    // Parse tasks to calculate progress (UserProject doesn't have progress property)
+    // Parse tasks to calculate progress
     const taskStats = parseTasksFromMarkdown(tasksContent);
     const progressData = {
       totalTasks: taskStats.totalTasks,
       completedTasks: taskStats.completedTasks,
       percentage: taskStats.percentage,
-      lastUpdated: new Date(project.lastModified || new Date()),
+      lastUpdated: new Date(project.updated_at || new Date()),
       recentActivity: [],
       milestones: []
     };
@@ -137,10 +101,21 @@ export async function GET(
       tasksContentLength: tasksContent.length
     });
 
-    // Convert to ProjectDashboard format with accurate task counts
-    const projectDashboard: ProjectDashboard & { isOwned?: boolean; isPublic?: boolean } = {
-      projectId: project.projectId,
-      name: project.name || project.projectId, // Use name if available, fallback to projectId
+    // Convert to ProjectDashboard format with all project fields
+    const projectDashboard: ProjectDashboard & { 
+      isOwned?: boolean; 
+      isPublic?: boolean;
+      businessModel?: string[];
+      technologyStack?: any;
+      regulatoryCompliance?: any;
+      industry?: string;
+      customIndustry?: string;
+      template?: string;
+      customTemplate?: string;
+      aiModel?: string;
+    } = {
+      projectId: project.id,
+      name: project.name,
       projectPath: '', // Cloud-only projects don't have local paths
       documents: {
         requirements: project.requirements || '',
@@ -150,7 +125,15 @@ export async function GET(
       progress: progressData,
       contextDocs: [],
       isOwned: userId ? projectOwnerId === userId : false,
-      isPublic: isPublic
+      isPublic: isPublic,
+      businessModel: project.business_model || [],
+      technologyStack: project.technology_stack || null,
+      regulatoryCompliance: project.regulatory_compliance || null,
+      industry: project.industry,
+      customIndustry: project.custom_industry,
+      template: project.template,
+      customTemplate: project.custom_template,
+      aiModel: project.ai_model
     };
 
     return NextResponse.json(projectDashboard);
@@ -180,13 +163,32 @@ export async function PUT(
     const { id: projectId } = await params;
     const updates = await request.json();
 
-    const projectService = ProjectService.getInstance();
-    const success = await projectService.updateProject(userId, projectId, updates);
+    // Get project to verify ownership
+    const supabaseService = SupabaseService.getInstance();
+    const project = await supabaseService.getProject(projectId);
+
+    if (!project) {
+      return NextResponse.json(
+        { error: 'Project not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if user is the owner
+    if (project.user_id !== userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 403 }
+      );
+    }
+
+    // Update project in Supabase
+    const success = await supabaseService.updateProject(projectId, updates);
 
     if (!success) {
       return NextResponse.json(
-        { error: 'Project not found or update failed' },
-        { status: 404 }
+        { error: 'Update failed' },
+        { status: 500 }
       );
     }
 

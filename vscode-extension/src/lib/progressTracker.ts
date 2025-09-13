@@ -143,7 +143,6 @@ export class ProgressTrackerImpl implements ProgressTracker {
         // Sync with dashboard on startup
         await this.syncWithDashboard();
         
-        console.log('Auto progress tracking started with enhanced git analysis');
     }
     
     /**
@@ -154,7 +153,6 @@ export class ProgressTrackerImpl implements ProgressTracker {
             this.fileWatcher.dispose();
             this.fileWatcher = undefined;
         }
-        console.log('Auto progress tracking stopped');
     }
     
     detectTaskCompletion(filePath: string): boolean {
@@ -503,7 +501,6 @@ export class ProgressTrackerImpl implements ProgressTracker {
         let currentParentId: string | undefined;
         let taskCounter = 0;
         
-        console.log('Parsing tasks from markdown, total lines:', lines.length);
 
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
@@ -536,7 +533,6 @@ export class ProgressTrackerImpl implements ProgressTracker {
                 const trimmedTaskId = taskId.trim();
                 const trimmedTitle = title.trim();
                 
-                console.log(`Found task: ${trimmedTaskId} - ${trimmedTitle} - Completed: ${isCompleted}`);
 
                 // Determine if this is a subtask
                 const isSubtask = level > 0 || trimmedTaskId.includes('.');
@@ -590,8 +586,6 @@ export class ProgressTrackerImpl implements ProgressTracker {
             }
         }
 
-        console.log(`Total tasks parsed: ${tasks.length}`);
-        console.log(`Completed tasks: ${tasks.filter(t => t.isCompleted).length}`);
         return tasks;
     }
     
@@ -678,7 +672,6 @@ export class ProgressTrackerImpl implements ProgressTracker {
             if (!response.ok) {
                 console.warn('Failed to sync progress with dashboard:', response.statusText);
             } else {
-                console.log('Progress synced with dashboard successfully');
             }
         } catch (error) {
             console.warn('Error syncing progress with dashboard:', error);

@@ -4,6 +4,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { embeddingService } from './embeddingService';
 import { pineconeOperationsService } from './pineconeOperationsService';
 import { PineconeUtils } from './pineconeUtils';
+import { validateProjectContext, truncateProjectFields } from './contextValidation';
+import { SupabaseService, Project as SupabaseProject } from './supabase';
 
 export function createVectorId(type: string, id: string): string {
   return `${type}:${id}`;
@@ -15,6 +17,11 @@ export interface UserProject extends ProjectConfiguration {
 
 export class ProjectService {
   private static instance: ProjectService;
+  private supabaseService: SupabaseService;
+
+  constructor() {
+    this.supabaseService = SupabaseService.getInstance();
+  }
 
   static getInstance(): ProjectService {
     if (!ProjectService.instance) {
@@ -29,66 +36,157 @@ export class ProjectService {
 
     const { contextPreferences, ...restProjectData } = projectData;
 
-    const project: UserProject = {
-      ...restProjectData,
-      projectId,
-      userId,
-      createdAt: now,
-      lastModified: now,
-      isPublic: projectData.isPublic || false, // Use the value from projectData
-      tokenTracking: {
-        totalTokens: 0,
-        totalCost: 0,
-        lastUpdated: now
-      },
-      contextPreferences: {
+    // Validate and truncate project data to prevent context length issues
+    const contextValidation = validateProjectContext({
+      name: restProjectData.name,
+      description: restProjectData.description,
+      template: restProjectData.template,
+      requirements: restProjectData.requirements,
+      design: restProjectData.design,
+      tasks: restProjectData.tasks
+    }, restProjectData.aiModel?.includes('gemini') ? 'google' : 'openai');
+
+    if (!contextValidation.isValid) {
+      console.warn('Project creation context validation:', contextValidation.warning);
+      // Apply field truncation to prevent future issues
+      const truncatedFields = truncateProjectFields({
+        name: restProjectData.name,
+        description: restProjectData.description,
+        requirements: restProjectData.requirements,
+        design: restProjectData.design,
+        tasks: restProjectData.tasks
+      });
+      
+      // Update project data with truncated fields
+      Object.assign(restProjectData, truncatedFields);
+    }
+
+    // Create project in Supabase first
+    const supabaseProjectData = {
+      id: projectId,
+      user_id: userId,
+      name: restProjectData.name,
+      description: restProjectData.description,
+      template: restProjectData.template,
+      custom_template: restProjectData.customTemplate,
+      industry: restProjectData.industry || 'other',
+      custom_industry: restProjectData.customIndustry,
+      business_model: restProjectData.businessModel || [],
+      ai_model: restProjectData.aiModel || 'gpt-4',
+      technology_stack: restProjectData.technologyStack,
+      regulatory_compliance: restProjectData.regulatoryCompliance,
+      is_public: projectData.isPublic || false,
+      requirements: restProjectData.requirements,
+      design: restProjectData.design,
+      tasks: restProjectData.tasks,
+      progress: restProjectData.progress,
+      context_preferences: {
         ...{
           maxContextSize: 8000,
           prioritizeRecent: true,
           includeProgress: true
         },
         ...(contextPreferences || {})
-      }
+      },
+      token_tracking: {
+        totalTokens: 0,
+        totalCost: 0,
+        lastUpdated: now
+      },
+      analysis_data: restProjectData.analysisData
     };
 
-    // Generate embedding for the project description
-    const embedding = await embeddingService.generateEmbedding(project.description);
+    // Store in Supabase
+    const supabaseProject = await this.supabaseService.createProject(supabaseProjectData);
 
-    // Store in Pinecone
-    const pinecone = getPineconeClient();
-    const index = pinecone.index(PINECONE_INDEX_NAME);
-    const vectorId = createVectorId('user-project', projectId);
-
-    await index.namespace(PINECONE_NAMESPACE_PROJECTS).upsert([
-      {
-        id: vectorId,
-        values: embedding,
-        metadata: {
-          userId,
-          projectId,
-          name: project.name,
-          description: project.description,
-          template: project.template,
-          createdAt: now,
-          lastModified: now,
-          isPublic: project.isPublic || false,
-          type: 'user-project',
-          projectData: JSON.stringify(project)
-        }
-      }
-    ]);
+    // Note: Embeddings will be generated after enhanced specs are created
+    // This avoids generating embeddings for incomplete project data
 
     return {
       id: projectId,
-      name: project.name,
-      description: project.description,
-      lastModified: new Date(now),
+      name: supabaseProject.name,
+      description: supabaseProject.description,
+      lastModified: new Date(supabaseProject.updated_at),
       progress: 0
     };
   }
 
+  private async syncToPinecone(project: SupabaseProject, embedding: number[]): Promise<void> {
+    try {
+      const pinecone = getPineconeClient();
+      const index = pinecone.index(PINECONE_INDEX_NAME);
+      const vectorId = createVectorId('user-project', project.id);
+
+      await index.namespace(PINECONE_NAMESPACE_PROJECTS).upsert([
+        {
+          id: vectorId,
+          values: embedding,
+          metadata: {
+            userId: project.user_id,
+            projectId: project.id,
+            name: project.name,
+            description: project.description,
+            template: project.template,
+            createdAt: project.created_at,
+            lastModified: project.updated_at,
+            isPublic: project.is_public,
+            type: 'user-project',
+            projectData: JSON.stringify(project)
+          }
+        }
+      ]);
+    } catch (error) {
+      console.error('Failed to sync project to Pinecone:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate embeddings for a project after it's been fully created with specs
+   */
+  async generateProjectEmbeddings(projectId: string): Promise<void> {
+    try {
+      // Get the complete project data from Supabase
+      const project = await this.supabaseService.getProject(projectId);
+      if (!project) {
+        console.warn(`Project ${projectId} not found for embedding generation`);
+        return;
+      }
+
+      // Generate embedding for the complete project description
+      const embedding = await embeddingService.generateEmbedding(project.description);
+
+      // Store in Pinecone for vector search (async, don't wait)
+      this.syncToPinecone(project, embedding).catch(error => {
+        console.warn('Failed to sync project to Pinecone:', error);
+      });
+
+      console.log(`✅ Generated embeddings for project ${projectId}`);
+    } catch (error) {
+      console.error(`❌ Failed to generate embeddings for project ${projectId}:`, error);
+    }
+  }
+
   async getUserProjects(userId: string): Promise<ProjectListItem[]> {
-    // Query projects for this user
+    try {
+      const projects = await this.supabaseService.getUserProjects(userId);
+      
+      return projects.map(project => ({
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        lastModified: new Date(project.updated_at),
+        progress: project.progress?.percentage || 0,
+        isPublic: project.is_public
+      }));
+    } catch (error) {
+      console.error('Failed to get user projects from Supabase:', error);
+      // Fallback to Pinecone if Supabase fails
+      return this.getUserProjectsFromPinecone(userId);
+    }
+  }
+
+  private async getUserProjectsFromPinecone(userId: string): Promise<ProjectListItem[]> {
     const pinecone = getPineconeClient();
     const index = pinecone.index(PINECONE_INDEX_NAME);
 
@@ -118,23 +216,39 @@ export class ProjectService {
   }
 
   async getPublicProjects(excludeUserId?: string): Promise<ProjectListItem[]> {
-    // Query all public projects
+    try {
+      const projects = await this.supabaseService.getPublicProjects(excludeUserId);
+      
+      return projects.map(project => ({
+        id: project.id,
+        name: project.name,
+        description: project.description,
+        lastModified: new Date(project.updated_at),
+        progress: project.progress?.percentage || 0,
+        isPublic: project.is_public
+      }));
+    } catch (error) {
+      console.error('Failed to get public projects from Supabase:', error);
+      // Fallback to Pinecone if Supabase fails
+      return this.getPublicProjectsFromPinecone(excludeUserId);
+    }
+  }
+
+  private async getPublicProjectsFromPinecone(excludeUserId?: string): Promise<ProjectListItem[]> {
     const pinecone = getPineconeClient();
     const index = pinecone.index(PINECONE_INDEX_NAME);
 
-    // Build filter to exclude projects owned by the specified user
     const filter: any = {
       isPublic: { $eq: true },
       type: { $eq: 'user-project' }
     };
-    
-    // If excludeUserId is provided, exclude projects owned by that user
+
     if (excludeUserId) {
       filter.userId = { $ne: excludeUserId };
     }
 
     const queryResponse = await index.namespace(PINECONE_NAMESPACE_PROJECTS).query({
-      vector: new Array(1024).fill(0), // Placeholder query vector (match Pinecone index dimension)
+      vector: new Array(1024).fill(0), // Placeholder query vector
       filter,
       topK: 100,
       includeMetadata: true
@@ -156,6 +270,48 @@ export class ProjectService {
   }
 
   async getProject(userId: string, projectId: string): Promise<UserProject | null> {
+    try {
+      // Try to get from Supabase first
+      const supabaseProject = await this.supabaseService.getProject(projectId, userId);
+      
+      if (supabaseProject) {
+        // Convert Supabase project to UserProject format
+        const userProject: UserProject = {
+          projectId: supabaseProject.id,
+          userId: supabaseProject.user_id,
+          name: supabaseProject.name,
+          description: supabaseProject.description,
+          template: supabaseProject.template,
+          customTemplate: supabaseProject.custom_template,
+          industry: supabaseProject.industry,
+          customIndustry: supabaseProject.custom_industry,
+          businessModel: supabaseProject.business_model,
+          aiModel: supabaseProject.ai_model,
+          technologyStack: supabaseProject.technology_stack,
+          regulatoryCompliance: supabaseProject.regulatory_compliance,
+          isPublic: supabaseProject.is_public,
+          requirements: supabaseProject.requirements,
+          design: supabaseProject.design,
+          tasks: supabaseProject.tasks,
+          progress: supabaseProject.progress,
+          contextPreferences: supabaseProject.context_preferences,
+          tokenTracking: supabaseProject.token_tracking,
+          analysisData: supabaseProject.analysis_data,
+          createdAt: supabaseProject.created_at,
+          lastModified: supabaseProject.updated_at
+        };
+        
+        return userProject;
+      }
+    } catch (error) {
+      console.error('Failed to get project from Supabase:', error);
+    }
+
+    // Fallback to Pinecone if Supabase fails
+    return this.getProjectFromPinecone(userId, projectId);
+  }
+
+  private async getProjectFromPinecone(userId: string, projectId: string): Promise<UserProject | null> {
     const pinecone = getPineconeClient();
     const index = pinecone.index(PINECONE_INDEX_NAME);
     const vectorId = createVectorId('user-project', projectId);
@@ -175,11 +331,7 @@ export class ProjectService {
 
     try {
       const projectData = JSON.parse(record.metadata.projectData as string) as UserProject;
-      
-      // Check for chunked documents and retrieve them
-      const processedProject = await this.processChunkedDocuments(projectData);
-      
-      return processedProject;
+      return projectData;
     } catch (error) {
       console.error('Failed to parse project data:', error);
       return null;
@@ -187,285 +339,100 @@ export class ProjectService {
   }
 
   async updateProject(userId: string, projectId: string, updates: Partial<UserProject>): Promise<boolean> {
-    // For updates, we need to explicitly check ownership regardless of public status
-    const updatePinecone = getPineconeClient();
-    const updateIndex = updatePinecone.index(PINECONE_INDEX_NAME);
-    const updateVectorId = createVectorId('user-project', projectId);
-
-    const fetchResponse = await updateIndex.namespace(PINECONE_NAMESPACE_PROJECTS).fetch([updateVectorId]);
-    const record = fetchResponse.records?.[updateVectorId];
-
-    if (!record?.metadata) {
-      return false;
-    }
-
-    // Only the owner can update the project, regardless of public status
-    if (record.metadata.userId !== userId) {
-      return false;
-    }
-
-    // Get the existing project data
-    let existingProject: UserProject;
     try {
-      existingProject = JSON.parse(record.metadata.projectData as string) as UserProject;
-    } catch (error) {
-      console.error('Failed to parse project data:', error);
-      return false;
-    }
-
-    const updatedProject: UserProject = {
-      ...existingProject,
-      ...updates,
-      projectId, // Ensure ID doesn't change
-      userId, // Ensure user doesn't change
-      lastModified: new Date().toISOString()
-    };
-
-    // Check if the updated project data would exceed Pinecone's metadata limit
-    const projectDataString = JSON.stringify(updatedProject);
-    const metadataSize = new Blob([projectDataString]).size;
-    const MAX_METADATA_SIZE = 40000; // Leave some buffer below 40KB limit
-
-    console.log(`📊 Metadata size check: ${metadataSize} bytes (limit: ${MAX_METADATA_SIZE} bytes)`);
-    console.log(`📊 Project data breakdown:`, {
-      requirements: updatedProject.requirements ? new Blob([updatedProject.requirements]).size : 0,
-      design: updatedProject.design ? new Blob([updatedProject.design]).size : 0,
-      tasks: updatedProject.tasks ? new Blob([updatedProject.tasks]).size : 0,
-      total: metadataSize
-    });
-
-    if (metadataSize > MAX_METADATA_SIZE) {
-      console.warn(`⚠️ Project data size (${metadataSize} bytes) exceeds Pinecone metadata limit. Implementing chunking strategy.`);
+      // Get existing project to verify ownership
+      const existingProject = await this.supabaseService.getProject(projectId, userId);
       
-      // Store large documents separately and keep only references
-      const chunkedProject = await this.storeLargeProjectInChunks(updatedProject, projectId, userId);
-      
-      if (!chunkedProject) {
-        console.error('❌ Failed to store large project in chunks');
-        return false;
+      if (!existingProject) {
+        return false; // Project not found or user doesn't own it
       }
-      
-      // Use the chunked version for the main metadata
-      updatedProject.requirements = chunkedProject.requirements;
-      updatedProject.design = chunkedProject.design;
-      updatedProject.tasks = chunkedProject.tasks;
-      
-      // Recalculate size after chunking
-      const chunkedProjectDataString = JSON.stringify(updatedProject);
-      const chunkedMetadataSize = new Blob([chunkedProjectDataString]).size;
-      console.log(`✅ After chunking: ${chunkedMetadataSize} bytes (was: ${metadataSize} bytes)`);
-    } else {
-      console.log(`✅ Project data size (${metadataSize} bytes) is within limits, no chunking needed`);
-    }
 
-    // Generate new embedding for the updated project
-    let embedding: number[];
-    try {
-      // Always generate a new embedding for the updated project data
-      const embeddingText = updatedProject.description || updatedProject.name || projectId;
-      embedding = await embeddingService.generateEmbedding(embeddingText);
+      // Convert UserProject updates to Supabase format
+      const supabaseUpdates: any = {};
       
-      // Ensure the embedding has the correct dimension and is not all zeros
-      if (embedding.length !== 1024) {
-        console.warn(`⚠️ Generated embedding has wrong dimension: ${embedding.length}, padding to 1024`);
-        while (embedding.length < 1024) {
-          embedding.push(0);
-        }
-        if (embedding.length > 1024) {
-          embedding = embedding.slice(0, 1024);
-        }
-      }
-      
-      // Check if embedding is all zeros and generate a fallback if needed
-      const hasNonZero = embedding.some(val => val !== 0);
-      if (!hasNonZero) {
-        console.warn('⚠️ Generated embedding is all zeros, using fallback');
-        // Create a simple hash-based embedding as fallback
-        const hash = embeddingText.split('').reduce((a, b) => {
-          a = ((a << 5) - a) + b.charCodeAt(0);
-          return a & a;
-        }, 0);
-        
-        embedding = new Array(1024).fill(0);
-        for (let i = 0; i < 1024; i++) {
-          embedding[i] = Math.sin(hash + i) * 0.1;
-        }
-      }
-      
-      console.log('✅ Generated embedding for project update:', {
-        dimension: embedding.length,
-        hasNonZero: embedding.some(val => val !== 0),
-        sampleValues: embedding.slice(0, 3)
+      if (updates.name !== undefined) supabaseUpdates.name = updates.name;
+      if (updates.description !== undefined) supabaseUpdates.description = updates.description;
+      if (updates.template !== undefined) supabaseUpdates.template = updates.template;
+      if (updates.customTemplate !== undefined) supabaseUpdates.custom_template = updates.customTemplate;
+      if (updates.industry !== undefined) supabaseUpdates.industry = updates.industry;
+      if (updates.customIndustry !== undefined) supabaseUpdates.custom_industry = updates.customIndustry;
+      if (updates.businessModel !== undefined) supabaseUpdates.business_model = updates.businessModel;
+      if (updates.aiModel !== undefined) supabaseUpdates.ai_model = updates.aiModel;
+      if (updates.technologyStack !== undefined) supabaseUpdates.technology_stack = updates.technologyStack;
+      if (updates.regulatoryCompliance !== undefined) supabaseUpdates.regulatory_compliance = updates.regulatoryCompliance;
+      if (updates.isPublic !== undefined) supabaseUpdates.is_public = updates.isPublic;
+      if (updates.requirements !== undefined) supabaseUpdates.requirements = updates.requirements;
+      if (updates.design !== undefined) supabaseUpdates.design = updates.design;
+      if (updates.tasks !== undefined) supabaseUpdates.tasks = updates.tasks;
+      if (updates.progress !== undefined) supabaseUpdates.progress = updates.progress;
+      if (updates.contextPreferences !== undefined) supabaseUpdates.context_preferences = updates.contextPreferences;
+      if (updates.tokenTracking !== undefined) supabaseUpdates.token_tracking = updates.tokenTracking;
+      if (updates.analysisData !== undefined) supabaseUpdates.analysis_data = updates.analysisData;
+
+      // Update in Supabase
+      const updatedProject = await this.supabaseService.updateProject(projectId, supabaseUpdates);
+
+      // Sync to Pinecone for vector search (async, don't wait)
+      this.syncUpdatedProjectToPinecone(updatedProject).catch(error => {
+        console.warn('Failed to sync updated project to Pinecone:', error);
       });
+
+      return true;
     } catch (error) {
-      console.error('❌ Failed to generate embedding for project update:', error);
-      // Use a simple fallback embedding
-      const hash = (updatedProject.description || updatedProject.name || projectId).split('').reduce((a, b) => {
-        a = ((a << 5) - a) + b.charCodeAt(0);
-        return a & a;
-      }, 0);
-      
-      embedding = new Array(1024).fill(0);
-      for (let i = 0; i < 1024; i++) {
-        embedding[i] = Math.sin(hash + i) * 0.1;
-      }
-      console.log('✅ Using fallback embedding for project update');
+      console.error('Failed to update project:', error);
+      return false;
     }
-
-    await updateIndex.namespace(PINECONE_NAMESPACE_PROJECTS).upsert([
-      {
-        id: updateVectorId,
-        values: embedding,
-        metadata: {
-          userId,
-          projectId,
-          name: updatedProject.name,
-          description: updatedProject.description,
-          template: updatedProject.template,
-          createdAt: updatedProject.createdAt,
-          lastModified: updatedProject.lastModified,
-          isPublic: updatedProject.isPublic || false,
-          type: 'user-project',
-          projectData: JSON.stringify(updatedProject)
-        }
-      }
-    ]);
-
-    return true;
   }
 
-  // Helper method to store large project documents in chunks
-  private async storeLargeProjectInChunks(project: UserProject, projectId: string, userId: string): Promise<UserProject | null> {
+  private async syncUpdatedProjectToPinecone(project: SupabaseProject): Promise<void> {
     try {
+      // Generate embedding for the updated project
+      const embedding = await embeddingService.generateEmbedding(project.description);
+
       const pinecone = getPineconeClient();
       const index = pinecone.index(PINECONE_INDEX_NAME);
-      
-      // Create a copy of the project with chunked documents
-      const chunkedProject = { ...project };
-      
-      // Store large documents separately if they exceed a certain size
-      const MAX_DOCUMENT_SIZE = 30000; // 30KB per document
-      
-      if (project.requirements && new Blob([project.requirements]).size > MAX_DOCUMENT_SIZE) {
-        const chunkId = `doc_${projectId}_requirements`;
-        await index.namespace('project_documents').upsert([{
-          id: chunkId,
-          values: new Array(1024).fill(0.1), // Placeholder vector
+      const vectorId = createVectorId('user-project', project.id);
+
+      await index.namespace(PINECONE_NAMESPACE_PROJECTS).upsert([
+        {
+          id: vectorId,
+          values: embedding,
           metadata: {
-            projectId,
-            userId,
-            documentType: 'requirements',
-            content: project.requirements,
-            lastModified: new Date().toISOString(),
-            type: 'project_document'
+            userId: project.user_id,
+            projectId: project.id,
+            name: project.name,
+            description: project.description,
+            template: project.template,
+            createdAt: project.created_at,
+            lastModified: project.updated_at,
+            isPublic: project.is_public,
+            type: 'user-project',
+            projectData: JSON.stringify(project)
           }
-        }]);
-        chunkedProject.requirements = `[CHUNKED:${chunkId}]`;
-        console.log(`✅ Stored large requirements document as chunk: ${chunkId}`);
-      }
-      
-      if (project.design && new Blob([project.design]).size > MAX_DOCUMENT_SIZE) {
-        const chunkId = `doc_${projectId}_design`;
-        await index.namespace('project_documents').upsert([{
-          id: chunkId,
-          values: new Array(1024).fill(0.1), // Placeholder vector
-          metadata: {
-            projectId,
-            userId,
-            documentType: 'design',
-            content: project.design,
-            lastModified: new Date().toISOString(),
-            type: 'project_document'
-          }
-        }]);
-        chunkedProject.design = `[CHUNKED:${chunkId}]`;
-        console.log(`✅ Stored large design document as chunk: ${chunkId}`);
-      }
-      
-      if (project.tasks && new Blob([project.tasks]).size > MAX_DOCUMENT_SIZE) {
-        const chunkId = `doc_${projectId}_tasks`;
-        await index.namespace('project_documents').upsert([{
-          id: chunkId,
-          values: new Array(1024).fill(0.1), // Placeholder vector
-          metadata: {
-            projectId,
-            userId,
-            documentType: 'tasks',
-            content: project.tasks,
-            lastModified: new Date().toISOString(),
-            type: 'project_document'
-          }
-        }]);
-        chunkedProject.tasks = `[CHUNKED:${chunkId}]`;
-        console.log(`✅ Stored large tasks document as chunk: ${chunkId}`);
-      }
-      
-      return chunkedProject;
+        }
+      ]);
     } catch (error) {
-      console.error('❌ Failed to store large project in chunks:', error);
-      return null;
+      console.error('Failed to sync updated project to Pinecone:', error);
+      throw error;
     }
   }
 
   async deleteProject(userId: string, projectId: string): Promise<boolean> {
-    // For deletion, we need to explicitly check ownership regardless of public status
-    const deletePinecone = getPineconeClient();
-    const deleteIndex = deletePinecone.index(PINECONE_INDEX_NAME);
-    const deleteVectorId = createVectorId('user-project', projectId);
-
-    const fetchResponse = await deleteIndex.namespace(PINECONE_NAMESPACE_PROJECTS).fetch([deleteVectorId]);
-    const record = fetchResponse.records?.[deleteVectorId];
-
-    if (!record?.metadata) {
+    try {
+      // Delete from Supabase first
+      await this.supabaseService.deleteProject(projectId, userId);
+      
+      // Also delete from Pinecone
+      const deletePinecone = getPineconeClient();
+      const deleteIndex = deletePinecone.index(PINECONE_INDEX_NAME);
+      const deleteVectorId = createVectorId('user-project', projectId);
+      
+      await deleteIndex.namespace(PINECONE_NAMESPACE_PROJECTS).deleteOne(deleteVectorId);
+      
+      return true;
+    } catch (error) {
+      console.error('Failed to delete project:', error);
       return false;
     }
-
-    // Only the owner can delete the project, regardless of public status
-    if (record.metadata.userId !== userId) {
-      return false;
-    }
-
-    await deleteIndex.namespace(PINECONE_NAMESPACE_PROJECTS).deleteOne(deleteVectorId);
-    return true;
-  }
-
-  // Helper method to process chunked documents and retrieve their content
-  private async processChunkedDocuments(project: UserProject): Promise<UserProject> {
-    const pinecone = getPineconeClient();
-    const index = pinecone.index(PINECONE_INDEX_NAME);
-
-    const processedProject: UserProject = { ...project };
-
-    if (processedProject.requirements && processedProject.requirements.includes('[CHUNKED:')) {
-      const chunkId = processedProject.requirements.replace('[CHUNKED:', '').replace(']', '');
-      const chunkResponse = await index.namespace('project_documents').fetch([chunkId]);
-      const chunkRecord = chunkResponse.records?.[chunkId];
-      if (chunkRecord?.metadata?.content) {
-        processedProject.requirements = String(chunkRecord.metadata.content);
-        console.log(`✅ Retrieved chunked requirements document: ${chunkId}`);
-      }
-    }
-
-    if (processedProject.design && processedProject.design.includes('[CHUNKED:')) {
-      const chunkId = processedProject.design.replace('[CHUNKED:', '').replace(']', '');
-      const chunkResponse = await index.namespace('project_documents').fetch([chunkId]);
-      const chunkRecord = chunkResponse.records?.[chunkId];
-      if (chunkRecord?.metadata?.content) {
-        processedProject.design = String(chunkRecord.metadata.content);
-        console.log(`✅ Retrieved chunked design document: ${chunkId}`);
-      }
-    }
-
-    if (processedProject.tasks && processedProject.tasks.includes('[CHUNKED:')) {
-      const chunkId = processedProject.tasks.replace('[CHUNKED:', '').replace(']', '');
-      const chunkResponse = await index.namespace('project_documents').fetch([chunkId]);
-      const chunkRecord = chunkResponse.records?.[chunkId];
-      if (chunkRecord?.metadata?.content) {
-        processedProject.tasks = String(chunkRecord.metadata.content);
-        console.log(`✅ Retrieved chunked tasks document: ${chunkId}`);
-      }
-    }
-
-    return processedProject;
   }
 }

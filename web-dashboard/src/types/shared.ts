@@ -46,6 +46,11 @@ export interface TechnologyStack {
   uiFramework?: string;
   authentication?: string;
   hosting?: string;
+  database?: string;
+  payment?: string;
+  analytics?: string;
+  monitoring?: string;
+  cicd?: string;
 }
 
 export interface ProjectConfiguration {
@@ -57,6 +62,8 @@ export interface ProjectConfiguration {
   lastModified: string;
   aiModel: string;
   originalPath?: string; // For imported projects
+  country?: string; // Target country/market for the project
+  industry?: string; // Industry sector (fintech, healthcare, e-commerce, etc.)
   technologyStack?: TechnologyStack;
   requirements?: string; // Generated requirements document
   design?: string; // Generated design document

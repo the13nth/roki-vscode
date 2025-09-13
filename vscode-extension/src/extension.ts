@@ -182,16 +182,8 @@ export async function activate(context: vscode.ExtensionContext) {
         // Initialize error handling
         setupGlobalErrorHandling();
         
-        // Debug: Show activation message
-                    vscode.window.showInformationMessage('AI Project Manager extension activated!');
-        
-        // Debug: Check auth service initialization
+        // Initialize auth service
         const authService = AuthService.getInstance();
-        console.log('Auth service initialized, authenticated:', authService.isAuthenticated());
-        if (authService.isAuthenticated()) {
-            const user = authService.getCurrentUser();
-            console.log('Current user:', user?.name, user?.email);
-        }
     } catch (error) {
         console.error('Error during extension initialization:', error);
     }
@@ -212,26 +204,22 @@ export async function activate(context: vscode.ExtensionContext) {
     
     // Initialize sidebar provider
     sidebarProvider = new SidebarProvider();
-    console.log('Sidebar provider initialized');
     
     // Register sidebar tree data provider
     const treeDataProvider = vscode.window.createTreeView('aiProjectManagerSidebar', {
         treeDataProvider: sidebarProvider,
         showCollapseAll: true
     });
-    console.log('Tree data provider registered');
 
     // Register custom editor provider for tasks.md
     const taskDocumentProvider = new TaskDocumentProvider(context);
     const taskDocumentProviderRegistration = TaskDocumentProvider.register(context);
-    console.log('Task document provider registered');
     
     // Try to make the view visible
     try {
         await vscode.commands.executeCommand('setContext', 'aiProjectManagerSidebar.visible', true);
-        console.log('Set sidebar visible context');
     } catch (error) {
-        console.log('Failed to set sidebar context:', error);
+        // Silently handle context setting errors
     }
     
     // Set context for when project is detected
@@ -247,7 +235,6 @@ export async function activate(context: vscode.ExtensionContext) {
                 // Always copy to clipboard for manual pasting
                 await vscode.env.clipboard.writeText(formattedContext);
                 vscode.window.showInformationMessage('AI Context copied to clipboard! You can now paste it manually.');
-                console.log('Formatted context:', formattedContext);
             } catch (error) {
                 const errorMessage = error instanceof Error ? error.message : 'Unknown error';
                 vscode.window.showErrorMessage(`Failed to inject context: ${errorMessage}`);

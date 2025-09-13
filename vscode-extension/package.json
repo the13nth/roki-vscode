@@ -6,8 +6,9 @@
   "publisher": "ai-project-manager",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ai-project-manager/vscode-extension.git"
+    "url": "https://github.com/your-username/roki-vscode-extension.git"
   },
+  "license": "MIT",
   "engines": {
     "vscode": "^1.74.0"
   },
@@ -108,21 +109,6 @@
         "command": "aiProjectManager.updateProjectUserInfo",
         "title": "AI Project Manager: Update Project User Info",
         "icon": "$(account)"
-      },
-      {
-        "command": "aiProjectManager.createProject",
-        "title": "AI Project Manager: Create New Project",
-        "icon": "$(add)"
-      },
-      {
-        "command": "aiProjectManager.validateProject",
-        "title": "AI Project Manager: Validate Project",
-        "icon": "$(check)"
-      },
-      {
-        "command": "aiProjectManager.repairProject",
-        "title": "AI Project Manager: Repair Project",
-        "icon": "$(tools)"
       },
       {
         "command": "aiProjectManager.login",

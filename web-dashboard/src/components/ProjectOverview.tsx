@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { ProjectListItem } from '@/types';
 import { ProjectCard } from './ProjectCard';
-import { ProjectCreationWizard } from './ProjectCreationWizard';
+import { EnhancedProjectCreationWizard } from '@/components/project-creation';
 import { SearchAndFilter } from './SearchAndFilter';
 
 export function ProjectOverview() {
@@ -419,7 +419,7 @@ export function ProjectOverview() {
 
         {/* Project Creation Wizard Modal */}
         {showCreateWizard && (
-          <ProjectCreationWizard 
+          <EnhancedProjectCreationWizard 
             onClose={() => setShowCreateWizard(false)}
             onProjectCreated={handleProjectCreated}
           />

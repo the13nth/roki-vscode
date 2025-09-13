@@ -47,7 +47,6 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
     private refreshCount = 0;
 
     constructor() {
-        console.log('SidebarProvider constructor called');
         // Set up smart periodic refresh with adaptive intervals
         this.setupSmartRefresh();
         
@@ -59,7 +58,6 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
             if (event.affectsConfiguration('aiProjectManager.authToken') || 
                 event.affectsConfiguration('aiProjectManager.userId') ||
                 event.affectsConfiguration('aiProjectManager.userEmail')) {
-                console.log('Auth configuration changed, refreshing sidebar');
                 this.smartRefresh();
             }
         });
@@ -79,7 +77,6 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
         
         // Check if we're within the minimum refresh interval
         if (now - this.lastRefreshTime < this.MIN_REFRESH_INTERVAL) {
-            console.log('Refresh rate limited, debouncing...');
             
             // Clear existing timeout and set a new one
             if (this.refreshTimeout) {
@@ -121,7 +118,6 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
         this.lastRefreshTime = now;
         this.refreshCount++;
         
-        console.log(`Performing refresh #${this.refreshCount} at ${new Date(now).toISOString()}`);
         
         try {
             await this.loadUserProjects();
@@ -160,7 +156,6 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
             if (this.authService.isAuthenticated()) {
                 const projectLoader = ProjectLoader.getInstance();
                 this.userProjects = await projectLoader.listUserProjects();
-                console.log('Loaded user projects:', this.userProjects.length);
                 
                 // If no project is selected and we have projects, select the first one
                 if (!this.selectedProjectId && this.userProjects.length > 0) {
@@ -196,17 +191,12 @@ export class SidebarProvider implements vscode.TreeDataProvider<SidebarItem> {
     }
 
     async getChildren(element?: SidebarItem): Promise<SidebarItem[]> {
-        console.log('getChildren called with element:', element?.label || 'root');
         
-        // Debug authentication status
         const isAuthenticated = this.authService.isAuthenticated();
         const currentUser = this.authService.getCurrentUser();
-        console.log('Auth service authenticated:', isAuthenticated);
-        console.log('Current user:', currentUser?.email || 'none');
         
         // Check authentication status first
         if (!isAuthenticated) {
-            console.log('Not authenticated, showing login screen');
             // Only return root items when not authenticated, no children
             if (!element) {
                 return this.getNotLoggedInItems();

@@ -30,7 +30,18 @@ import { ProjectDashboard } from '@/types/shared';
 import { ShareProjectDialog } from './ShareProjectDialog';
 
 interface ProjectOverviewTabProps {
-  project: ProjectDashboard & { isOwned?: boolean; isPublic?: boolean };
+  project: ProjectDashboard & { 
+    isOwned?: boolean; 
+    isPublic?: boolean;
+    businessModel?: string[];
+    technologyStack?: any;
+    regulatoryCompliance?: any;
+    industry?: string;
+    customIndustry?: string;
+    template?: string;
+    customTemplate?: string;
+    aiModel?: string;
+  };
   onUpdate: (updatedProject: Partial<ProjectDashboard>) => void;
 }
 
@@ -41,6 +52,12 @@ export function ProjectOverviewTab({ project, onUpdate }: ProjectOverviewTabProp
   const [specsSuccess, setSpecsSuccess] = useState<string | null>(null);
   const [isPublic, setIsPublic] = useState(false);
   const [isTogglingVisibility, setIsTogglingVisibility] = useState(false);
+  
+  // Editing states for additional fields
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<string>('');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Load project visibility status on component mount
   useEffect(() => {
@@ -190,6 +207,62 @@ export function ProjectOverviewTab({ project, onUpdate }: ProjectOverviewTabProp
     }));
   };
 
+  const handleStartEdit = (field: string, currentValue: any) => {
+    setEditingField(field);
+    setEditValue(Array.isArray(currentValue) ? currentValue.join(', ') : (currentValue || ''));
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingField(null);
+    setEditValue('');
+    setIsEditing(false);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingField) return;
+
+    try {
+      setIsSaving(true);
+      
+      let updateValue = editValue;
+      
+      // Handle different field types
+      if (editingField === 'businessModel') {
+        updateValue = editValue.split(',').map(item => item.trim()).filter(item => item);
+      } else if (editingField === 'technologyStack' || editingField === 'regulatoryCompliance') {
+        try {
+          updateValue = editValue ? JSON.parse(editValue) : null;
+        } catch {
+          // If JSON parsing fails, treat as string
+          updateValue = editValue;
+        }
+      }
+
+      const response = await fetch(`/api/projects/${project.projectId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          [editingField]: updateValue
+        }),
+      });
+
+      if (response.ok) {
+        // Update local state
+        onUpdate({ [editingField]: updateValue });
+        handleCancelEdit();
+      } else {
+        console.error('Failed to update project field');
+      }
+    } catch (error) {
+      console.error('Error updating project field:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="p-8">
       <div className="mb-8">
@@ -286,6 +359,202 @@ export function ProjectOverviewTab({ project, onUpdate }: ProjectOverviewTabProp
               <dd className="text-sm font-medium">{formatDate(project.progress.lastUpdated)}</dd>
             </div>
           </div>
+
+          {/* Additional Project Details - Only show for project owners */}
+          {project.isOwned && (
+            <div className="mt-8 pt-6 border-t border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Project Details</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                
+                {/* Industry */}
+                <div>
+                  <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Industry</dt>
+                  <dd className="text-sm font-medium">
+                    {editingField === 'industry' ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                          placeholder="Enter industry"
+                        />
+                        <Button size="sm" onClick={handleSaveEdit} disabled={isSaving}>
+                          {isSaving ? 'Saving...' : 'Save'}
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span>{project.industry || project.customIndustry || 'Not specified'}</span>
+                        <Button size="sm" variant="ghost" onClick={() => handleStartEdit('industry', project.industry)}>
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </Button>
+                      </div>
+                    )}
+                  </dd>
+                </div>
+
+                {/* Business Model */}
+                <div>
+                  <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Business Model</dt>
+                  <dd className="text-sm font-medium">
+                    {editingField === 'businessModel' ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                          placeholder="Enter business models (comma-separated)"
+                        />
+                        <Button size="sm" onClick={handleSaveEdit} disabled={isSaving}>
+                          {isSaving ? 'Saving...' : 'Save'}
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span>{project.businessModel?.length ? project.businessModel.join(', ') : 'Not specified'}</span>
+                        <Button size="sm" variant="ghost" onClick={() => handleStartEdit('businessModel', project.businessModel)}>
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </Button>
+                      </div>
+                    )}
+                  </dd>
+                </div>
+
+                {/* AI Model */}
+                <div>
+                  <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">AI Model</dt>
+                  <dd className="text-sm font-medium">
+                    {editingField === 'aiModel' ? (
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                        >
+                          <option value="gpt-4">GPT-4</option>
+                          <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                          <option value="claude-3-sonnet">Claude 3 Sonnet</option>
+                          <option value="claude-3-haiku">Claude 3 Haiku</option>
+                          <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                          <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                        </select>
+                        <Button size="sm" onClick={handleSaveEdit} disabled={isSaving}>
+                          {isSaving ? 'Saving...' : 'Save'}
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span>{project.aiModel || 'gpt-4'}</span>
+                        <Button size="sm" variant="ghost" onClick={() => handleStartEdit('aiModel', project.aiModel)}>
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </Button>
+                      </div>
+                    )}
+                  </dd>
+                </div>
+
+                {/* Technology Stack */}
+                <div className="md:col-span-2 lg:col-span-3">
+                  <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Technology Stack</dt>
+                  <dd className="text-sm font-medium">
+                    {editingField === 'technologyStack' ? (
+                      <div className="space-y-2">
+                        <textarea
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                          placeholder="Enter technology stack as JSON or plain text"
+                          rows={3}
+                        />
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={handleSaveEdit} disabled={isSaving}>
+                            {isSaving ? 'Saving...' : 'Save'}
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1">
+                          {project.technologyStack ? (
+                            <pre className="text-xs bg-gray-50 p-2 rounded whitespace-pre-wrap">
+                              {typeof project.technologyStack === 'string' 
+                                ? project.technologyStack 
+                                : JSON.stringify(project.technologyStack, null, 2)
+                              }
+                            </pre>
+                          ) : (
+                            <span className="text-gray-500">Not specified</span>
+                          )}
+                        </div>
+                        <Button size="sm" variant="ghost" onClick={() => handleStartEdit('technologyStack', project.technologyStack)}>
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </Button>
+                      </div>
+                    )}
+                  </dd>
+                </div>
+
+                {/* Regulatory Compliance */}
+                <div className="md:col-span-2 lg:col-span-3">
+                  <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Regulatory Compliance</dt>
+                  <dd className="text-sm font-medium">
+                    {editingField === 'regulatoryCompliance' ? (
+                      <div className="space-y-2">
+                        <textarea
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                          placeholder="Enter regulatory compliance requirements as JSON or plain text"
+                          rows={3}
+                        />
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={handleSaveEdit} disabled={isSaving}>
+                            {isSaving ? 'Saving...' : 'Save'}
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={handleCancelEdit}>Cancel</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1">
+                          {project.regulatoryCompliance ? (
+                            <pre className="text-xs bg-gray-50 p-2 rounded whitespace-pre-wrap">
+                              {typeof project.regulatoryCompliance === 'string' 
+                                ? project.regulatoryCompliance 
+                                : JSON.stringify(project.regulatoryCompliance, null, 2)
+                              }
+                            </pre>
+                          ) : (
+                            <span className="text-gray-500">Not specified</span>
+                          )}
+                        </div>
+                        <Button size="sm" variant="ghost" onClick={() => handleStartEdit('regulatoryCompliance', project.regulatoryCompliance)}>
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </Button>
+                      </div>
+                    )}
+                  </dd>
+                </div>
+
+              </div>
+            </div>
+          )}
           
           {/* Visibility Toggle - Only show for project owners */}
           {project.isOwned && (

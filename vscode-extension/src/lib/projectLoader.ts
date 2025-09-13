@@ -47,7 +47,6 @@ export class ProjectLoader {
     const config = vscode.workspace.getConfiguration('aiProjectManager');
     const dashboardUrl = config.get('dashboardUrl', 'http://localhost:3000');
 
-    console.log('Fetching projects from:', `${dashboardUrl}/api/vscode/projects`);
 
     // First, let's test if the server is reachable
     try {
@@ -58,7 +57,6 @@ export class ProjectLoader {
           'Authorization': `Bearer ${this.authService.getCurrentUser()?.accessToken || ''}`
         }
       });
-      console.log('Server test response:', testResponse.status);
     } catch (error) {
       console.error('Server test failed:', error);
       throw new Error(`Cannot reach the dashboard server at ${dashboardUrl}. Please make sure the server is running.`);
@@ -66,12 +64,10 @@ export class ProjectLoader {
 
     const response = await this.authService.makeAuthenticatedRequest(`${dashboardUrl}/api/vscode/projects`);
     
-    console.log('Response status:', response.status, response.statusText);
     
     if (!response.ok) {
       // Try to get the response text to see what's being returned
       const responseText = await response.text();
-      console.error('Error response body:', responseText);
       
       if (responseText.includes('<!DOCTYPE') || responseText.includes('<html')) {
         throw new Error(`Server returned HTML instead of JSON. Status: ${response.status}. This might be an authentication issue or the server is not running.`);
@@ -81,14 +77,11 @@ export class ProjectLoader {
     }
 
     const responseText = await response.text();
-    console.log('Response body:', responseText);
 
     let projects;
     try {
       projects = JSON.parse(responseText);
     } catch (parseError) {
-      console.error('Failed to parse JSON:', parseError);
-      console.error('Response text:', responseText);
       throw new Error(`Invalid JSON response from server: ${responseText.substring(0, 100)}...`);
     }
 
@@ -118,7 +111,6 @@ export class ProjectLoader {
           progress: realProgress
         };
       } catch (progressError) {
-        console.warn(`Failed to get progress for project ${project.name}:`, progressError);
         // Return project with original progress if we can't get real-time data
         return {
           id: project.id || project._id,

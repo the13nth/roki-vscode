@@ -1,5 +1,4 @@
 import { getPineconeClient, PINECONE_INDEX_NAME } from './pinecone';
-import { embeddingService } from './embeddingService';
 import { pineconeOperationsService } from './pineconeOperationsService';
 import { PineconeUtils } from './pineconeUtils';
 
@@ -162,40 +161,32 @@ export class TokenTrackingService {
 
     this.alerts.push(alert);
     
-    // Save alert to Pinecone for persistence
-    await this.saveAlertToPinecone(alert);
+    // Save alert to Supabase for persistence
+    await this.saveAlertToSupabase(alert);
     
     console.log(`🚨 Token Alert: ${alert.message}`);
   }
 
-  // New: Save alerts to Pinecone
-  private async saveAlertToPinecone(alert: TokenAlert): Promise<void> {
+  // New: Save alerts to Supabase
+  private async saveAlertToSupabase(alert: TokenAlert): Promise<void> {
     try {
-      const pinecone = getPineconeClient();
-      const index = pinecone.index(PINECONE_INDEX_NAME);
+      // Import Supabase service
+      const { SupabaseService } = await import('./supabase');
+      const supabaseService = SupabaseService.getInstance();
 
-      const content = `Token alert for user ${alert.userId}: ${alert.message}`;
-      const embedding = await embeddingService.generateEmbedding(content);
-
-      const vectorId = `token_alert_${alert.userId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-      await index.upsert([{
-        id: vectorId,
-        values: embedding,
-        metadata: {
-          type: 'token_alert',
-          userId: alert.userId,
-          alertType: alert.type,
-          message: alert.message,
-          timestamp: alert.timestamp,
-          severity: alert.severity,
-          currentUsage: alert.currentUsage,
-          limit: alert.limit,
-          createdAt: new Date().toISOString()
-        }
-      }]);
+      // Save alert to a dedicated alerts table or as part of user data
+      // For now, we'll just log it since we don't have a dedicated alerts table
+      console.log('Token Alert saved:', {
+        userId: alert.userId,
+        type: alert.type,
+        message: alert.message,
+        timestamp: alert.timestamp,
+        severity: alert.severity,
+        currentUsage: alert.currentUsage,
+        limit: alert.limit
+      });
     } catch (error) {
-      console.error('Error saving alert to Pinecone:', error);
+      console.error('Error saving alert to Supabase:', error);
     }
   }
 
@@ -253,8 +244,8 @@ export class TokenTrackingService {
         errorMessage
       };
 
-      // Save to Pinecone
-      await this.saveToPinecone(tokenUsage);
+      // Save to Supabase
+      await this.saveToSupabase(tokenUsage);
 
       // Check for cost thresholds and generate alerts
       const dailyUsage = await this.getDailyUsage(userId);
@@ -270,71 +261,94 @@ export class TokenTrackingService {
     }
   }
 
-  private async saveToPinecone(tokenUsage: TokenUsage): Promise<void> {
+  private async saveToSupabase(tokenUsage: TokenUsage): Promise<void> {
     try {
-      // Create a simple embedding for the token usage data
-      const content = `Token usage for ${tokenUsage.analysisType} analysis in project ${tokenUsage.projectId}`;
-      const embedding = await embeddingService.generateEmbedding(content);
+      // Skip token tracking for project-creation phase since project doesn't exist yet
+      if (tokenUsage.projectId === 'project-creation') {
+        console.log('Skipping token tracking for project-creation phase');
+        return;
+      }
 
-      const vectorId = `token_usage_${tokenUsage.projectId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // Import Supabase service
+      const { SupabaseService } = await import('./supabase');
+      const supabaseService = SupabaseService.getInstance();
 
-      await pineconeOperationsService.upsert([{
-        id: vectorId,
-        values: embedding,
-        metadata: {
-          type: 'token_usage',
-          projectId: tokenUsage.projectId,
-          userId: tokenUsage.userId || '',
-          sessionId: tokenUsage.sessionId,
-          analysisType: tokenUsage.analysisType,
-          inputTokens: tokenUsage.inputTokens,
-          outputTokens: tokenUsage.outputTokens,
-          totalTokens: tokenUsage.totalTokens,
-          cost: tokenUsage.cost,
-          timestamp: tokenUsage.timestamp,
-          createdAt: new Date().toISOString()
-        }
-      }]);
+      // Get current project to update token tracking
+      const project = await supabaseService.getProject(tokenUsage.projectId);
+      if (!project) {
+        console.warn('Project not found for token tracking:', tokenUsage.projectId);
+        return;
+      }
 
-      console.log('Token usage saved to Pinecone:', vectorId);
+      // Update token tracking data in the project
+      const currentTokenTracking = project.token_tracking || { totalTokens: 0, totalCost: 0, lastUpdated: new Date().toISOString() };
+      const updatedTokenTracking = {
+        totalTokens: currentTokenTracking.totalTokens + tokenUsage.totalTokens,
+        totalCost: currentTokenTracking.totalCost + tokenUsage.cost,
+        lastUpdated: new Date().toISOString(),
+        // Store detailed usage history
+        usageHistory: [
+          ...(currentTokenTracking.usageHistory || []),
+          {
+            analysisType: tokenUsage.analysisType,
+            inputTokens: tokenUsage.inputTokens,
+            outputTokens: tokenUsage.outputTokens,
+            totalTokens: tokenUsage.totalTokens,
+            cost: tokenUsage.cost,
+            timestamp: tokenUsage.timestamp,
+            sessionId: tokenUsage.sessionId,
+            provider: tokenUsage.provider,
+            model: tokenUsage.model
+          }
+        ].slice(-100) // Keep only last 100 entries to prevent bloat
+      };
+
+      // Update the project with new token tracking data
+      await supabaseService.updateProject(tokenUsage.projectId, {
+        token_tracking: updatedTokenTracking
+      });
+
+      console.log('Token usage saved to Supabase for project:', tokenUsage.projectId);
     } catch (error) {
-      console.error('Error saving token usage to Pinecone:', error);
+      console.error('Error saving token usage to Supabase:', error);
     }
   }
 
   // New: Get daily usage for a user
   async getDailyUsage(userId: string): Promise<{ totalTokens: number; totalCost: number; requestCount: number }> {
     try {
-      const pinecone = getPineconeClient();
-      const index = pinecone.index(PINECONE_INDEX_NAME);
+      // Import Supabase service
+      const { SupabaseService } = await import('./supabase');
+      const supabaseService = SupabaseService.getInstance();
 
       const dayStart = new Date();
       dayStart.setHours(0, 0, 0, 0);
 
-      const queryResponse = await index.query({
-        vector: new Array(1024).fill(0),
-        filter: {
-          userId: { $eq: userId },
-          type: { $eq: 'token_usage' }
-        },
-        topK: 1000,
-        includeMetadata: true
-      });
-
+      // Get all projects for the user
+      const projects = await supabaseService.getUserProjects(userId);
+      
       let totalTokens = 0;
       let totalCost = 0;
       let requestCount = 0;
 
-      queryResponse.matches.forEach(match => {
-        if (match.metadata) {
-          const timestamp = new Date(match.metadata.timestamp as string);
-          if (timestamp >= dayStart) {
-            totalTokens += (match.metadata.totalTokens as number) || 0;
-            totalCost += (match.metadata.cost as number) || 0;
+      // Aggregate token usage from all projects
+      for (const project of projects) {
+        if (project.token_tracking && project.token_tracking.usageHistory) {
+          const usageHistory = project.token_tracking.usageHistory;
+          
+          // Filter usage history for today
+          const todayUsage = usageHistory.filter((usage: any) => {
+            const timestamp = new Date(usage.timestamp);
+            return timestamp >= dayStart;
+          });
+
+          todayUsage.forEach((usage: any) => {
+            totalTokens += usage.totalTokens || 0;
+            totalCost += usage.cost || 0;
             requestCount++;
-          }
+          });
         }
-      });
+      }
 
       return { totalTokens, totalCost, requestCount };
     } catch (error) {

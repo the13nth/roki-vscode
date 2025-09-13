@@ -31,7 +31,6 @@ export class SyncService {
    */
   async downloadCloudDocuments(projectId: string, localPath: string): Promise<void> {
     try {
-      console.log(`📥 Downloading cloud documents for project ${projectId} to ${localPath}`);
       
       const config = vscode.workspace.getConfiguration('aiProjectManager');
       const dashboardUrl = config.get('dashboardUrl', 'http://localhost:3000');
@@ -48,7 +47,6 @@ export class SyncService {
       }
 
       const responseText = await response.text();
-      console.log(`API Response: ${responseText}`);
 
       let documents: any;
       try {
@@ -61,13 +59,9 @@ export class SyncService {
 
       // Create local directory structure
       const kiroSpecsPath = path.join(localPath, '.kiro', 'specs', 'ai-project-manager');
-      console.log(`📁 Creating directory structure: ${kiroSpecsPath}`);
       
       if (!fs.existsSync(kiroSpecsPath)) {
         fs.mkdirSync(kiroSpecsPath, { recursive: true });
-        console.log(`✅ Created directory: ${kiroSpecsPath}`);
-      } else {
-        console.log(`📁 Directory already exists: ${kiroSpecsPath}`);
       }
 
       // Create backup before updating
@@ -84,9 +78,6 @@ export class SyncService {
         if (documents[doc.key] && documents[doc.key].content) {
           const filePath = path.join(kiroSpecsPath, doc.filename);
           fs.writeFileSync(filePath, documents[doc.key].content);
-          console.log(`💾 Downloaded and saved: ${doc.filename} to ${filePath}`);
-        } else {
-          console.log(`⚠️ No content found for ${doc.key}`);
         }
       }
 
@@ -97,8 +88,6 @@ export class SyncService {
         message: 'Documents downloaded successfully'
       });
 
-      console.log(`✅ Successfully downloaded cloud documents for project ${projectId}`);
-      console.log(`📂 Documents saved to: ${kiroSpecsPath}`);
     } catch (error) {
       console.error('Error downloading cloud documents:', error);
       this.syncStatus.set(projectId, {
@@ -115,7 +104,6 @@ export class SyncService {
    */
   async uploadLocalDocuments(projectId: string, localPath: string): Promise<void> {
     try {
-      console.log(`Uploading local documents for project ${projectId} from ${localPath}`);
       
       const config = vscode.workspace.getConfiguration('aiProjectManager');
       const dashboardUrl = config.get('dashboardUrl', 'http://localhost:3000');
@@ -165,7 +153,6 @@ export class SyncService {
         message: 'Documents uploaded successfully'
       });
 
-      console.log(`Successfully uploaded local documents for project ${projectId}`);
     } catch (error) {
       console.error('Error uploading local documents:', error);
       this.syncStatus.set(projectId, {
@@ -193,7 +180,6 @@ export class SyncService {
       );
 
       watcher.onDidChange(async (uri) => {
-        console.log(`File changed: ${uri.fsPath}`);
         try {
           await this.uploadLocalDocuments(projectId, localPath);
         } catch (error) {
@@ -202,7 +188,6 @@ export class SyncService {
       });
 
       this.fileWatchers.set(projectId, watcher);
-      console.log(`Started file watching for project ${projectId}`);
     } catch (error) {
       console.error('Error starting file watching:', error);
     }
@@ -216,7 +201,6 @@ export class SyncService {
     if (watcher) {
       watcher.dispose();
       this.fileWatchers.delete(projectId);
-      console.log(`Stopped file watching for project ${projectId}`);
     }
   }
 
@@ -238,7 +222,6 @@ export class SyncService {
 
       const status = await response.json();
       if (status.hasChanges) {
-        console.log(`Cloud changes detected for project ${projectId}, downloading...`);
         await this.downloadCloudDocuments(projectId, localPath);
         return true;
       }
@@ -289,7 +272,6 @@ export class SyncService {
    */
   async forceSync(projectId: string, localPath: string): Promise<void> {
     try {
-      console.log(`Force syncing project ${projectId}`);
       await this.uploadLocalDocuments(projectId, localPath);
       await this.downloadCloudDocuments(projectId, localPath);
     } catch (error) {
