@@ -81,18 +81,31 @@ roki/
 - API keys for AI services (Google Gemini, etc.)
 - Pinecone account for vector storage
 
-### Installation
+### Getting Started
 
-#### 1. Web Dashboard
-Visit [roki.pro](https://roki.pro) to create your account and set up your first project. The web dashboard is available directly in your browser - no local installation required.
+#### 1. Get VSCode Extension
+Download the ROKI Project Manager extension from the [GitHub Releases](https://github.com/the13nth/roki-vscode/releases) page.
 
-#### 2. VS Code Extension
-```bash
-cd vscode-extension
-yarn install
-yarn compile
-# Then install the .vsix file in VS Code
-```
+#### 2. Install the Extension
+1. Open VS Code (or any VSCode-based editor like Cursor)
+2. Go to Extensions view (`Ctrl+Shift+X` or `Cmd+Shift+X`)
+3. Click the "..." menu and select "Install from VSIX..."
+4. Select the downloaded `.vsix` file
+5. The extension will be installed and activated automatically
+
+#### 3. Create Your Project on ROKI
+1. Visit [roki.pro](https://roki.pro) in your browser
+2. Create your account and log in
+3. Create your first project using the web dashboard
+4. Your project will be saved to the cloud
+
+#### 4. Login to VSCode Extension
+1. In VS Code, open the Command Palette (`Ctrl+Shift+P` or `Cmd+Shift+P`)
+2. Type "AI Project Manager: Login" and select it
+3. Follow the authentication flow to connect your extension to your ROKI account
+
+#### 5. Access Your Projects in IDE
+Once logged in, all your project details, requirements, tasks, and progress will be accessible directly in your IDE through the ROKI Project Manager sidebar and commands.
 
 ## 🎯 Core Workflows
 
@@ -109,6 +122,8 @@ yarn compile
 3. **Content Enhancement**: Improve posts with additional instructions
 4. **Save & Track**: Save drafts or mark as posted with performance tracking
 5. **Performance Analysis**: Update metrics and analyze content performance
+
+
 
 ### VS Code Integration
 1. **Authentication**: Login through web dashboard or direct token
