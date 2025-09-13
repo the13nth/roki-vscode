@@ -225,7 +225,7 @@ export function ProjectOverviewTab({ project, onUpdate }: ProjectOverviewTabProp
     try {
       setIsSaving(true);
       
-      let updateValue = editValue;
+      let updateValue: any = editValue;
       
       // Handle different field types
       if (editingField === 'businessModel') {

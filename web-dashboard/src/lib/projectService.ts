@@ -68,18 +68,18 @@ export class ProjectService {
       name: restProjectData.name,
       description: restProjectData.description,
       template: restProjectData.template,
-      custom_template: restProjectData.customTemplate,
+      custom_template: (restProjectData as any).customTemplate,
       industry: restProjectData.industry || 'other',
-      custom_industry: restProjectData.customIndustry,
-      business_model: restProjectData.businessModel || [],
+      custom_industry: (restProjectData as any).customIndustry,
+      business_model: (restProjectData as any).businessModel || [],
       ai_model: restProjectData.aiModel || 'gpt-4',
-      technology_stack: restProjectData.technologyStack,
-      regulatory_compliance: restProjectData.regulatoryCompliance,
+      technology_stack: (restProjectData as any).technologyStack,
+      regulatory_compliance: (restProjectData as any).regulatoryCompliance,
       is_public: projectData.isPublic || false,
       requirements: restProjectData.requirements,
       design: restProjectData.design,
       tasks: restProjectData.tasks,
-      progress: restProjectData.progress,
+      progress: (restProjectData as any).progress,
       context_preferences: {
         ...{
           maxContextSize: 8000,
@@ -93,7 +93,7 @@ export class ProjectService {
         totalCost: 0,
         lastUpdated: now
       },
-      analysis_data: restProjectData.analysisData
+      analysis_data: (restProjectData as any).analysisData
     };
 
     // Store in Supabase

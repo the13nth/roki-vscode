@@ -58,16 +58,22 @@ export interface ProjectConfiguration {
   name: string;
   description: string;
   template: string;
+  customTemplate?: string;
   createdAt: string;
   lastModified: string;
   aiModel: string;
   originalPath?: string; // For imported projects
   country?: string; // Target country/market for the project
   industry?: string; // Industry sector (fintech, healthcare, e-commerce, etc.)
+  customIndustry?: string; // Custom industry if not in predefined list
+  businessModel?: string[]; // Business model types
+  regulatoryCompliance?: string[]; // Regulatory compliance requirements
   technologyStack?: TechnologyStack;
   requirements?: string; // Generated requirements document
   design?: string; // Generated design document
   tasks?: string; // Generated tasks document
+  progress?: any; // Project progress data
+  analysisData?: any; // Project analysis data
   isPublic?: boolean; // Whether the project is visible to everyone
   userId: string; // Project owner's user ID
   teamId?: string; // Associated team ID if part of a team

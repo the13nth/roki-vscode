@@ -183,8 +183,8 @@ export function ProjectAnalysisStep({ onNext, data, errors, isLoading }: WizardS
       };
       
       // Generate target segments from existing data if not provided
-      const targetSegments = comprehensiveResult.targetSegments || (comprehensiveResult.detailedAnalysis?.marketAnalysis?.targetCustomers ? {
-        primary: comprehensiveResult.detailedAnalysis.marketAnalysis.targetCustomers,
+      const targetSegments = (comprehensiveResult as any).targetSegments || ((comprehensiveResult as any).detailedAnalysis?.marketAnalysis?.targetCustomers ? {
+        primary: (comprehensiveResult as any).detailedAnalysis.marketAnalysis.targetCustomers,
         secondary: [],
         demographics: 'Generated from market analysis',
         psychographics: 'Generated from market analysis',
@@ -344,7 +344,7 @@ export function ProjectAnalysisStep({ onNext, data, errors, isLoading }: WizardS
       enhancementStage: {
         ...enhancementStage,
         inferredIndustry // Add the inferred industry to the enhancement stage
-      },
+      } as any,
       targetSegments: enhancementStage.targetSegments,
       businessModelSuggestions: enhancementStage.businessModelSuggestions,
       inferredIndustry // Also add it to the analysis data

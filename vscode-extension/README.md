@@ -4,7 +4,7 @@ An intelligent VSCode extension that provides AI-powered project management capa
 
 ## Features
 
-### 🤖 AI Context Injection
+### 🤖 AI Context Injection (coming soon)
 - Automatically injects project context into AI chat sessions
 - Intelligent document selection and prioritization
 - Configurable context size and preferences

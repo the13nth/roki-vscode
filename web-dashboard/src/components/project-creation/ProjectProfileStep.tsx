@@ -108,7 +108,7 @@ export function ProjectProfileStep({ onNext, onPrevious, data, errors, isLoading
             <div>
               <span className="font-medium text-green-800">Recommended Business Models:</span>
               <div className="flex flex-wrap gap-1 mt-1">
-                {(analysisData.businessModelSuggestions?.recommended || []).map((model, index) => (
+                {(analysisData.businessModelSuggestions?.recommended || []).map((model: any, index: number) => (
                   <span key={index} className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">
                     {model}
                   </span>

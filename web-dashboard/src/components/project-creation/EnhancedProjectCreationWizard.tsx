@@ -72,19 +72,26 @@ export function EnhancedProjectCreationWizard({ onClose, onProjectCreated }: Enh
         setCreationStage('Retrying enhanced specifications generation...');
         
         const profileData = wizardData.profile;
+        if (!profileData) {
+          throw new Error('Profile data is required for enhanced specifications generation');
+        }
+        
+        // Type assertion to help TypeScript understand the type
+        const safeProfileData = profileData as any;
+        
         const specsResponse = await fetch(`/api/projects/${createdProject.id}/generate-enhanced-specs`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             enhancementData: wizardData.analysis,
             projectProfile: {
-              name: profileData.name,
-              industry: profileData.industry,
-              businessModel: Array.isArray(profileData.businessModel) 
-                ? profileData.businessModel.join(', ') 
-                : profileData.businessModel,
-              targetMarket: wizardData.analysis?.targetSegments?.primary || 'General market',
-              problemStatement: wizardData.analysis?.description || profileData.name
+              name: safeProfileData.name,
+              industry: safeProfileData.industry,
+              businessModel: Array.isArray(safeProfileData.businessModel) 
+                ? safeProfileData.businessModel.join(', ') 
+                : safeProfileData.businessModel,
+              targetMarket: (wizardData.analysis as any)?.targetSegments?.primary || 'General market',
+              problemStatement: (wizardData.analysis as any)?.description || safeProfileData.name
             }
           })
         });
@@ -127,15 +134,15 @@ export function EnhancedProjectCreationWizard({ onClose, onProjectCreated }: Enh
       // Create project with all collected data
       const projectData = {
         name: profileData.name,
-        description: wizardData.analysis?.description || '',
-        industry: wizardData.template?.industry || profileData.industry,
-        customIndustry: wizardData.template?.customIndustry || profileData.customIndustry,
+        description: (wizardData.analysis as any)?.description || '',
+        industry: (wizardData.template as any)?.industry || profileData.industry,
+        customIndustry: (wizardData.template as any)?.customIndustry || profileData.customIndustry,
         businessModel: profileData.businessModel,
         isPublic: profileData.isPublic,
-        template: wizardData.template?.selectedTemplate || 'standard',
-        customTemplate: wizardData.template?.customTemplate,
-        technologyStack: wizardData.technologyStack?.technologyStack || [],
-        regulatoryCompliance: wizardData.regulatoryCompliance?.regulatoryCompliance || [],
+        template: (wizardData.template as any)?.selectedTemplate || 'standard',
+        customTemplate: (wizardData.template as any)?.customTemplate,
+        technologyStack: (wizardData.technologyStack as any)?.technologyStack || [],
+        regulatoryCompliance: (wizardData.regulatoryCompliance as any)?.regulatoryCompliance || [],
         // Include analysis data for enhanced project creation
         analysisData: wizardData.analysis
       };
@@ -156,7 +163,7 @@ export function EnhancedProjectCreationWizard({ onClose, onProjectCreated }: Enh
       setCreationStage('Project created successfully!');
 
       // Generate enhanced specifications if analysis data is available
-      if (wizardData.analysis?.enhancementStage) {
+      if ((wizardData.analysis as any)?.enhancementStage) {
         try {
           setCreationStage('Generating enhanced specifications...');
           
@@ -171,8 +178,8 @@ export function EnhancedProjectCreationWizard({ onClose, onProjectCreated }: Enh
                 businessModel: Array.isArray(profileData.businessModel) 
                   ? profileData.businessModel.join(', ') 
                   : profileData.businessModel,
-                targetMarket: wizardData.analysis?.targetSegments?.primary || 'General market',
-                problemStatement: wizardData.analysis?.description || profileData.name
+                targetMarket: (wizardData.analysis as any)?.targetSegments?.primary || 'General market',
+                problemStatement: (wizardData.analysis as any)?.description || profileData.name
               }
             })
           });
@@ -206,7 +213,7 @@ export function EnhancedProjectCreationWizard({ onClose, onProjectCreated }: Enh
           console.error('Failed to generate enhanced specifications:', specsError);
           setFailedStep('specs');
           setErrors({ 
-            specs: `Enhanced specifications generation failed: ${specsError.message || specsError}. Please retry this step.` 
+            specs: `Enhanced specifications generation failed: ${(specsError as any)?.message || specsError}. Please retry this step.` 
           });
           // Don't delete the project - let user choose to retry or continue
         }

@@ -101,7 +101,7 @@ export function TemplateSelectionStep({ onNext, onPrevious, data, errors, isLoad
             <div>
               <span className="font-medium text-blue-800">Recommended Business Models:</span>
               <div className="flex flex-wrap gap-1 mt-1">
-                {suggestedBusinessModels.map((model, index) => (
+                {suggestedBusinessModels.map((model: any, index: number) => (
                   <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
                     {model}
                   </span>
