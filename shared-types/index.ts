@@ -103,6 +103,19 @@ export interface FileWatcher {
   onFileChange(callback: (filePath: string) => void): void;
 }
 
+// Opportunity interface
+export interface Opportunity {
+  Opportunity: string;
+  Description: string;
+  Type: 'Competition' | 'Program' | 'Accelerator' | 'Incubator' | 'Grant' | 'Fellowship' | 'Challenge' | 'Award' | 'Hackathon';
+  "Close Date": string;
+  Status: 'Open' | 'Closed' | 'Coming Soon';
+  Link: string;
+  "Eligible Countries": string;
+  "For Female Founders": boolean;
+  "Sectors of Interest": string;
+}
+
 // Web Dashboard specific interfaces
 export interface ProjectDashboard {
   projectId: string;

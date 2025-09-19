@@ -68,6 +68,22 @@ export interface ProjectRequirement {
   updated_at: string;
 }
 
+export interface Opportunity {
+  id: string;
+  opportunity_name: string;
+  description: string;
+  type: 'Competition' | 'Program' | 'Accelerator' | 'Incubator' | 'Grant' | 'Fellowship' | 'Challenge' | 'Award' | 'Hackathon';
+  close_date: string; // Date string in YYYY-MM-DD format
+  status: 'Open' | 'Closed' | 'Coming Soon';
+  link?: string;
+  eligible_countries: string[];
+  for_female_founders: boolean;
+  sectors_of_interest: string[];
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // Supabase service class
 export class SupabaseService {
   private static instance: SupabaseService;
@@ -190,7 +206,7 @@ export class SupabaseService {
     }
   }
 
-  async checkProjectSharing(projectId: string, userEmail: string): Promise<boolean> {
+  async checkProjectSharing(_projectId: string, _userEmail: string): Promise<boolean> {
     // For now, we'll implement a simple check
     // In a full implementation, you'd check a project_sharing table
     // For this demo, we'll return false (no sharing implemented yet)
@@ -315,6 +331,116 @@ export class SupabaseService {
       console.error('Error deleting requirement:', error);
       throw new Error(`Failed to delete requirement: ${error.message}`);
     }
+  }
+
+  // Opportunity operations
+  async createOpportunity(opportunityData: Omit<Opportunity, 'id' | 'created_at' | 'updated_at'>): Promise<Opportunity> {
+    const { data, error } = await supabaseService
+      .from('opportunities')
+      .insert([{
+        ...opportunityData,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating opportunity:', error);
+      throw new Error(`Failed to create opportunity: ${error.message}`);
+    }
+
+    return data;
+  }
+
+  async getOpportunities(): Promise<Opportunity[]> {
+    const { data, error } = await supabaseService
+      .from('opportunities')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching opportunities:', error);
+      throw new Error(`Failed to fetch opportunities: ${error.message}`);
+    }
+
+    return data || [];
+  }
+
+  async getOpportunity(opportunityId: string): Promise<Opportunity | null> {
+    const { data, error } = await supabaseService
+      .from('opportunities')
+      .select('*')
+      .eq('id', opportunityId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return null; // No rows found
+      }
+      console.error('Error fetching opportunity:', error);
+      throw new Error(`Failed to fetch opportunity: ${error.message}`);
+    }
+
+    return data;
+  }
+
+  async updateOpportunity(opportunityId: string, updates: Partial<Opportunity>): Promise<Opportunity> {
+    const { data, error } = await supabaseService
+      .from('opportunities')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', opportunityId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating opportunity:', error);
+      throw new Error(`Failed to update opportunity: ${error.message}`);
+    }
+
+    return data;
+  }
+
+  async deleteOpportunity(opportunityId: string): Promise<void> {
+    const { error } = await supabaseService
+      .from('opportunities')
+      .delete()
+      .eq('id', opportunityId);
+
+    if (error) {
+      console.error('Error deleting opportunity:', error);
+      throw new Error(`Failed to delete opportunity: ${error.message}`);
+    }
+  }
+
+  // Utility method to migrate existing JSON data to Supabase
+  async migrateOpportunitiesFromJson(opportunities: any[]): Promise<void> {
+    const transformedOpportunities = opportunities.map(opp => ({
+      opportunity_name: opp.Opportunity,
+      description: opp.Description,
+      type: opp.Type as Opportunity['type'],
+      close_date: opp['Close Date'],
+      status: opp.Status as Opportunity['status'],
+      link: opp.Link || null,
+      eligible_countries: opp['Eligible Countries'] ? opp['Eligible Countries'].split(',').map((c: string) => c.trim()) : [],
+      for_female_founders: Boolean(opp['For Female Founders']),
+      sectors_of_interest: opp['Sectors of Interest'] ? opp['Sectors of Interest'].split(',').map((s: string) => s.trim()) : [],
+      created_by: null // No creator info in JSON data
+    }));
+
+    const { error } = await supabaseService
+      .from('opportunities')
+      .insert(transformedOpportunities);
+
+    if (error) {
+      console.error('Error migrating opportunities:', error);
+      throw new Error(`Failed to migrate opportunities: ${error.message}`);
+    }
+
+    console.log(`Successfully migrated ${transformedOpportunities.length} opportunities to Supabase`);
   }
 }
 

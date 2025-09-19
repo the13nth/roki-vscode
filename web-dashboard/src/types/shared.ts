@@ -72,8 +72,8 @@ export interface ProjectConfiguration {
   requirements?: string; // Generated requirements document
   design?: string; // Generated design document
   tasks?: string; // Generated tasks document
-  progress?: any; // Project progress data
-  analysisData?: any; // Project analysis data
+  progress?: ProgressData; // Project progress data
+  analysisData?: Record<string, unknown>; // Project analysis data
   isPublic?: boolean; // Whether the project is visible to everyone
   userId: string; // Project owner's user ID
   teamId?: string; // Associated team ID if part of a team

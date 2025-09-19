@@ -7,9 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { TypewriterEffect } from '@/components/ui/typewriter-effect';
 import { SlidingText } from '@/components/ui/sliding-text';
-import { SignedIn, SignedOut, SignUpButton, useUser } from '@clerk/nextjs';
+import { SignedIn, SignedOut, useUser } from '@clerk/nextjs';
 import { UnifiedNavigation } from './UnifiedNavigation';
 import { PlanSelectionModal } from './PlanSelectionModal';
+import { WaitlistModal } from './WaitlistModal';
 import { 
   Rocket, 
   Brain, 
@@ -96,6 +97,7 @@ export function HomePage() {
   const [showModal, setShowModal] = useState(false);
   const [modalPlan, setModalPlan] = useState<any>(null);
   const [modalLoading, setModalLoading] = useState(false);
+  const [isWaitlistModalOpen, setIsWaitlistModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   const { user } = useUser();
@@ -468,12 +470,14 @@ export function HomePage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
               <SignedOut>
-                <SignUpButton>
-                  <Button size="lg" className="bg-black hover:bg-gray-800 text-white text-lg px-8 py-4 border-2 border-gray-800">
-                    <Rocket className="mr-2 h-5 w-5" />
-                    Start Building Today
-                  </Button>
-                </SignUpButton>
+                <Button 
+                  size="lg" 
+                  className="bg-black hover:bg-gray-800 text-white text-lg px-8 py-4 border-2 border-gray-800"
+                  onClick={() => setIsWaitlistModalOpen(true)}
+                >
+                  <Rocket className="mr-2 h-5 w-5" />
+                  Start Building Today
+                </Button>
               </SignedOut>
               <SignedIn>
                 <Link href="/projects">
@@ -1154,6 +1158,12 @@ export function HomePage() {
         </div>
       </div>
       </footer>
+      
+      {/* Waitlist Modal */}
+      <WaitlistModal 
+        isOpen={isWaitlistModalOpen} 
+        onClose={() => setIsWaitlistModalOpen(false)} 
+      />
     </div>
   );
 }

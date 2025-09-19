@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { ClientOnly } from './ClientOnly';
+import ClientOnly from './ClientOnly';
 
 function FileWatcherInitializerInner() {
   const [, setWatcherStatus] = useState<'initializing' | 'active' | 'error' | 'inactive'>('initializing');

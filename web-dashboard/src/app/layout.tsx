@@ -5,7 +5,7 @@ import { FileWatcherInitializer } from "@/components/FileWatcherInitializer";
 import { NavigationHeader } from "@/components/NavigationHeader";
 import { DotMatrixBackground } from "@/components/ui/dot-matrix-background";
 import { ClerkProvider } from '@clerk/nextjs';
-import { ClientOnly } from "@/components/ClientOnly";
+import ClientOnly from "@/components/ClientOnly";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/react";
 import { Toaster } from "@/components/ui/toaster";

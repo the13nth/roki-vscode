@@ -24,7 +24,8 @@ import {
   Home
 } from 'lucide-react';
 import { GlobalApiSettings } from './GlobalApiSettings';
-import { SignedIn, SignedOut, UserButton, SignInButton, SignUpButton, useUser, useOrganization } from '@clerk/nextjs';
+import { WaitlistModal } from './WaitlistModal';
+import { SignedIn, SignedOut, UserButton, SignInButton, useUser, useOrganization } from '@clerk/nextjs';
 
 interface UnifiedNavigationProps {
   variant?: 'homepage' | 'global' | 'project';
@@ -45,6 +46,7 @@ export function UnifiedNavigation({
   const { user } = useUser();
   const { organization } = useOrganization();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isWaitlistModalOpen, setIsWaitlistModalOpen] = useState(false);
   
   // Check if user is admin
   const isAdmin = organization?.slug === 'binghi_admins' || 
@@ -373,13 +375,15 @@ export function UnifiedNavigation({
                         <span className="sm:hidden">In</span>
                       </Button>
                     </SignInButton>
-                    <SignUpButton>
-                      <Button size="sm" className="bg-black hover:bg-gray-800 text-white border-2 border-gray-800 text-xs md:text-sm">
-                        <UserPlus className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
-                        <span className="hidden sm:inline">Sign Up</span>
-                        <span className="sm:hidden">Up</span>
-                      </Button>
-                    </SignUpButton>
+                    <Button 
+                      size="sm" 
+                      className="bg-black hover:bg-gray-800 text-white border-2 border-gray-800 text-xs md:text-sm"
+                      onClick={() => setIsWaitlistModalOpen(true)}
+                    >
+                      <UserPlus className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4" />
+                      <span className="hidden sm:inline">Sign Up</span>
+                      <span className="sm:hidden">Up</span>
+                    </Button>
                   </>
                 ) : (
                   <SignInButton>
@@ -425,6 +429,12 @@ export function UnifiedNavigation({
       
       {/* Mobile menu */}
       {renderMobileMenu()}
+      
+      {/* Waitlist Modal */}
+      <WaitlistModal 
+        isOpen={isWaitlistModalOpen} 
+        onClose={() => setIsWaitlistModalOpen(false)} 
+      />
     </header>
   );
 }

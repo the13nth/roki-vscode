@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Opportunities JSON</title>
+</head>
+<body>
+    <h1>Testing Opportunities JSON</h1>
+    <div id="result"></div>
+    
+    <script>
+        fetch('/final_opportunities.json')
+            .then(response => {
+                console.log('Response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Data loaded:', data.length, 'opportunities');
+                document.getElementById('result').innerHTML = `
+                    <p>Successfully loaded ${data.length} opportunities</p>
+                    <pre>${JSON.stringify(data[0], null, 2)}</pre>
+                `;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('result').innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            });
+    </script>
+</body>
+</html>

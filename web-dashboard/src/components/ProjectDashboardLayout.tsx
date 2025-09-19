@@ -17,6 +17,7 @@ import { ProjectAnalysis } from './ProjectAnalysis';
 import { SocialPostsGenerator } from './SocialPostsGenerator';
 import { PromptsViewer } from './PromptsViewer';
 import ProjectApplicationsView from './ProjectApplicationsView';
+import OpportunitiesView from './OpportunitiesView';
 import ProjectTeamTab from './ProjectTeamTab';
 
 import SyncStatus from './SyncStatus';
@@ -297,16 +298,7 @@ export function ProjectDashboardLayout({
                 
                   {currentTab === 'applications' && (
                     <div className="p-6">
-                      <div className="space-y-6">
-                        <div>
-                          <h1 className="text-2xl font-bold">Project Applications</h1>
-                          <p className="text-gray-600">
-                            Review applications from people interested in contributing to your project requirements.
-                          </p>
-                        </div>
-                        
-                        <ProjectApplicationsView projectId={projectId} isOwned={project.isOwned} />
-                      </div>
+                      <OpportunitiesView />
                     </div>
                   )}
                   

@@ -17,7 +17,8 @@ import {
   Network,
   Share2,
   Code2,
-  Users
+  Users,
+  Target
 } from 'lucide-react';
 
 interface ProjectNavigationProps {
@@ -99,9 +100,9 @@ export function ProjectNavigation({ projectId, activeTab, progress, onNavigate, 
     },
     {
       id: 'applications',
-      name: 'Applications',
-      description: 'View applications for project requirements',
-      icon: <Users className="w-5 h-4" />
+      name: 'Opportunities',
+      description: 'Discover funding and accelerator opportunities',
+      icon: <Target className="w-5 h-4" />
     },
     {
       id: 'team',
